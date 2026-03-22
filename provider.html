@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoadSOS — Provider Dashboard</title>
+<meta name="description" content="RoadSOS Service Provider Dashboard — Receive and respond to emergency SOS alerts">
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+.provider-app { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 80px; }
+.screen { display: none; animation: fade-in 0.3s ease; }
+.screen.active { display: block; }
+.header-bar { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border); background:var(--bg-panel); position:sticky; top:0; z-index:50; }
+.header-bar h1 { font-family:var(--font-mono); font-size:1.1rem; color:var(--accent-alert); }
+.screen-pad { padding: 1.25rem; }
+.login-container { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:2rem; }
+.login-box { width:100%; max-width:380px; }
+.login-logo { text-align:center; margin-bottom:2rem; }
+.login-logo h1 { font-family:var(--font-mono); font-size:2rem; color:var(--accent-alert); }
+.login-logo p { color:var(--text-muted); font-size:0.85rem; margin-top:0.3rem; }
+.login-error { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#F87171; padding:0.6rem 1rem; border-radius:var(--radius-sm); font-size:0.8rem; margin-bottom:1rem; display:none; }
+.alert-card { background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; margin-bottom:0.75rem; cursor:pointer; transition:all 0.3s; animation:slide-in-top 0.4s ease; }
+.alert-card:hover { border-color:var(--accent-alert); }
+.alert-card.new { animation:slide-in-top 0.4s ease, urgent-border 1s infinite; }
+.alert-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem; }
+.alert-type { display:flex; align-items:center; gap:0.4rem; font-weight:700; font-size:0.95rem; }
+.alert-time { font-family:var(--font-mono); font-size:0.75rem; color:var(--accent-alert); }
+.alert-block { font-family:var(--font-mono); font-size:1.3rem; font-weight:700; color:var(--accent-online); margin:0.3rem 0; }
+.alert-meta { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; font-size:0.75rem; color:var(--text-muted); }
+.conf-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+.detail-field { display:flex; justify-content:space-between; padding:0.4rem 0; border-bottom:1px solid var(--border); font-size:0.85rem; }
+.detail-field .label { color:var(--text-muted); }
+.dispatch-card { background:var(--bg-panel); border:2px solid var(--accent-alert); border-radius:var(--radius); padding:1.25rem; text-align:center; }
+.dispatch-timer { font-family:var(--font-mono); font-size:3rem; font-weight:700; color:var(--accent-alert); }
+.profile-stat { display:flex; justify-content:space-between; padding:0.75rem 0; border-bottom:1px solid var(--border); }
+.profile-stat .val { font-family:var(--font-mono); font-weight:700; }
+#dispatchMap, #detailMap { height: 250px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin: 1rem 0; }
+.empty-state { text-align:center; padding:3rem 1rem; color:var(--text-muted); }
+.empty-state .icon { font-size:3rem; margin-bottom:0.5rem; }
+</style>
+</head>
+<body>
+<div class="provider-app" id="app">
+  <!-- Login Screen -->
+  <div class="screen active" id="screenLogin">
+    <div class="login-container">
+      <div class="login-box">
+        <div class="login-logo">
+          <div style="font-size:3rem;margin-bottom:0.5rem;">🛡️</div>
+          <h1>RoadSOS</h1>
+          <p>Service Provider Dashboard</p>
+        </div>
+        <div class="login-error" id="loginError">Credentials invalid. Contact RoadSOS Admin.</div>
+        <div style="margin-bottom:1rem;">
+          <label class="label">Registration ID</label>
+          <input class="input" type="text" id="loginId" placeholder="RSOS-XXXX-000000" style="font-family:var(--font-mono);">
+        </div>
+        <div style="margin-bottom:1.5rem;">
+          <label class="label">Password</label>
+          <input class="input" type="password" id="loginPass" placeholder="Enter password">
+        </div>
+        <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Sign In</button>
+        <div class="text-center text-xs text-muted mt-2">No self-registration. Credentials provided by admin.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div class="screen" id="screenMain">
+    <div class="header-bar">
+      <h1>🛡️ RoadSOS</h1>
+      <div class="flex-row"><span class="text-xs text-muted" id="provBadge"></span></div>
+    </div>
+
+    <div id="tabAlerts" class="screen-pad" style="display:block;">
+      <div class="flex-between mb-2">
+        <h3 style="font-size:1rem;">Live SOS Alerts</h3>
+        <span class="badge badge-active" id="alertCount">0 active</span>
+      </div>
+      <div id="alertList"></div>
+      <div id="emptyAlerts" class="empty-state">
+        <div class="icon">🔔</div>
+        <p>No SOS alerts yet. Alerts will appear here in real-time when users send emergencies.</p>
+      </div>
+    </div>
+
+    <div id="tabDetail" style="display:none;" class="screen-pad">
+      <button class="btn btn-sm btn-secondary mb-2" onclick="showTab('tabAlerts')">← Back</button>
+      <div id="alertDetail"></div>
+    </div>
+
+    <div id="tabDispatch" style="display:none;" class="screen-pad">
+      <h3 style="font-size:1rem;margin-bottom:1rem;">Active Dispatch</h3>
+      <div id="dispatchContent"></div>
+    </div>
+
+    <div id="tabProfile" style="display:none;" class="screen-pad">
+      <h3 style="font-size:1rem;margin-bottom:1rem;">Provider Profile</h3>
+      <div id="profileContent"></div>
+    </div>
+
+    <nav class="mobile-nav" id="providerNav" style="display:none;">
+      <div class="mobile-nav-item active" onclick="showTab('tabAlerts')"><span class="nav-icon">🚨</span>Alerts</div>
+      <div class="mobile-nav-item" onclick="showTab('tabDispatch')"><span class="nav-icon">🚀</span>Dispatch</div>
+      <div class="mobile-nav-item" onclick="showTab('tabProfile')"><span class="nav-icon">👤</span>Profile</div>
+    </nav>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+let loggedInProvider = null;
+let activeDispatch = null;
+let dispatchInterval = null;
+let alertPollInterval = null;
+let detailMap = null;
+let dispatchMap = null;
+
+// ═══ LOGIN ═══
+function doLogin() {
+  const id = document.getElementById('loginId').value.trim();
+  const pass = document.getElementById('loginPass').value.trim();
+
+  if (!id || !pass) {
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('loginError').textContent = 'Please enter both Registration ID and Password.';
+    return;
+  }
+
+  // Validate against admin-registered providers in localStorage
+  const provider = Store.findProvider(id, pass);
+
+  if (!provider) {
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('loginError').textContent = 'Credentials invalid. Contact RoadSOS Admin.';
+    return;
+  }
+
+  loggedInProvider = provider;
+  login();
+}
+
+function login() {
+  document.getElementById('screenLogin').classList.remove('active');
+  document.getElementById('screenMain').classList.add('active');
+  document.getElementById('providerNav').style.display = 'flex';
+  document.getElementById('provBadge').textContent = loggedInProvider.id;
+  localStorage.setItem(STORE_KEYS.LOGGED_PROVIDER, JSON.stringify(loggedInProvider));
+
+  // Update last login
+  Store.updateProvider(loggedInProvider.id, { lastLogin: new Date().toISOString() });
+
+  renderAlerts();
+  renderProfile();
+  startAlertPolling();
+}
+
+// Check persistent session
+(function checkSession() {
+  const saved = localStorage.getItem(STORE_KEYS.LOGGED_PROVIDER);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      // Verify provider still exists in store
+      const exists = Store.getProviders().find(p => p.id === parsed.id);
+      if (exists) {
+        loggedInProvider = exists;
+        login();
+      }
+    } catch(e) {}
+  }
+})();
+
+// ═══ TABS ═══
+function showTab(tabId) {
+  ['tabAlerts', 'tabDetail', 'tabDispatch', 'tabProfile'].forEach(t => {
+    document.getElementById(t).style.display = t === tabId ? 'block' : 'none';
+  });
+  document.querySelectorAll('#providerNav .mobile-nav-item').forEach(n => n.classList.remove('active'));
+  const map = { tabAlerts: 0, tabDetail: 0, tabDispatch: 1, tabProfile: 2 };
+  if (map[tabId] !== undefined) document.querySelectorAll('#providerNav .mobile-nav-item')[map[tabId]].classList.add('active');
+  if (tabId === 'tabAlerts') renderAlerts();
+  if (tabId === 'tabProfile') renderProfile();
+  if (tabId === 'tabDispatch') renderDispatch();
+}
+
+// ═══ ALERTS — Real data from localStorage ═══
+function renderAlerts() {
+  const events = Store.getSOSEvents().filter(e => !e.resolved);
+  document.getElementById('alertCount').textContent = `${events.length} active`;
+  const list = document.getElementById('alertList');
+  const empty = document.getElementById('emptyAlerts');
+
+  if (events.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  list.innerHTML = events.map((a, i) => {
+    const elapsed = Math.floor((Date.now() - new Date(a.timestamp)) / 1000);
+    const type = a.type || EMERGENCY_TYPES.find(t => t.code === a.typeCode) || EMERGENCY_TYPES[0];
+    const confColor = a.confidence >= 85 ? '#22D3EE' : a.confidence >= 60 ? '#FACC15' : '#F97316';
+    const tx = a.transmission || TRANSMISSION_METHODS[0];
+    return `<div class="alert-card ${i === 0 ? 'new' : ''}" onclick="showAlertDetail('${a.id}')">
+      <div class="alert-top">
+        <div class="alert-type" style="color:${type.color}">${type.icon} ${type.label}</div>
+        <div class="alert-time">${formatElapsed(elapsed)}</div>
+      </div>
+      <div class="alert-block">${a.blockCode}</div>
+      <div class="alert-meta">
+        <span><span class="conf-dot" style="background:${confColor}"></span> Conf: ${a.confidence}%</span>
+        <span class="badge ${tx.badge}">${tx.code}</span>
+        ${a.lat ? `<span>📍 ${a.lat.toFixed(4)}°, ${a.lng.toFixed(4)}°</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function formatElapsed(sec) {
+  if (sec < 60) return `${sec}s ago`;
+  const m = Math.floor(sec / 60);
+  return `${m} min ago`;
+}
+
+// ═══ ALERT DETAIL with Live Map ═══
+function showAlertDetail(id) {
+  const alert = Store.getSOSEvents().find(e => e.id === id);
+  if (!alert) return;
+  showTab('tabDetail');
+
+  const type = alert.type || EMERGENCY_TYPES.find(t => t.code === alert.typeCode) || EMERGENCY_TYPES[0];
+  const confColor = alert.confidence >= 85 ? 'var(--accent-online)' : alert.confidence >= 60 ? 'var(--accent-offline)' : 'var(--accent-alert)';
+  const tx = alert.transmission || TRANSMISSION_METHODS[0];
+
+  document.getElementById('alertDetail').innerHTML = `
+    <div class="card card-glow-alert mb-2">
+      <div class="flex-between">
+        <div class="alert-type" style="color:${type.color};font-size:1.2rem;">${type.icon} ${type.label}</div>
+        <span class="badge ${tx.badge}">${tx.code}</span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--accent-online);margin:0.5rem 0;">${alert.blockCode}</div>
+      <div class="packet-display">${alert.packet}</div>
+      ${alert.lat ? `<div class="text-xs text-muted mt-1">📍 ${alert.lat.toFixed(5)}°, ${alert.lng.toFixed(5)}°</div>` : ''}
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <h4 style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.5rem;">Live Location Map</h4>
+      <div id="detailMap"></div>
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <h4 style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.5rem;">Details</h4>
+      <div class="detail-field"><span class="label">Block Code</span><span style="font-family:var(--font-mono);">${alert.blockCode}</span></div>
+      <div class="detail-field"><span class="label">Confidence</span><span style="color:${confColor};font-weight:700;">${alert.confidence}%</span></div>
+      <div class="detail-field"><span class="label">Time</span><span>${alert.timeStr || new Date(alert.timestamp).toLocaleTimeString()}</span></div>
+      <div class="detail-field"><span class="label">Transmission</span><span class="badge ${tx.badge}">${tx.code}</span></div>
+    </div>
+
+    <button class="btn btn-primary btn-full btn-lg" onclick="acceptDispatch('${alert.id}')" style="margin-bottom:0.75rem;">
+      🚀 Accept & Dispatch
+    </button>
+    <select class="select mb-2" id="declineReason">
+      <option value="">Select decline reason...</option>
+      <option>Out of range</option><option>Unavailable</option><option>Already responding</option>
+    </select>
+    <button class="btn btn-secondary btn-full" onclick="declineAlert('${alert.id}')">Decline</button>
+  `;
+
+  // Initialize Leaflet map for alert location
+  setTimeout(() => {
+    if (detailMap) detailMap.remove();
+    const lat = alert.lat || 20.5937;
+    const lng = alert.lng || 78.9629;
+    detailMap = L.map('detailMap').setView([lat, lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(detailMap);
+    const marker = L.marker([lat, lng]).addTo(detailMap);
+    marker.bindPopup(`<b>🚨 ${type.label}</b><br>${alert.blockCode}<br>${alert.packet}`).openPopup();
+    // Add circle for accuracy
+    L.circle([lat, lng], { radius: 200, color: type.color, fillOpacity: 0.1 }).addTo(detailMap);
+  }, 100);
+}
+
+// ═══ DISPATCH ═══
+function acceptDispatch(id) {
+  const alert = Store.getSOSEvents().find(e => e.id === id);
+  if (!alert) return;
+
+  activeDispatch = {
+    ...alert,
+    dispatchTime: Date.now(),
+    eta: (Math.floor(Math.random() * 15) + 5) * 60,
+  };
+
+  // Update SOS event
+  Store.updateSOSEvent(id, {
+    providerId: loggedInProvider.id,
+    providerName: loggedInProvider.name,
+    dispatchedAt: new Date().toISOString(),
+  });
+
+  showTab('tabDispatch');
+  renderDispatch();
+  showToast('Dispatch accepted — navigate to the location');
+}
+
+function renderDispatch() {
+  if (!activeDispatch) {
+    document.getElementById('dispatchContent').innerHTML = `
+      <div class="empty-state"><div class="icon">🚀</div><h3 class="text-muted">No Active Dispatch</h3><p class="text-sm text-muted mt-1">Accept an SOS alert to start a dispatch</p></div>`;
+    return;
+  }
+
+  const d = activeDispatch;
+  const type = d.type || EMERGENCY_TYPES.find(t => t.code === d.typeCode) || EMERGENCY_TYPES[0];
+
+  document.getElementById('dispatchContent').innerHTML = `
+    <div class="dispatch-card mb-2">
+      <div style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.3rem;">ETA Countdown</div>
+      <div class="dispatch-timer" id="dispatchETA">--:--</div>
+      <div class="text-xs text-muted mt-1">Time dispatched: <span id="dispatchElapsed">0s</span></div>
+    </div>
+    <div class="card mb-2">
+      <div class="flex-between mb-1">
+        <span class="alert-type" style="color:${type.color}">${type.icon} ${type.label}</span>
+        <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent-online);">${d.blockCode}</span>
+      </div>
+      <div class="text-xs text-muted">📍 ${d.lat ? d.lat.toFixed(5) + '°, ' + d.lng.toFixed(5) + '°' : 'Location unknown'}</div>
+    </div>
+    <div id="dispatchMap"></div>
+    <button class="btn btn-success btn-full btn-lg" onclick="resolveDispatch()">✅ Mark as Resolved</button>
+  `;
+
+  // Init dispatch map
+  setTimeout(() => {
+    if (dispatchMap) dispatchMap.remove();
+    const lat = d.lat || 20.5937;
+    const lng = d.lng || 78.9629;
+    dispatchMap = L.map('dispatchMap').setView([lat, lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(dispatchMap);
+    L.marker([lat, lng]).addTo(dispatchMap)
+      .bindPopup(`<b>🚨 ${type.label}</b><br>${d.blockCode}`).openPopup();
+    L.circle([lat, lng], { radius: 300, color: '#F97316', fillOpacity: 0.1 }).addTo(dispatchMap);
+  }, 100);
+
+  // Timer
+  if (dispatchInterval) clearInterval(dispatchInterval);
+  const updateTimer = () => {
+    const elapsed = Math.floor((Date.now() - d.dispatchTime) / 1000);
+    const remaining = Math.max(0, d.eta - elapsed);
+    const min = Math.floor(remaining / 60);
+    const sec = remaining % 60;
+    const el = document.getElementById('dispatchETA');
+    if (el) el.textContent = `${min}:${String(sec).padStart(2, '0')}`;
+    const el2 = document.getElementById('dispatchElapsed');
+    if (el2) el2.textContent = `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`;
+  };
+  dispatchInterval = setInterval(updateTimer, 1000);
+  updateTimer();
+}
+
+function resolveDispatch() {
+  if (!activeDispatch) return;
+  clearInterval(dispatchInterval);
+  const elapsed = Math.floor((Date.now() - activeDispatch.dispatchTime) / 1000);
+  const resMin = Math.round(elapsed / 60);
+
+  // Update SOS event as resolved
+  Store.updateSOSEvent(activeDispatch.id, {
+    resolved: true,
+    resolutionMin: resMin || 1,
+  });
+
+  activeDispatch = null;
+  document.getElementById('dispatchContent').innerHTML = `
+    <div class="empty-state" style="padding:2rem;"><div style="font-size:3rem;">✅</div>
+    <h3 style="color:var(--success);margin:0.5rem 0;">Dispatch Resolved</h3>
+    <p class="text-sm text-muted">Resolution time: ${Math.floor(elapsed/60)}m ${elapsed%60}s</p>
+    <button class="btn btn-secondary mt-2" onclick="showTab('tabAlerts')">Back to Alerts</button></div>`;
+  showToast('Dispatch resolved successfully');
+}
+
+function declineAlert(id) {
+  const reason = document.getElementById('declineReason').value;
+  if (!reason) { showToast('Please select a decline reason'); return; }
+  showTab('tabAlerts');
+  showToast('Alert declined — ' + reason);
+}
+
+// ═══ PROFILE ═══
+function renderProfile() {
+  if (!loggedInProvider) return;
+  const p = loggedInProvider;
+  const events = Store.getSOSEvents();
+  const myEvents = events.filter(e => e.providerId === p.id);
+  const resolved = myEvents.filter(e => e.resolved);
+
+  document.getElementById('profileContent').innerHTML = `
+    <div class="card mb-2" style="text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem;">${p.category?.icon || '🏥'}</div>
+      <h3>${p.name}</h3>
+      <div class="text-sm text-muted">${p.category?.label || 'Provider'}</div>
+      <div style="font-family:var(--font-mono);font-size:0.8rem;color:var(--accent-alert);margin-top:0.3rem;">${p.id}</div>
+    </div>
+    <div class="card mb-2">
+      <h4 style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.75rem;">Registration Details</h4>
+      <div class="detail-field"><span class="label">Phone</span><span>${p.phone || 'N/A'}</span></div>
+      <div class="detail-field"><span class="label">Coverage</span><span>${p.corridorName || 'All'}</span></div>
+      <div class="detail-field"><span class="label">Status</span><span class="badge ${p.status==='Active'?'badge-active':'badge-inactive'}">${p.status}</span></div>
+    </div>
+    <div class="card mb-2">
+      <h4 style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.75rem;">Response History</h4>
+      <div class="profile-stat"><span>Total Dispatches</span><span class="val">${myEvents.length}</span></div>
+      <div class="profile-stat"><span>Resolved</span><span class="val text-success">${resolved.length}</span></div>
+      <div class="profile-stat"><span>Avg Response</span><span class="val">${resolved.length ? Math.round(resolved.reduce((s,e)=>s+(e.resolutionMin||0),0)/resolved.length) : 0} min</span></div>
+    </div>
+    <div class="flex-between card">
+      <div><h4 style="font-size:0.9rem;">Availability</h4><p class="text-xs text-muted">Toggle to receive/pause alerts</p></div>
+      <label class="toggle-switch"><input type="checkbox" ${p.available !== false ? 'checked' : ''} onchange="toggleAvail(this)"><span class="toggle-slider"></span></label>
+    </div>
+    <button class="btn btn-danger btn-full mt-2 btn-sm" onclick="logout()">Sign Out</button>
+  `;
+}
+
+function toggleAvail(el) {
+  loggedInProvider.available = el.checked;
+  Store.updateProvider(loggedInProvider.id, { available: el.checked });
+  showToast(el.checked ? 'Status: Available' : 'Status: Unavailable');
+}
+
+function logout() {
+  localStorage.removeItem(STORE_KEYS.LOGGED_PROVIDER);
+  location.reload();
+}
+
+// ═══ POLL FOR NEW ALERTS ═══
+function startAlertPolling() {
+  if (alertPollInterval) clearInterval(alertPollInterval);
+  alertPollInterval = setInterval(() => {
+    if (document.getElementById('tabAlerts').style.display !== 'none') {
+      renderAlerts();
+    }
+  }, 3000); // Check every 3 seconds
+}
+
+// ═══ TOAST ═══
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+</script>
+</body>
+</html>

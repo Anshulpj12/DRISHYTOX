@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoadSOS — Works Where Every Other System Fails</title>
+<meta name="description" content="RoadSOS — GPS-based emergency response platform for India's 1,750 km of highway dead zones. Offline-first, history-driven, V2V encrypted.">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ═══ LANDING STYLES ═══ */
+.landing { overflow-x: hidden; }
+
+/* Hero */
+.hero {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 2rem; position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 120%, rgba(249,115,22,0.1) 0%, transparent 60%),
+              radial-gradient(ellipse at 20% 50%, rgba(34,211,238,0.05) 0%, transparent 50%);
+}
+.hero-content { position: relative; z-index: 2; max-width: 800px; }
+.hero h1 { font-size: 3.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; }
+.hero h1 span { color: var(--accent-alert); }
+.hero p { font-size: 1.15rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 2rem; }
+.hero-ctas { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+/* Live counters */
+.live-counters { display: flex; gap: 2rem; justify-content: center; margin-top: 3rem; flex-wrap: wrap; }
+.live-counter { text-align: center; }
+.live-counter .num { font-family: var(--font-mono); font-size: 2rem; font-weight: 700; color: var(--accent-online); }
+.live-counter .lbl { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
+
+/* Animated road strip */
+.hero-road { margin-top: 2.5rem; width: 100%; max-width: 700px; position: relative; }
+.road-anim-strip { display: flex; height: 48px; background: #1a1f2e; border-radius: 8px; overflow: hidden; position: relative; }
+.road-anim-block { min-width: 60px; height: 48px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); border-right: 1px dashed rgba(100,116,139,0.3); flex-shrink: 0; transition: all 0.5s; }
+.road-anim-block.highlight { background: rgba(34,211,238,0.2); color: var(--accent-online); }
+.road-anim-block.dead { background: rgba(250,204,21,0.15); color: var(--accent-offline); }
+.road-anim-block.sos { background: rgba(239,68,68,0.25); color: #F87171; animation: flash-block 0.8s infinite; }
+.road-anim-block.relay { background: rgba(167,139,250,0.15); color: var(--accent-v2v); }
+.road-signal { position: absolute; top: -24px; font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; transition: all 0.5s; }
+
+/* Sections */
+.section-wrap { padding: 5rem 2rem; max-width: 1200px; margin: 0 auto; }
+.section-wrap h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 0.5rem; }
+.section-wrap .section-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 2.5rem; }
+
+/* Problem cards */
+.problem-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+.problem-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; text-align: center; transition: all 0.3s; }
+.problem-card:hover { border-color: var(--accent-alert); transform: translateY(-4px); }
+.problem-card .big-num { font-family: var(--font-mono); font-size: 2.8rem; font-weight: 700; color: var(--accent-alert); line-height: 1; }
+.problem-card .desc { font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem; }
+.problem-card .source { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.75rem; font-style: italic; }
+
+/* How it works */
+.steps-flow { display: flex; flex-direction: column; gap: 0; position: relative; }
+.step-item { display: flex; gap: 1.5rem; align-items: flex-start; padding: 1.5rem 0; position: relative; }
+.step-num { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-weight: 700; font-size: 1.1rem; flex-shrink: 0; border: 2px solid var(--border); transition: all 0.3s; }
+.step-item:hover .step-num { border-color: var(--accent-alert); color: var(--accent-alert); }
+.step-item::after { content: ''; position: absolute; left: 23px; top: 64px; bottom: 0; width: 2px; background: var(--border); }
+.step-item:last-child::after { display: none; }
+.step-content h4 { font-size: 1rem; margin-bottom: 0.3rem; }
+.step-content p { font-size: 0.85rem; color: var(--text-muted); }
+
+/* Corridor strips in dead zone section */
+.corridor-display { margin-bottom: 1rem; }
+.corridor-display .corridor-label { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; }
+.corridor-display .corridor-meta { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+
+/* Accuracy table */
+.accuracy-table { width: 100%; border-collapse: collapse; }
+.accuracy-table th { background: var(--accent-alert); color: #fff; padding: 0.75rem 1rem; text-align: left; font-size: 0.8rem; }
+.accuracy-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.accuracy-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+
+/* Tech stack */
+.tech-flow { display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; margin: 2rem 0; }
+.tech-node { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; text-align: center; width: 140px; transition: all 0.3s; }
+.tech-node:hover { border-color: var(--accent-online); transform: translateY(-4px); }
+.tech-node .tech-icon { font-size: 2rem; margin-bottom: 0.3rem; }
+.tech-node .tech-label { font-size: 0.75rem; font-weight: 600; }
+.tech-node .tech-desc { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.2rem; }
+.tech-arrow { font-size: 1.5rem; color: var(--text-muted); padding: 0 0.25rem; }
+
+/* Differentiators */
+.diff-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+.diff-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; transition: all 0.3s; }
+.diff-card:hover { border-color: var(--accent-online); transform: translateY(-3px); }
+.diff-card .diff-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+.diff-card h4 { font-size: 0.9rem; margin-bottom: 0.25rem; }
+.diff-card p { font-size: 0.75rem; color: var(--text-muted); }
+
+/* V2V Explainer */
+.relay-flow { display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; margin: 2rem 0; }
+.relay-node { text-align: center; }
+.relay-node .r-icon { font-size: 2.5rem; display: block; }
+.relay-node .r-label { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.3rem; }
+.relay-arrow { font-size: 1.5rem; color: var(--accent-v2v); animation: pulse-v2v 2s infinite; }
+
+/* Ecosystem */
+.eco-diagram { display: flex; align-items: center; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin: 2rem 0; }
+.eco-box { background: var(--bg-panel); border: 2px solid var(--border); border-radius: var(--radius); padding: 1.5rem 2rem; text-align: center; min-width: 160px; }
+.eco-box.center { border-color: var(--accent-alert); background: rgba(249,115,22,0.05); }
+.eco-connector { font-size: 1.5rem; color: var(--accent-alert); }
+
+/* Footer */
+.footer { border-top: 1px solid var(--border); padding: 3rem 2rem; text-align: center; }
+.footer-links { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0; }
+.footer-links a { color: var(--text-muted); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+.footer-links a:hover { color: var(--accent-alert); }
+.footer-hackathon { font-size: 0.8rem; color: var(--text-muted); margin-top: 1rem; }
+
+@media (max-width: 768px) {
+  .hero h1 { font-size: 2.2rem; }
+  .live-counters { gap: 1rem; }
+  .live-counter .num { font-size: 1.4rem; }
+  .tech-flow { flex-direction: column; }
+  .tech-arrow { transform: rotate(90deg); }
+  .relay-flow { flex-direction: column; }
+  .relay-arrow { transform: rotate(90deg); }
+}
+</style>
+</head>
+<body class="landing">
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="hero-content">
+    <h1>Works where <span>every other system</span> fails.</h1>
+    <p>GPS-based emergency response for India's 1,750 km of highway dead zones. Offline-first. History-driven. V2V encrypted.</p>
+    <div class="hero-ctas">
+      <a href="driver.html" class="btn btn-primary btn-lg">Download App</a>
+      <a href="provider.html" class="btn btn-secondary btn-lg">Register as Provider</a>
+    </div>
+    <div class="live-counters">
+      <div class="live-counter"><div class="num" id="ctrSOS">4,287</div><div class="lbl">SOS Events Resolved</div></div>
+      <div class="live-counter"><div class="num" id="ctrCorr">6</div><div class="lbl">Corridors Covered</div></div>
+      <div class="live-counter"><div class="num" id="ctrCross">18,472</div><div class="lbl">Community Crossings</div></div>
+    </div>
+    <div class="hero-road">
+      <div class="road-anim-strip" id="heroRoad"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ THE PROBLEM ═══ -->
+<section class="section-wrap" style="background:var(--bg-panel);max-width:100%;padding-left:0;padding-right:0;">
+  <div style="max-width:1200px;margin:0 auto;padding:0 2rem;">
+    <h2>The Problem</h2>
+    <p class="section-sub">India's highways have a silent crisis — dead zones where help can't reach.</p>
+    <div class="problem-grid">
+      <div class="problem-card"><div class="big-num">1,750 km</div><div class="desc">of confirmed dead zones across 424 locations on national highways</div><div class="source">NHAI, January 2026</div></div>
+      <div class="problem-card"><div class="big-num">29,018</div><div class="desc">highway deaths in the first half of 2025 alone</div><div class="source">TRAI / MoRTH, 2025</div></div>
+      <div class="problem-card"><div class="big-num">60+ min</div><div class="desc">average wait time for emergency help on remote stretches</div><div class="source">NHAI Survey, 2025</div></div>
+      <div class="problem-card"><div class="big-num">40–50%</div><div class="desc">die at the scene in hilly/remote regions before help arrives</div><div class="source">WHO Road Safety Report</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ HOW IT WORKS ═══ -->
+<section class="section-wrap">
+  <h2>How It Works</h2>
+  <p class="section-sub">Seven steps. Zero network required after the first.</p>
+  <div class="steps-flow">
+    <div class="step-item"><div class="step-num" style="color:var(--accent-online);border-color:var(--accent-online);">1</div><div class="step-content"><h4>🟢 Online — GPS Tracking</h4><p>GPS coordinates active, crossing history built silently in background. Under 120 bytes per crossing.</p></div></div>
+    <div class="step-item"><div class="step-num" style="color:var(--accent-offline);border-color:var(--accent-offline);">2</div><div class="step-content"><h4>🟡 Signal Drops — Dead Reckoning</h4><p>Historical dead reckoning activates. Uses personal crossings, community data, OBD-II speed, or phone sensors — in that priority.</p></div></div>
+    <div class="step-item"><div class="step-num">3</div><div class="step-content"><h4>⏸ Stop Detected</h4><p>Accelerometer or OBD-II detects vehicle stop. Block counter pauses. Stop duration excluded from distance calculation.</p></div></div>
+    <div class="step-item"><div class="step-num" style="color:var(--accent-alert);border-color:var(--accent-alert);">4</div><div class="step-content"><h4>🚨 SOS Triggered</h4><p>Ultra-compressed packet built: block code + type + time + confidence — under 50 bytes. Sent via SMS, USSD, or LoRa.</p></div></div>
+    <div class="step-item"><div class="step-num" style="color:var(--accent-v2v);border-color:var(--accent-v2v);">5</div><div class="step-content"><h4>📡 V2V Relay</h4><p>Passing vehicles carry AES-256 encrypted packets via BLE/WiFi Direct. No driver interaction. Auto-forwarded on network restore.</p></div></div>
+    <div class="step-item"><div class="step-num">6</div><div class="step-content"><h4>🖥 Server Decodes</h4><p>Packet decoded, provider matched by category + coverage zone + availability. Best provider selected automatically.</p></div></div>
+    <div class="step-item"><div class="step-num" style="color:var(--success);border-color:var(--success);">7</div><div class="step-content"><h4>✅ Provider Dispatched</h4><p>Provider receives alert, accepts dispatch, navigates to block. User gets ETA confirmation. Event tracked until resolution.</p></div></div>
+  </div>
+</section>
+
+<!-- ═══ DEAD ZONE MAP ═══ -->
+<section class="section-wrap" style="background:var(--bg-panel);max-width:100%;padding-left:0;padding-right:0;">
+  <div style="max-width:1200px;margin:0 auto;padding:0 2rem;">
+    <h2>Dead Zone Corridors</h2>
+    <p class="section-sub">Major highway stretches with confirmed connectivity gaps</p>
+    <div id="corridorDisplays"></div>
+  </div>
+</section>
+
+<!-- ═══ ACCURACY TABLE ═══ -->
+<section class="section-wrap">
+  <h2>Positioning Accuracy</h2>
+  <p class="section-sub">Four-tier estimation with measured error bounds</p>
+  <div class="table-wrap">
+    <table class="accuracy-table">
+      <thead><tr><th>Tier</th><th>Data Source</th><th>Error @ 5 min</th><th>Error @ 15 min</th><th>Error @ 30 min</th><th>Confidence</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:700;color:var(--accent-online);">Tier 1</td><td>Personal History + OBD-II</td><td>±50m</td><td>±150m</td><td>±300m</td><td style="color:var(--accent-online);font-weight:700;">90–97%</td></tr>
+        <tr><td style="font-weight:700;color:var(--accent-online);">Tier 2</td><td>Community Average + OBD-II</td><td>±100m</td><td>±300m</td><td>±600m</td><td style="color:var(--accent-online);font-weight:700;">80–92%</td></tr>
+        <tr><td style="font-weight:700;color:var(--accent-offline);">Tier 3</td><td>Personal History + Phone Sensors</td><td>±200m</td><td>±600m</td><td>±1.2km</td><td style="color:var(--accent-offline);font-weight:700;">65–85%</td></tr>
+        <tr><td style="font-weight:700;color:var(--accent-alert);">Tier 4</td><td>Community Average + Phone Sensors</td><td>±400m</td><td>±1.2km</td><td>±2.5km</td><td style="color:var(--accent-alert);font-weight:700;">50–75%</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══ TECHNOLOGY ═══ -->
+<section class="section-wrap" style="background:var(--bg-panel);max-width:100%;padding-left:0;padding-right:0;">
+  <div style="max-width:1200px;margin:0 auto;padding:0 2rem;">
+    <h2>Technology Stack</h2>
+    <p class="section-sub">End-to-end pipeline from vehicle to verified responder</p>
+    <div class="tech-flow">
+      <div class="tech-node"><div class="tech-icon">📱</div><div class="tech-label">Mobile App</div><div class="tech-desc">Driver interface</div></div>
+      <div class="tech-arrow">→</div>
+      <div class="tech-node"><div class="tech-icon">🔌</div><div class="tech-label">OBD-II / Sensors</div><div class="tech-desc">Speed + engine data</div></div>
+      <div class="tech-arrow">→</div>
+      <div class="tech-node"><div class="tech-icon">🧠</div><div class="tech-label">Offline Engine</div><div class="tech-desc">Dead reckoning AI</div></div>
+      <div class="tech-arrow">→</div>
+      <div class="tech-node"><div class="tech-icon">📡</div><div class="tech-label">V2V BLE/WiFi</div><div class="tech-desc">Encrypted relay</div></div>
+      <div class="tech-arrow">→</div>
+      <div class="tech-node"><div class="tech-icon">🖥</div><div class="tech-label">Server</div><div class="tech-desc">Decode + match</div></div>
+      <div class="tech-arrow">→</div>
+      <div class="tech-node"><div class="tech-icon">🚑</div><div class="tech-label">Provider</div><div class="tech-desc">Verified responder</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ V2V RELAY EXPLAINER ═══ -->
+<section class="section-wrap">
+  <h2>V2V Relay — Silent Emergency Network</h2>
+  <p class="section-sub">Passing vehicles become invisible relay nodes. No action required. No data exposed.</p>
+  <div class="relay-flow">
+    <div class="relay-node"><span class="r-icon">🚗💥</span><span class="r-label">Distressed Vehicle<br>BLE Broadcast</span></div>
+    <div class="relay-arrow">📶→</div>
+    <div class="relay-node"><span class="r-icon">🚙</span><span class="r-label">Passing Vehicle<br>Packet Received</span></div>
+    <div class="relay-arrow">→🌐</div>
+    <div class="relay-node"><span class="r-icon">📡</span><span class="r-label">Exits Dead Zone<br>Auto-Forwards</span></div>
+    <div class="relay-arrow">→🖥</div>
+    <div class="relay-node"><span class="r-icon">🚑</span><span class="r-label">Server → Provider<br>Dispatched</span></div>
+  </div>
+  <div class="card" style="max-width:500px;margin:0 auto;text-align:center;padding:1.5rem;">
+    <p style="font-size:0.9rem;color:var(--accent-v2v);font-weight:600;">"The relay driver sees nothing."</p>
+    <p class="text-sm text-muted mt-1">AES-256 encrypted. No action required. No personal data exposed.</p>
+  </div>
+</section>
+
+<!-- ═══ ECOSYSTEM ═══ -->
+<section class="section-wrap" style="background:var(--bg-panel);max-width:100%;padding-left:0;padding-right:0;">
+  <div style="max-width:1200px;margin:0 auto;padding:0 2rem;">
+    <h2>Three-Window Ecosystem</h2>
+    <p class="section-sub">Interconnected applications forming a complete emergency response loop</p>
+    <div class="eco-diagram">
+      <div class="eco-box"><div style="font-size:2rem;">🛡️</div><h4>Admin Panel</h4><p class="text-xs text-muted">Manage providers, corridors, analytics</p></div>
+      <div class="eco-connector">↔</div>
+      <div class="eco-box center"><div style="font-size:2rem;">🗄️</div><h4>Central Database</h4><p class="text-xs text-muted">Providers, blocks, SOS events, crossings</p></div>
+      <div class="eco-connector">↔</div>
+      <div class="eco-box"><div style="font-size:2rem;">🚑</div><h4>Provider App</h4><p class="text-xs text-muted">Receive alerts, dispatch, resolve</p></div>
+      <div class="eco-connector">↔</div>
+      <div class="eco-box"><div style="font-size:2rem;">📱</div><h4>Driver App</h4><p class="text-xs text-muted">GPS, SOS, V2V relay, history</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ DIFFERENTIATORS ═══ -->
+<section class="section-wrap">
+  <h2>Key Differentiators</h2>
+  <p class="section-sub">What makes RoadSOS fundamentally different</p>
+  <div class="diff-grid">
+    <div class="diff-card"><div class="diff-icon">📍</div><h4>Offline-First Positioning</h4><p>Works without GPS or network using historical dead reckoning</p></div>
+    <div class="diff-card"><div class="diff-icon">📊</div><h4>History-Driven Accuracy</h4><p>Every crossing improves the model. Personal + community data.</p></div>
+    <div class="diff-card"><div class="diff-icon">⏸</div><h4>Stop-Aware</h4><p>Binary stop detection prevents drift from accumulated error</p></div>
+    <div class="diff-card"><div class="diff-icon">🔐</div><h4>V2V Encrypted Relay</h4><p>AES-256 encrypted BLE packets carried by passing vehicles</p></div>
+    <div class="diff-card"><div class="diff-icon">✅</div><h4>Verified Responders</h4><p>Admin-registered, credential-verified service providers only</p></div>
+    <div class="diff-card"><div class="diff-icon">📦</div><h4>Ultra-Compressed Packets</h4><p>SOS data under 50 bytes — fits in a single SMS or USSD string</p></div>
+    <div class="diff-card"><div class="diff-icon">🔌</div><h4>OBD-II Integration</h4><p>Direct vehicle speed from dashboard — no GPS dependency</p></div>
+    <div class="diff-card"><div class="diff-icon">🗺️</div><h4>Block Code System</h4><p>Linear reference system for single-road corridors (not 2D maps)</p></div>
+    <div class="diff-card"><div class="diff-icon">🌐</div><h4>Community Network Effect</h4><p>More crossings = better accuracy for everyone</p></div>
+    <div class="diff-card"><div class="diff-icon">💾</div><h4>Minimal Storage</h4><p>120 bytes per crossing — thousands of records in kilobytes</p></div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <div style="font-size:1.5rem;margin-bottom:0.5rem;">🛡️</div>
+  <h3 style="font-family:var(--font-mono);color:var(--accent-alert);">RoadSOS</h3>
+  <p class="text-sm text-muted mt-1">Offline-First · History-Driven · Stop-Aware · V2V Encrypted · Verified Responders</p>
+  <div class="footer-links">
+    <a href="admin.html">Admin Login</a>
+    <a href="provider.html">Provider Login</a>
+    <a href="driver.html">Download App</a>
+    <a href="#">GitHub</a>
+  </div>
+  <div class="footer-hackathon">National Road Safety Hackathon · IIT Madras · 2026</div>
+</footer>
+
+<script src="data.js"></script>
+<script>
+// ═══ HERO ROAD ANIMATION ═══
+function initHeroRoad() {
+  const strip = document.getElementById('heroRoad');
+  const blocks = 12;
+  let html = '';
+  for (let i = 0; i < blocks; i++) {
+    html += `<div class="road-anim-block" id="rb${i}">B${String(i+25).padStart(2,'0')}</div>`;
+  }
+  strip.innerHTML = html;
+
+  let phase = 0;
+  setInterval(() => {
+    for (let i = 0; i < blocks; i++) {
+      const el = document.getElementById(`rb${i}`);
+      el.className = 'road-anim-block';
+    }
+    if (phase === 0) { // Online
+      document.getElementById('rb2').classList.add('highlight');
+      document.getElementById('rb3').classList.add('highlight');
+    } else if (phase === 1) { // Signal drops
+      for (let i = 3; i < 8; i++) document.getElementById(`rb${i}`).classList.add('dead');
+    } else if (phase === 2) { // SOS
+      for (let i = 3; i < 8; i++) document.getElementById(`rb${i}`).classList.add('dead');
+      document.getElementById('rb5').classList.remove('dead');
+      document.getElementById('rb5').classList.add('sos');
+    } else if (phase === 3) { // Relay
+      document.getElementById('rb5').classList.add('sos');
+      document.getElementById('rb7').classList.add('relay');
+      document.getElementById('rb8').classList.add('relay');
+    } else if (phase === 4) { // Resolved
+      document.getElementById('rb5').classList.add('highlight');
+    }
+    phase = (phase + 1) % 5;
+  }, 2000);
+}
+
+// ═══ CORRIDOR DISPLAYS ═══
+function renderCorridorDisplays() {
+  const container = document.getElementById('corridorDisplays');
+  container.innerHTML = CORRIDORS.map(c => {
+    const blocks = Array.from({ length: Math.min(c.blocks, 25) }, (_, i) =>
+      `<div class="road-block">${String(i+1).padStart(2,'0')}</div>`
+    ).join('');
+    return `<div class="corridor-display card" style="margin-bottom:0.75rem;padding:1rem;">
+      <div class="corridor-label">${c.name}</div>
+      <div class="corridor-meta">${c.code} · ${c.blocks} blocks · ${(c.length/1000).toFixed(1)} km · ${c.region}</div>
+      <div class="road-strip-line" style="background:#1a1f2e;border-radius:6px;">${blocks}</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══ LIVE COUNTER ANIMATION ═══
+function animateCounters() {
+  animateCounter('ctrSOS', 4287);
+  animateCounter('ctrCorr', 6);
+  animateCounter('ctrCross', 18472);
+}
+
+function animateCounter(id, target) {
+  const el = document.getElementById(id);
+  let current = 0;
+  const step = Math.ceil(target / 60);
+  const interval = setInterval(() => {
+    current = Math.min(current + step, target);
+    el.textContent = current.toLocaleString();
+    if (current >= target) clearInterval(interval);
+  }, 30);
+}
+
+// ═══ INIT ═══
+initHeroRoad();
+renderCorridorDisplays();
+setTimeout(animateCounters, 500);
+</script>
+</body>
+</html>

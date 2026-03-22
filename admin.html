@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoadSOS — Admin Panel</title>
+<meta name="description" content="RoadSOS Admin Panel — Manage providers, corridors, SOS events, and platform analytics">
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.admin-app { display: flex; min-height: 100vh; }
+.section { display: none; animation: fade-in 0.3s; }
+.section.active { display: block; }
+.page-header { margin-bottom: 1.5rem; }
+.page-header h2 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+.page-header p { color: var(--text-muted); font-size: 0.85rem; }
+.cred-card { background: var(--bg-deep); border: 2px solid var(--accent-alert); border-radius: var(--radius); padding: 1.5rem; margin-top: 1rem; text-align: center; animation: slide-in-top 0.4s; }
+.cred-field { display: flex; align-items: center; justify-content: space-between; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.6rem 1rem; margin: 0.5rem 0; }
+.cred-field code { font-family: var(--font-mono); font-size: 1rem; color: var(--accent-online); }
+.copy-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
+.copy-btn:hover { border-color: var(--accent-online); color: var(--accent-online); }
+.corridor-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; cursor: pointer; transition: all 0.2s; margin-bottom: 0.5rem; }
+.corridor-card:hover { border-color: var(--accent-online); }
+.corridor-card h4 { font-size: 0.95rem; }
+.corridor-card .meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
+.timeline { border-left: 2px solid var(--border); padding-left: 1.5rem; margin: 1rem 0; }
+.timeline-item { position: relative; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+.timeline-item::before { content: ''; position: absolute; left: -1.75rem; top: 0.3rem; width: 10px; height: 10px; border-radius: 50%; background: var(--accent-alert); }
+.timeline-item.done::before { background: var(--success); }
+.timeline-item .t-time { font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); }
+.timeline-item .t-text { font-size: 0.85rem; margin-top: 0.2rem; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.chart-container { position: relative; height: 280px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; }
+.empty-state { text-align:center; padding:3rem 1rem; color:var(--text-muted); }
+.empty-state .icon { font-size:3rem; margin-bottom:0.5rem; }
+.mobile-menu-btn { display: none; position: fixed; top: 1rem; left: 1rem; z-index: 200; background: var(--bg-panel); border: 1px solid var(--border); color: var(--text-primary); width: 40px; height: 40px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; }
+@media (max-width: 900px) {
+  .mobile-menu-btn { display: flex; align-items: center; justify-content: center; }
+  .sidebar.open { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="admin-app">
+  <button class="mobile-menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <h2>🛡️ RoadSOS</h2>
+      <span>ADMIN PANEL</span>
+    </div>
+    <div class="nav-item active" onclick="showSection('secDashboard',this)">📊 Dashboard</div>
+    <div class="nav-item" onclick="showSection('secRegister',this)">➕ Register Provider</div>
+    <div class="nav-item" onclick="showSection('secProviders',this)">👥 Provider Table</div>
+    <div class="nav-item" onclick="showSection('secBlockMap',this)">🗺️ Block Map</div>
+    <div class="nav-item" onclick="showSection('secAudit',this)">📋 SOS Audit Trail</div>
+    <div class="nav-item" onclick="showSection('secV2V',this)">📡 V2V Relay Log</div>
+  </nav>
+
+  <div class="main-content">
+    <!-- Dashboard -->
+    <div class="section active" id="secDashboard">
+      <div class="page-header"><h2>Platform Dashboard</h2><p>Real-time overview — all data from registered providers and user activity</p></div>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="grid-2" id="chartRow">
+        <div class="chart-container"><canvas id="chartCategory"></canvas></div>
+        <div class="chart-container"><canvas id="chartTimeline"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Register Provider -->
+    <div class="section" id="secRegister">
+      <div class="page-header"><h2>Register Service Provider</h2><p>Add new providers — credentials are generated automatically</p></div>
+      <div class="card" style="max-width:600px;">
+        <div style="margin-bottom:1rem;"><label class="label">Provider Name *</label><input class="input" id="regName" placeholder="e.g., Lifeline Hospital"></div>
+        <div style="margin-bottom:1rem;"><label class="label">Category *</label><select class="select" id="regCat"><option value="">Select category...</option></select></div>
+        <div style="margin-bottom:1rem;"><label class="label">Phone *</label><input class="input" id="regPhone" placeholder="+91 9876543210"></div>
+        <div style="margin-bottom:1rem;"><label class="label">Coverage Corridor</label><select class="select" id="regCorridor"><option value="">All corridors</option></select></div>
+        <div style="margin-bottom:1rem;"><label class="label">GPS Coordinates (optional)</label><input class="input" id="regGPS" placeholder="28.6139, 77.2090"></div>
+        <button class="btn btn-primary btn-full" onclick="registerProvider()">Register Provider</button>
+      </div>
+      <div id="credResult" class="hidden"></div>
+    </div>
+
+    <!-- Provider Table -->
+    <div class="section" id="secProviders">
+      <div class="page-header"><h2>Provider Management</h2><p>View, manage, and remove registered providers</p></div>
+      <div class="flex-between mb-2" style="flex-wrap:wrap;gap:0.75rem;">
+        <div class="search-box" style="width:300px;"><span class="search-icon">🔍</span><input class="input" placeholder="Search name, ID, or category..." id="provSearch" oninput="renderProviderTable()"></div>
+        <div class="flex-row gap-1">
+          <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+        </div>
+      </div>
+      <div class="table-wrap"><table id="providerTable"></table></div>
+      <div id="emptyProviders" class="empty-state hidden"><div class="icon">👥</div><p>No providers registered yet. Use "Register Provider" to add service providers.</p></div>
+    </div>
+
+    <!-- Block Map -->
+    <div class="section" id="secBlockMap">
+      <div class="page-header"><h2>Road Block Map Manager</h2><p>View dead zone corridor definitions</p></div>
+      <div id="corridorList"></div>
+    </div>
+
+    <!-- SOS Audit -->
+    <div class="section" id="secAudit">
+      <div class="page-header"><h2>SOS Audit Trail</h2><p>Complete history of all SOS events — real data from user triggers</p></div>
+      <div class="flex-between mb-2" style="flex-wrap:wrap;gap:0.75rem;">
+        <div class="flex-row gap-1" style="flex-wrap:wrap;">
+          <select class="select" style="width:auto;padding:0.4rem 2rem 0.4rem 0.6rem;font-size:0.8rem;" id="auditStatus" onchange="renderAudit()">
+            <option value="">All Status</option><option value="resolved">Resolved</option><option value="active">Active</option>
+          </select>
+          <select class="select" style="width:auto;padding:0.4rem 2rem 0.4rem 0.6rem;font-size:0.8rem;" id="auditType" onchange="renderAudit()"><option value="">All Types</option></select>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportAudit()">📥 Export CSV</button>
+      </div>
+      <div class="table-wrap"><table id="auditTable"></table></div>
+      <div id="emptyAudit" class="empty-state hidden"><div class="icon">📋</div><p>No SOS events recorded yet. Events will appear here when users trigger SOS from the Driver App.</p></div>
+      <div id="auditTimeline" class="hidden card mt-2"></div>
+    </div>
+
+    <!-- V2V Log -->
+    <div class="section" id="secV2V">
+      <div class="page-header"><h2>V2V Relay Event Log</h2><p>Vehicle-to-vehicle relay telemetry</p></div>
+      <div class="stats-grid" id="v2vStats"></div>
+      <div id="v2vContent"></div>
+      <div id="emptyV2V" class="empty-state"><div class="icon">📡</div><p>No V2V relay events recorded yet.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay hidden" id="deleteModal">
+  <div class="modal">
+    <h3>⚠️ Delete Provider</h3>
+    <p class="text-sm text-muted mt-1">Are you sure you want to remove this provider? This action cannot be undone. The provider will lose access immediately.</p>
+    <div class="card mt-2" id="deleteProvInfo"></div>
+    <div class="flex-row mt-2" style="justify-content:flex-end;">
+      <button class="btn btn-secondary btn-sm" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="confirmDeleteBtn">Delete Provider</button>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+let providerPage = 1;
+const PER_PAGE = 10;
+let chartCat = null;
+let chartTime = null;
+
+// ═══ NAV ═══
+function showSection(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.querySelector('.sidebar').classList.remove('open');
+  if (id === 'secDashboard') renderDashboard();
+  if (id === 'secProviders') renderProviderTable();
+  if (id === 'secBlockMap') renderCorridors();
+  if (id === 'secAudit') renderAudit();
+  if (id === 'secV2V') renderV2V();
+}
+
+// ═══ DASHBOARD — Real stats from localStorage ═══
+function renderDashboard() {
+  const stats = Store.getStats();
+  document.getElementById('statsGrid').innerHTML = [
+    { v: stats.totalProviders, l: 'Total Providers', c: 'var(--accent-online)' },
+    { v: stats.activeProviders, l: 'Active Providers', c: 'var(--success)' },
+    { v: stats.totalSOS.today, l: 'SOS Today', c: 'var(--accent-alert)' },
+    { v: stats.totalSOS.week, l: 'SOS This Week', c: 'var(--accent-alert)' },
+    { v: stats.totalSOS.month, l: 'SOS This Month', c: 'var(--accent-alert)' },
+    { v: stats.avgResponseMin ? stats.avgResponseMin + ' min' : '—', l: 'Avg Response', c: 'var(--accent-offline)' },
+    { v: stats.totalCrossings, l: 'Total Crossings', c: 'var(--accent-online)' },
+    { v: stats.corridorsCovered, l: 'Corridors', c: 'var(--accent-v2v)' },
+  ].map(d => `<div class="stat-card"><div class="stat-value" style="color:${d.c}">${d.v}</div><div class="stat-label">${d.l}</div></div>`).join('');
+
+  // Category bar chart
+  const events = Store.getSOSEvents();
+  const catData = EMERGENCY_TYPES.map(t => ({
+    label: t.label,
+    count: events.filter(e => (e.type?.code || e.typeCode) === t.code).length,
+    color: t.color,
+  }));
+
+  if (chartCat) chartCat.destroy();
+  chartCat = new Chart(document.getElementById('chartCategory'), {
+    type: 'bar',
+    data: { labels: catData.map(d => d.label), datasets: [{ data: catData.map(d => d.count), backgroundColor: catData.map(d => d.color), borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: 'SOS Events by Category', color: '#F1F5F9' } }, scales: { x: { ticks: { color: '#64748B' }, grid: { color: '#1E293B' } }, y: { ticks: { color: '#64748B' }, grid: { color: '#1E293B' } } } }
+  });
+
+  // Timeline chart
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - 6 + i);
+    return d;
+  });
+  const dayLabels = days.map(d => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }));
+  const dayCounts = days.map(d => events.filter(e => new Date(e.timestamp).toDateString() === d.toDateString()).length);
+
+  if (chartTime) chartTime.destroy();
+  chartTime = new Chart(document.getElementById('chartTimeline'), {
+    type: 'line',
+    data: { labels: dayLabels, datasets: [{ data: dayCounts, borderColor: '#22D3EE', backgroundColor: 'rgba(34,211,238,0.1)', fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#22D3EE' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: 'SOS Events Per Day', color: '#F1F5F9' } }, scales: { x: { ticks: { color: '#64748B' }, grid: { color: '#1E293B' } }, y: { ticks: { color: '#64748B' }, grid: { color: '#1E293B' }, beginAtZero: true } } }
+  });
+}
+
+// ═══ REGISTER ═══
+function initRegForm() {
+  const catSel = document.getElementById('regCat');
+  PROVIDER_CATEGORIES.forEach(c => { const o = document.createElement('option'); o.value = c.code; o.textContent = `${c.icon} ${c.label}`; catSel.appendChild(o); });
+  const corrSel = document.getElementById('regCorridor');
+  Store.getCorridors().forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; corrSel.appendChild(o); });
+  const at = document.getElementById('auditType');
+  EMERGENCY_TYPES.forEach(t => { const o = document.createElement('option'); o.value = t.code; o.textContent = `${t.icon} ${t.label}`; at.appendChild(o); });
+}
+
+function registerProvider() {
+  const name = document.getElementById('regName').value.trim();
+  const catCode = document.getElementById('regCat').value;
+  const phone = document.getElementById('regPhone').value.trim();
+  if (!name || !catCode || !phone) { showToast('Please fill in Name, Category, and Phone'); return; }
+
+  const category = PROVIDER_CATEGORIES.find(c => c.code === catCode);
+  const providers = Store.getProviders();
+  const id = `RSOS-${catCode}-${String(100001 + providers.length).slice(-6)}`;
+  const password = Math.random().toString(36).slice(2, 10).toUpperCase();
+  const corridorId = document.getElementById('regCorridor').value;
+  const corridor = Store.getCorridors().find(c => c.id === corridorId);
+  const gps = document.getElementById('regGPS').value.trim();
+
+  const provider = {
+    id, name, category, phone, password,
+    corridorId: corridorId || null,
+    corridorName: corridor ? corridor.name : 'All corridors',
+    gps: gps || null,
+    status: 'Active',
+    available: true,
+    lastLogin: null,
+    registeredAt: new Date().toISOString(),
+  };
+
+  Store.saveProvider(provider);
+
+  const res = document.getElementById('credResult');
+  res.classList.remove('hidden');
+  res.innerHTML = `<div class="cred-card">
+    <div style="font-size:2rem;margin-bottom:0.5rem;">✅</div>
+    <h3>Provider Activated</h3>
+    <p class="text-sm text-muted mb-2">Credentials ready — share with the provider</p>
+    <div class="cred-field"><span class="text-xs text-muted">Registration ID</span><code>${id}</code><button class="copy-btn" onclick="copyText('${id}')">Copy</button></div>
+    <div class="cred-field"><span class="text-xs text-muted">Password</span><code>${password}</code><button class="copy-btn" onclick="copyText('${password}')">Copy</button></div>
+  </div>`;
+  showToast('Provider activated. Credentials ready to push.');
+
+  // Clear form
+  document.getElementById('regName').value = '';
+  document.getElementById('regCat').value = '';
+  document.getElementById('regPhone').value = '';
+  document.getElementById('regGPS').value = '';
+}
+
+function copyText(text) { navigator.clipboard.writeText(text).then(() => showToast('Copied!')); }
+
+// ═══ PROVIDER TABLE with Delete ═══
+function renderProviderTable() {
+  const search = (document.getElementById('provSearch')?.value || '').toLowerCase();
+  const allProviders = Store.getProviders();
+  const filtered = allProviders.filter(p => !search || p.name.toLowerCase().includes(search) || p.id.toLowerCase().includes(search) || p.category?.label?.toLowerCase().includes(search));
+
+  const emptyEl = document.getElementById('emptyProviders');
+  if (allProviders.length === 0) { emptyEl.classList.remove('hidden'); document.getElementById('providerTable').innerHTML = ''; return; }
+  emptyEl.classList.add('hidden');
+
+  const total = Math.ceil(filtered.length / PER_PAGE);
+  const page = filtered.slice((providerPage - 1) * PER_PAGE, providerPage * PER_PAGE);
+
+  document.getElementById('providerTable').innerHTML = `
+    <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>${page.map(p => `<tr>
+      <td><code style="font-size:0.75rem;color:var(--accent-alert);">${p.id}</code></td>
+      <td>${p.name}</td>
+      <td>${p.category?.icon || ''} ${p.category?.label || ''}</td>
+      <td class="text-sm">${p.phone}</td>
+      <td><span class="badge ${p.status==='Active'?'badge-active':'badge-inactive'}">${p.status}</span></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-sm ${p.status==='Active'?'btn-secondary':'btn-success'}" onclick="toggleProvider('${p.id}')" style="margin-right:0.25rem;">${p.status==='Active'?'Deactivate':'Activate'}</button>
+        <button class="btn btn-sm btn-danger" onclick="openDeleteModal('${p.id}')">🗑️ Delete</button>
+      </td>
+    </tr>`).join('')}</tbody>`;
+}
+
+function toggleProvider(id) {
+  const providers = Store.getProviders();
+  const p = providers.find(pr => pr.id === id);
+  if (p) {
+    Store.updateProvider(id, { status: p.status === 'Active' ? 'Inactive' : 'Active' });
+    renderProviderTable();
+  }
+}
+
+// ═══ DELETE PROVIDER ═══
+function openDeleteModal(id) {
+  const p = Store.getProviders().find(pr => pr.id === id);
+  if (!p) return;
+  document.getElementById('deleteModal').classList.remove('hidden');
+  document.getElementById('deleteProvInfo').innerHTML = `
+    <div class="text-sm"><strong>${p.name}</strong> — ${p.category?.label || ''}<br>
+    <span class="text-muted" style="font-family:var(--font-mono);">${p.id}</span></div>`;
+  document.getElementById('confirmDeleteBtn').onclick = () => {
+    Store.deleteProvider(id);
+    closeDeleteModal();
+    renderProviderTable();
+    showToast('Provider deleted: ' + p.name);
+  };
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.add('hidden');
+}
+
+function exportCSV() {
+  const providers = Store.getProviders();
+  if (providers.length === 0) { showToast('No providers to export'); return; }
+  const csv = 'ID,Name,Category,Phone,Status\n' + providers.map(p => `${p.id},"${p.name}",${p.category?.label||''},${p.phone},${p.status}`).join('\n');
+  downloadFile(csv, 'providers.csv', 'text/csv');
+}
+
+// ═══ BLOCK MAP ═══
+function renderCorridors() {
+  const corridors = Store.getCorridors();
+  document.getElementById('corridorList').innerHTML = corridors.map(c => {
+    const blocks = Array.from({ length: Math.min(c.blocks, 25) }, (_, i) =>
+      `<div class="road-block">${String(i+1).padStart(2,'0')}</div>`
+    ).join('');
+    return `<div class="corridor-card">
+      <h4>${c.name}</h4>
+      <div class="meta">${c.code} · ${c.blocks} blocks · ${(c.length/1000).toFixed(1)} km · ${c.region}</div>
+      <div class="road-strip-line" style="background:#1a1f2e;border-radius:6px;margin-top:0.5rem;">${blocks}</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══ AUDIT — Real data ═══
+function renderAudit() {
+  const typeFilter = document.getElementById('auditType').value;
+  const statusFilter = document.getElementById('auditStatus').value;
+  let events = Store.getSOSEvents();
+  if (typeFilter) events = events.filter(e => (e.type?.code || e.typeCode) === typeFilter);
+  if (statusFilter === 'resolved') events = events.filter(e => e.resolved);
+  if (statusFilter === 'active') events = events.filter(e => !e.resolved);
+
+  const emptyEl = document.getElementById('emptyAudit');
+  if (Store.getSOSEvents().length === 0) { emptyEl.classList.remove('hidden'); document.getElementById('auditTable').innerHTML = ''; return; }
+  emptyEl.classList.add('hidden');
+
+  document.getElementById('auditTable').innerHTML = `
+    <thead><tr><th>Time</th><th>Block</th><th>Type</th><th>Conf</th><th>Location</th><th>Status</th><th>Provider</th><th></th></tr></thead>
+    <tbody>${events.slice(0, 30).map(e => {
+      const type = e.type || EMERGENCY_TYPES.find(t => t.code === e.typeCode) || EMERGENCY_TYPES[0];
+      const confColor = e.confidence >= 85 ? 'var(--accent-online)' : e.confidence >= 60 ? 'var(--accent-offline)' : 'var(--accent-alert)';
+      return `<tr>
+        <td class="text-xs" style="font-family:var(--font-mono);">${new Date(e.timestamp).toLocaleString('en-IN',{hour12:false,dateStyle:'short',timeStyle:'short'})}</td>
+        <td style="font-family:var(--font-mono);color:var(--accent-online);">${e.blockCode}</td>
+        <td>${type.icon} ${type.label}</td>
+        <td style="color:${confColor};font-weight:700;">${e.confidence}%</td>
+        <td class="text-xs">${e.lat ? e.lat.toFixed(4) + '°, ' + e.lng.toFixed(4) + '°' : '—'}</td>
+        <td><span class="badge ${e.resolved?'badge-active':'badge-inactive'}">${e.resolved?'Resolved':'Active'}</span></td>
+        <td class="text-xs">${e.providerName || '—'}</td>
+        <td><button class="btn btn-sm btn-secondary" onclick="showTimeline('${e.id}')">▶</button></td>
+      </tr>`;
+    }).join('')}</tbody>`;
+}
+
+function showTimeline(id) {
+  const e = Store.getSOSEvents().find(ev => ev.id === id);
+  if (!e) return;
+  const type = e.type || EMERGENCY_TYPES.find(t => t.code === e.typeCode) || EMERGENCY_TYPES[0];
+  const tl = document.getElementById('auditTimeline');
+  tl.classList.remove('hidden');
+  const steps = [
+    { t: e.timeStr || new Date(e.timestamp).toLocaleTimeString(), text: `SOS triggered — ${type.icon} ${type.label}`, done: true },
+    { t: '', text: `Packet: ${e.packet}`, done: true },
+    { t: '', text: `Location: ${e.lat ? e.lat.toFixed(5)+'°, '+e.lng.toFixed(5)+'°' : 'Unknown'}`, done: true },
+    { t: '', text: `Transmitted via ${e.transmission?.code || 'Data'}`, done: true },
+    { t: '', text: e.providerName ? `Provider: ${e.providerName}` : 'Awaiting provider...', done: !!e.providerName },
+    { t: '', text: e.resolved ? `✅ Resolved in ${e.resolutionMin} min` : '⏳ Pending resolution', done: e.resolved },
+  ];
+  tl.innerHTML = `<h4 style="margin-bottom:1rem;">Event Timeline — ${e.id}</h4>
+    <div class="timeline">${steps.map(s => `<div class="timeline-item ${s.done?'done':''}"><div class="t-time">${s.t}</div><div class="t-text">${s.text}</div></div>`).join('')}</div>
+    <button class="btn btn-sm btn-secondary" onclick="document.getElementById('auditTimeline').classList.add('hidden')">Close</button>`;
+}
+
+function exportAudit() {
+  const events = Store.getSOSEvents();
+  if (events.length === 0) { showToast('No events to export'); return; }
+  const csv = 'ID,Time,Block,Type,Confidence,Lat,Lng,Status,Provider,Resolution\n' + events.map(e =>
+    `${e.id},${e.timestamp},${e.blockCode},${e.type?.label||e.typeCode},${e.confidence},${e.lat||''},${e.lng||''},${e.resolved?'Resolved':'Active'},${e.providerName||''},${e.resolutionMin||''}`
+  ).join('\n');
+  downloadFile(csv, 'sos_audit.csv', 'text/csv');
+}
+
+// ═══ V2V ═══
+function renderV2V() {
+  const relays = Store.getV2VRelays();
+  const emptyEl = document.getElementById('emptyV2V');
+  if (relays.length === 0) { emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+  document.getElementById('v2vStats').innerHTML = [
+    { v: relays.length, l: 'Total Relays', c: 'var(--accent-v2v)' },
+  ].map(d => `<div class="stat-card"><div class="stat-value" style="color:${d.c}">${d.v}</div><div class="stat-label">${d.l}</div></div>`).join('');
+}
+
+// ═══ UTILS ═══
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ═══ INIT ═══
+initRegForm();
+renderDashboard();
+
+// Auto-refresh dashboard every 5 seconds
+setInterval(() => {
+  if (document.getElementById('secDashboard').classList.contains('active')) renderDashboard();
+  if (document.getElementById('secAudit').classList.contains('active')) renderAudit();
+}, 5000);
+</script>
+</body>
+</html>
