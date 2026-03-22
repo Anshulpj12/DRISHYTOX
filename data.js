@@ -10,6 +10,7 @@ const STORE_KEYS = {
   V2V_RELAYS: 'roadsos_v2v_relays',
   LOGGED_PROVIDER: 'roadsos_logged_provider',
   SETTINGS: 'roadsos_settings',
+  ZONE_HISTORY: 'roadsos_zone_history',
 };
 
 const EMERGENCY_TYPES = [
@@ -111,6 +112,10 @@ const Store = {
     list.unshift(crossing);
     this.set(STORE_KEYS.CROSSINGS, list);
   },
+
+  // Dead Zone History
+  getZoneHistory() { return this.getObj(STORE_KEYS.ZONE_HISTORY); },
+  saveZoneHistory(data) { this.setObj(STORE_KEYS.ZONE_HISTORY, data); },
 
   // V2V
   getV2VRelays() { return this.get(STORE_KEYS.V2V_RELAYS); },
@@ -248,10 +253,31 @@ const GPSTracker = {
   },
 
   getEstimatedPosition() {
-    // When offline, estimate using last known position + speed + time
     if (!this.lastOnlinePosition) return this.lastPosition;
     const elapsed = (Date.now() - this.lastOnlinePosition.timestamp) / 1000;
-    const speed = this.lastOnlinePosition.speed || 0; // m/s
+
+    // ═══ TRY HISTORY-DRIVEN ESTIMATION FIRST ═══
+    const historyResult = DeadZoneHistory.estimateFromHistory(
+      this.lastOnlinePosition, elapsed
+    );
+    if (historyResult) {
+      return {
+        lat: historyResult.lat,
+        lng: historyResult.lng,
+        accuracy: historyResult.accuracy,
+        speed: this.lastOnlinePosition.speed,
+        heading: this.lastOnlinePosition.heading,
+        timestamp: Date.now(),
+        estimated: true,
+        estimationSource: historyResult.source, // 'personal' or 'community'
+        estimatedBlock: historyResult.block,
+        estimatedCorridor: historyResult.corridorId,
+        confidence: historyResult.confidence,
+      };
+    }
+
+    // ═══ FALLBACK: BASIC DEAD RECKONING ═══
+    const speed = this.lastOnlinePosition.speed || 0;
     const heading = this.lastOnlinePosition.heading || 0;
     const dist = speed * elapsed;
     const headingRad = (heading * Math.PI) / 180;
@@ -268,15 +294,13 @@ const GPSTracker = {
       heading: this.lastOnlinePosition.heading,
       timestamp: Date.now(),
       estimated: true,
+      estimationSource: 'dead_reckoning',
+      confidence: Math.max(40, 65 - Math.floor(elapsed / 60) * 5),
     };
   },
 
   _haversine(lat1, lon1, lat2, lon2) {
-    const R = 6371000;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Utils.haversine(lat1, lon1, lat2, lon2);
   },
 
   onChange(fn) { this._listeners.push(fn); },
@@ -284,19 +308,26 @@ const GPSTracker = {
 };
 
 // ═══ Block Code Resolver ═══
-// Given a lat/lng, find which corridor/block the user is near
 const BlockResolver = {
-  // Find nearest corridor block for given coordinates
-  resolve(lat, lng) {
+  resolve(lat, lng, estimatedPos) {
     const corridors = Store.getCorridors();
-    // For a real system, each block would have GPS boundaries.
-    // Here we use a simplified linear mapping along corridors.
-    // We estimate block based on distance from corridor start.
-    // This is a placeholder that works with real GPS — in production,
-    // each block would have precise start/end coordinates.
     let bestCorridor = corridors[0];
     let bestBlock = 1;
     let confidence = 70;
+
+    // If we have history-driven estimation with a block, use it
+    if (estimatedPos && estimatedPos.estimatedBlock && estimatedPos.estimatedCorridor) {
+      bestCorridor = corridors.find(c => c.id === estimatedPos.estimatedCorridor) || corridors[0];
+      bestBlock = estimatedPos.estimatedBlock;
+      confidence = estimatedPos.confidence || 85;
+      return {
+        corridor: bestCorridor,
+        block: bestBlock,
+        blockCode: `${bestCorridor.code}-B${String(bestBlock).padStart(2, '0')}`,
+        confidence,
+        source: estimatedPos.estimationSource,
+      };
+    }
 
     // Simple mapping: use latitude to pick corridor region
     if (lat > 32) { bestCorridor = corridors.find(c => c.id === 'NH44-BAN') || corridors[0]; }
@@ -305,18 +336,29 @@ const BlockResolver = {
     else if (lat > 10) { bestCorridor = corridors.find(c => c.id === 'NH66-KNR') || corridors[0]; }
     else { bestCorridor = corridors[0]; }
 
-    // Estimate block from longitude offset
     const blockLength = bestCorridor.length / bestCorridor.blocks;
     bestBlock = Math.max(1, Math.min(bestCorridor.blocks, Math.floor(((lng % 10) / 10) * bestCorridor.blocks) + 1));
-    confidence = NetworkDetector.isOnline() ? 92 : 65;
+    confidence = NetworkDetector.isOnline() ? 92 : (estimatedPos ? estimatedPos.confidence || 60 : 60);
 
     return {
       corridor: bestCorridor,
       block: bestBlock,
       blockCode: `${bestCorridor.code}-B${String(bestBlock).padStart(2, '0')}`,
       confidence,
+      source: NetworkDetector.isOnline() ? 'gps' : (estimatedPos?.estimationSource || 'dead_reckoning'),
     };
   },
+};
+
+// ═══ Utilities ═══
+const Utils = {
+  haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // meters
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
 };
 
 // ═══ SOS Packet Builder ═══
@@ -343,7 +385,297 @@ const SOSPacket = {
       providerId: null,
       providerName: null,
       dispatchedAt: null,
+      resolutionPin: Math.floor(1000 + Math.random() * 9000).toString(),
     };
+  },
+};
+
+// ═══ Dead Zone History — History-Driven Offline Positioning ═══
+// Records traversal timing data for dead zone corridors.
+// When offline, uses historical avg transit times to estimate which block you're in.
+const DeadZoneHistory = {
+  // Current traversal tracking (in-memory, saved on exit)
+  _currentTraversal: null,
+
+  // ─── Record when vehicle ENTERS a dead zone (goes offline) ───
+  recordEntry(corridorId, entryBlock, speed, lat, lng) {
+    this._currentTraversal = {
+      corridorId,
+      entryBlock,
+      entrySpeed: speed, // m/s
+      entryLat: lat,
+      entryLng: lng,
+      entryTime: Date.now(),
+      blockTimestamps: [{ block: entryBlock, time: Date.now(), speed }],
+    };
+    console.log(`[DeadZone] Entry recorded: ${corridorId} Block ${entryBlock} @ ${Math.round(speed * 3.6)} km/h`);
+  },
+
+  // ─── Record when vehicle EXITS a dead zone (goes back online) ───
+  recordExit(corridorId, exitBlock, lat, lng) {
+    if (!this._currentTraversal || this._currentTraversal.corridorId !== corridorId) return;
+    const traversal = this._currentTraversal;
+    traversal.exitBlock = exitBlock;
+    traversal.exitTime = Date.now();
+    traversal.exitLat = lat;
+    traversal.exitLng = lng;
+    traversal.totalTimeMs = traversal.exitTime - traversal.entryTime;
+    traversal.blocksTraversed = Math.abs(exitBlock - traversal.entryBlock);
+
+    // Save to persistent history
+    const history = Store.getZoneHistory();
+    if (!history[corridorId]) history[corridorId] = { traversals: [], blockProfiles: {} };
+    history[corridorId].traversals.push(traversal);
+    // Keep last 20 traversals per corridor
+    if (history[corridorId].traversals.length > 20) history[corridorId].traversals.shift();
+
+    // Update per-block average transit times
+    this._updateBlockProfiles(history, corridorId);
+    Store.saveZoneHistory(history);
+    this._currentTraversal = null;
+    console.log(`[DeadZone] Exit recorded: ${corridorId} Block ${exitBlock}, total ${Math.round(traversal.totalTimeMs / 1000)}s`);
+  },
+
+  // ─── Record block-by-block transit while online (builds profile) ───
+  recordBlockCrossing(corridorId, fromBlock, toBlock, transitTimeMs, speed) {
+    const history = Store.getZoneHistory();
+    if (!history[corridorId]) history[corridorId] = { traversals: [], blockProfiles: {} };
+    const key = `${fromBlock}-${toBlock}`;
+    if (!history[corridorId].blockProfiles[key]) {
+      history[corridorId].blockProfiles[key] = { samples: [], avgTimeMs: 0, avgSpeedMps: 0 };
+    }
+    const profile = history[corridorId].blockProfiles[key];
+    profile.samples.push({ timeMs: transitTimeMs, speed, timestamp: Date.now() });
+    // Keep last 30 samples per block transition
+    if (profile.samples.length > 30) profile.samples.shift();
+    // Recalculate averages
+    profile.avgTimeMs = Math.round(profile.samples.reduce((s, p) => s + p.timeMs, 0) / profile.samples.length);
+    profile.avgSpeedMps = profile.samples.reduce((s, p) => s + p.speed, 0) / profile.samples.length;
+    Store.saveZoneHistory(history);
+  },
+
+  // ─── Update block profiles from traversal data ───
+  _updateBlockProfiles(history, corridorId) {
+    const traversals = history[corridorId].traversals;
+    if (traversals.length === 0) return;
+    // Build avg time-per-block from total traversal data
+    traversals.forEach(t => {
+      if (t.blocksTraversed > 0 && t.totalTimeMs > 0) {
+        const avgTimePerBlock = t.totalTimeMs / t.blocksTraversed;
+        const direction = t.exitBlock > t.entryBlock ? 1 : -1;
+        for (let i = 0; i < t.blocksTraversed; i++) {
+          const from = t.entryBlock + i * direction;
+          const to = from + direction;
+          const key = `${from}-${to}`;
+          if (!history[corridorId].blockProfiles[key]) {
+            history[corridorId].blockProfiles[key] = { samples: [], avgTimeMs: 0, avgSpeedMps: 0 };
+          }
+          const profile = history[corridorId].blockProfiles[key];
+          // Only add if we don't have per-block data already from online recording
+          if (profile.samples.length === 0) {
+            profile.avgTimeMs = Math.round(avgTimePerBlock);
+            profile.avgSpeedMps = t.entrySpeed || 20;
+          }
+        }
+      }
+    });
+  },
+
+  // ─── CORE: Estimate position from history when offline ───
+  estimateFromHistory(lastOnlinePos, elapsedSeconds) {
+    if (!lastOnlinePos) return null;
+    const corridors = Store.getCorridors();
+
+    // Find which corridor the user was on
+    let corridor = null;
+    if (lastOnlinePos.lat > 32) corridor = corridors.find(c => c.id === 'NH44-BAN');
+    else if (lastOnlinePos.lat > 28) corridor = corridors.find(c => c.id === 'NH7-CDM');
+    else if (lastOnlinePos.lat > 18) corridor = corridors.find(c => c.id === 'NH48-GHT');
+    else if (lastOnlinePos.lat > 10) corridor = corridors.find(c => c.id === 'NH66-KNR');
+    if (!corridor) corridor = corridors[0];
+    if (!corridor) return null;
+
+    const history = Store.getZoneHistory();
+    const corridorData = history[corridor.id];
+    if (!corridorData || Object.keys(corridorData.blockProfiles).length === 0) return null;
+
+    // Determine entry block
+    const entryBlock = Math.max(1, Math.min(corridor.blocks,
+      Math.floor(((lastOnlinePos.lng % 10) / 10) * corridor.blocks) + 1
+    ));
+
+    // Walk through blocks using historical transit times
+    let remainingMs = elapsedSeconds * 1000;
+    let currentBlock = entryBlock;
+    let blocksAdvanced = 0;
+    const direction = 1; // Assume forward direction
+    let source = 'personal';
+    let totalConfidence = 90;
+
+    while (remainingMs > 0 && currentBlock >= 1 && currentBlock <= corridor.blocks) {
+      const nextBlock = currentBlock + direction;
+      const key = `${currentBlock}-${nextBlock}`;
+      const profile = corridorData.blockProfiles[key];
+
+      if (profile && profile.avgTimeMs > 0) {
+        // We have historical data for this block transition
+        if (remainingMs >= profile.avgTimeMs) {
+          remainingMs -= profile.avgTimeMs;
+          currentBlock = nextBlock;
+          blocksAdvanced++;
+        } else {
+          // Partially through this block
+          const fraction = remainingMs / profile.avgTimeMs;
+          // Interpolate position within the block
+          currentBlock = currentBlock; // Still in this block
+          remainingMs = 0;
+        }
+      } else {
+        // No history for this block — use corridor average or speed-based estimate
+        source = 'community';
+        totalConfidence = Math.max(60, totalConfidence - 10);
+        const avgBlockLength = corridor.length / corridor.blocks; // meters
+        const speed = lastOnlinePos.speed || 20; // m/s fallback
+        const estimatedTransitMs = (avgBlockLength / speed) * 1000;
+        if (remainingMs >= estimatedTransitMs) {
+          remainingMs -= estimatedTransitMs;
+          currentBlock = nextBlock;
+          blocksAdvanced++;
+        } else {
+          remainingMs = 0;
+        }
+      }
+
+      if (currentBlock < 1 || currentBlock > corridor.blocks) {
+        currentBlock = Math.max(1, Math.min(corridor.blocks, currentBlock));
+        break;
+      }
+    }
+
+    // Degrade confidence over time (but less than basic dead reckoning)
+    totalConfidence = Math.max(55, totalConfidence - Math.floor(elapsedSeconds / 120) * 3);
+
+    // Estimate lat/lng from block position
+    const blockFraction = (currentBlock - 1) / corridor.blocks;
+    const blockLength = corridor.length / corridor.blocks;
+    const distFromEntry = blocksAdvanced * blockLength;
+    const heading = lastOnlinePos.heading || 0;
+    const headingRad = (heading * Math.PI) / 180;
+    const R = 6371000;
+    const lat1 = (lastOnlinePos.lat * Math.PI) / 180;
+    const lng1 = (lastOnlinePos.lng * Math.PI) / 180;
+    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distFromEntry / R) +
+      Math.cos(lat1) * Math.sin(distFromEntry / R) * Math.cos(headingRad));
+    const lng2 = lng1 + Math.atan2(
+      Math.sin(headingRad) * Math.sin(distFromEntry / R) * Math.cos(lat1),
+      Math.cos(distFromEntry / R) - Math.sin(lat1) * Math.sin(lat2));
+
+    return {
+      lat: (lat2 * 180) / Math.PI,
+      lng: (lng2 * 180) / Math.PI,
+      accuracy: source === 'personal' ? 100 + elapsedSeconds * 0.5 : 200 + elapsedSeconds,
+      block: currentBlock,
+      corridorId: corridor.id,
+      source,
+      confidence: totalConfidence,
+      blocksAdvanced,
+      elapsedSeconds,
+    };
+  },
+
+  // ─── Get summary of stored history for a corridor ───
+  getCorridorSummary(corridorId) {
+    const history = Store.getZoneHistory();
+    const data = history[corridorId];
+    if (!data) return { traversals: 0, blocksProfiled: 0, avgCrossTimeMin: 0 };
+    const profiledBlocks = Object.keys(data.blockProfiles).length;
+    const avgCrossTime = data.traversals.length > 0
+      ? Math.round(data.traversals.reduce((s, t) => s + (t.totalTimeMs || 0), 0) / data.traversals.length / 60000)
+      : 0;
+    return {
+      traversals: data.traversals.length,
+      blocksProfiled: profiledBlocks,
+      avgCrossTimeMin: avgCrossTime,
+    };
+  },
+
+  // ─── Seed sample history data for demonstration ───
+  seedDemoHistory() {
+    const history = Store.getZoneHistory();
+    if (history['NH48-GHT'] && history['NH48-GHT'].traversals.length > 0) return; // Already seeded
+
+    // Simulate 3 past trips through NH48 Western Ghats corridor
+    const now = Date.now();
+    const trips = [
+      { daysAgo: 7, entryBlock: 28, exitBlock: 35, speed: 22, totalMin: 16 },
+      { daysAgo: 3, entryBlock: 28, exitBlock: 35, speed: 25, totalMin: 14 },
+      { daysAgo: 1, entryBlock: 28, exitBlock: 35, speed: 20, totalMin: 18 },
+    ];
+
+    const corridorId = 'NH48-GHT';
+    if (!history[corridorId]) history[corridorId] = { traversals: [], blockProfiles: {} };
+
+    trips.forEach(trip => {
+      const entryTime = now - trip.daysAgo * 86400000;
+      const totalMs = trip.totalMin * 60000;
+      const blocksTraversed = trip.exitBlock - trip.entryBlock;
+      const avgTimePerBlock = totalMs / blocksTraversed;
+
+      // Record traversal
+      history[corridorId].traversals.push({
+        corridorId,
+        entryBlock: trip.entryBlock,
+        exitBlock: trip.exitBlock,
+        entrySpeed: trip.speed,
+        entryTime,
+        exitTime: entryTime + totalMs,
+        totalTimeMs: totalMs,
+        blocksTraversed,
+      });
+
+      // Record per-block profiles with realistic variation
+      for (let i = 0; i < blocksTraversed; i++) {
+        const from = trip.entryBlock + i;
+        const to = from + 1;
+        const key = `${from}-${to}`;
+        if (!history[corridorId].blockProfiles[key]) {
+          history[corridorId].blockProfiles[key] = { samples: [], avgTimeMs: 0, avgSpeedMps: 0 };
+        }
+        // Add slight random variation per block (±15%)
+        const variation = 0.85 + Math.random() * 0.3;
+        const transitTime = Math.round(avgTimePerBlock * variation);
+        const profile = history[corridorId].blockProfiles[key];
+        profile.samples.push({
+          timeMs: transitTime,
+          speed: trip.speed * (0.9 + Math.random() * 0.2),
+          timestamp: entryTime + i * avgTimePerBlock,
+        });
+        profile.avgTimeMs = Math.round(profile.samples.reduce((s, p) => s + p.timeMs, 0) / profile.samples.length);
+        profile.avgSpeedMps = profile.samples.reduce((s, p) => s + p.speed, 0) / profile.samples.length;
+      }
+    });
+
+    // Also seed crossings for display
+    const crossings = Store.getCrossings();
+    if (crossings.length === 0) {
+      trips.forEach(trip => {
+        for (let b = trip.entryBlock; b <= trip.exitBlock; b++) {
+          Store.saveCrossing({
+            blockCode: `NH48-B${String(b).padStart(2, '0')}`,
+            corridor: { code: 'NH48', id: 'NH48-GHT' },
+            block: b,
+            lat: 19.5 + (b - 28) * 0.02,
+            lng: 73.8 + (b - 28) * 0.015,
+            speed: Math.round(trip.speed * 3.6),
+            timestamp: now - trip.daysAgo * 86400000 + (b - trip.entryBlock) * 120000,
+            date: new Date(now - trip.daysAgo * 86400000).toLocaleDateString(),
+          });
+        }
+      });
+    }
+
+    Store.saveZoneHistory(history);
+    console.log('[DeadZone] Demo history seeded: 3 trips, 7 blocks profiled for NH48-GHT');
   },
 };
 

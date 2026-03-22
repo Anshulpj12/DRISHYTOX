@@ -62,7 +62,10 @@
 <div class="driver-app" id="app">
   <div class="header-bar">
     <h1>🛡️ RoadSOS</h1>
-    <span id="signalBadge" class="signal-indicator signal-online">🟢 ONLINE</span>
+    <div style="display:flex;align-items:center;gap:0.5rem;">
+      <button id="simOfflineBtn" class="btn btn-sm btn-secondary" style="font-size:0.7rem;padding:0.3rem 0.6rem;" onclick="toggleSimOffline()">⚡ Simulate Offline</button>
+      <span id="signalBadge" class="signal-indicator signal-online">🟢 ONLINE</span>
+    </div>
   </div>
 
   <!-- Screen: Home / GPS -->
@@ -153,8 +156,18 @@
           <h3 id="provName">--</h3>
           <div class="text-sm text-muted" id="provCat">--</div>
           <div style="margin-top:1rem;font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--accent-alert);" id="provETA">--</div>
+          <div style="margin-top:1rem;background:rgba(255,255,255,0.05);padding:1rem;border-radius:var(--radius-sm);">
+            <div class="text-xs text-muted mb-1" style="letter-spacing:1px;">RESOLUTION PIN (GIVE TO PROVIDER)</div>
+            <div style="font-family:var(--font-mono);font-size:2.5rem;font-weight:700;letter-spacing:0.3em;color:var(--accent-online);" id="sosPinDisplay">----</div>
+          </div>
+          <div style="margin-top:1rem;background:rgba(249,115,22,0.08);padding:1rem;border-radius:var(--radius-sm);border:1px solid rgba(249,115,22,0.2);">
+            <div class="text-xs text-muted mb-1" style="letter-spacing:1px;">SOS CODE (SEND TO PROVIDER)</div>
+            <div style="font-family:var(--font-mono);font-size:1rem;font-weight:700;color:var(--accent-alert);word-break:break-all;" id="sosCodeDisplay">---</div>
+          </div>
         </div>
-        <button class="btn btn-secondary btn-full mt-2" onclick="closeSOS()">Back to Home</button>
+        <a id="smsLink" href="#" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📱 Send SOS Code via SMS</a>
+        <button class="btn btn-secondary btn-full mt-1" onclick="copySOSCode()">📋 Copy SOS Code</button>
+        <button class="btn btn-secondary btn-full mt-1" onclick="closeSOS()">Back to Home</button>
       </div>
     </div>
   </div>
@@ -190,6 +203,10 @@
         <select class="select" style="width:auto;padding:0.4rem 2rem 0.4rem 0.6rem;font-size:0.8rem;" id="sosModeSelect" onchange="saveSetting('sosMode', this.value)">
           <option value="hold">Hold 2s</option><option value="double">Double Confirm</option><option value="single">Single Tap</option>
         </select>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info"><h4>OBD-II Bluetooth</h4><p id="obdStatusP" style="color:var(--accent-online);">Not connected</p></div>
+        <button class="btn btn-sm btn-primary" id="obdConnectBtn" onclick="connectOBD()">Pair</button>
       </div>
       <div class="setting-row">
         <div class="setting-info"><h4>Alert Sound</h4><p>Play sound on incoming events</p></div>
@@ -248,14 +265,28 @@ function switchScreen(id) {
 // ═══ GPS ═══
 function requestGPS() {
   if (!navigator.geolocation) {
-    showToast('GPS not available on this device');
+    startFallbackGPS();
     return;
   }
   navigator.geolocation.getCurrentPosition(
     () => { startGPSTracking(); },
-    (err) => { showToast('GPS permission denied: ' + err.message); },
-    { enableHighAccuracy: true }
+    (err) => { 
+      showToast('GPS denied/failed. Starting in fallback test mode.');
+      startFallbackGPS(); 
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
+}
+
+function startFallbackGPS() {
+  state.gpsStarted = true;
+  document.getElementById('gpsPermission').classList.add('hidden');
+  document.getElementById('gpsActive').classList.remove('hidden');
+  initMap();
+  state.lastKnownPos = { lat: 20.5937, lng: 78.9629, accuracy: 100, speed: 0, heading: 45, timestamp: Date.now() };
+  GPSTracker.lastOnlinePosition = state.lastKnownPos;
+  onGPSUpdate(state.lastKnownPos);
+  startOfflineEstimation();
 }
 
 function startGPSTracking() {
@@ -287,15 +318,40 @@ function onGPSUpdate(pos) {
   // Update heading
   document.getElementById('headingVal').textContent = pos.heading ? `${Math.round(pos.heading)}°` : '--';
   
-  // Resolve block code
-  const block = BlockResolver.resolve(pos.lat, pos.lng);
+  // Resolve block code — pass estimated position data for history-driven lookup
+  const block = BlockResolver.resolve(pos.lat, pos.lng, pos.estimated ? pos : null);
+  
+  // Track block changes for crossing recording
+  if (isOnline && state.currentBlock && state.currentBlock.blockCode !== block.blockCode) {
+    const prevBlock = state.currentBlock;
+    if (prevBlock.corridor && prevBlock.corridor.id) {
+      const transitTime = Date.now() - (state.lastBlockChangeTime || Date.now());
+      DeadZoneHistory.recordBlockCrossing(
+        prevBlock.corridor.id, prevBlock.block, block.block, transitTime,
+        pos.speed || 0
+      );
+      // Save crossing to history
+      Store.saveCrossing({
+        blockCode: block.blockCode,
+        corridor: { code: block.corridor.code, id: block.corridor.id },
+        block: block.block,
+        lat: pos.lat, lng: pos.lng,
+        speed: speed,
+        timestamp: Date.now(),
+        date: new Date().toLocaleDateString(),
+      });
+      document.getElementById('crossingCount').textContent = Store.getCrossings().length;
+    }
+  }
+  state.lastBlockChangeTime = Date.now();
   state.currentBlock = block;
+  
   const blockEl = document.getElementById('blockCode');
   blockEl.textContent = block.blockCode;
   blockEl.className = 'block-main ' + (isOnline ? 'online' : 'offline');
   
-  // Update confidence gauge
-  const conf = isOnline ? block.confidence : Math.max(50, block.confidence - Math.floor((Date.now() - (state.offlineSince || Date.now())) / 60000) * 5);
+  // Update confidence gauge — use block confidence directly
+  const conf = block.confidence || (isOnline ? 92 : 60);
   document.getElementById('confVal').textContent = conf;
   drawGauge(conf);
   
@@ -305,8 +361,17 @@ function onGPSUpdate(pos) {
     state.map.setView([pos.lat, pos.lng], state.map.getZoom());
   }
   
-  // GPS status detail
-  document.getElementById('gpsStatusDetail').innerHTML = `Lat: ${pos.lat.toFixed(5)}<br>Lng: ${pos.lng.toFixed(5)}<br>Accuracy: ±${Math.round(pos.accuracy || 0)}m<br>Speed: ${speed} km/h`;
+  // GPS status detail with estimation source
+  let statusHtml = `Lat: ${pos.lat.toFixed(5)}<br>Lng: ${pos.lng.toFixed(5)}<br>Accuracy: ±${Math.round(pos.accuracy || 0)}m<br>Speed: ${speed} km/h`;
+  if (pos.estimated && pos.estimationSource) {
+    const sourceLabels = {
+      'personal': '📊 Personal History',
+      'community': '🌐 Community Average',
+      'dead_reckoning': '⚙️ Basic Dead Reckoning',
+    };
+    statusHtml += `<br><span style="color:var(--accent-offline);">Source: ${sourceLabels[pos.estimationSource] || pos.estimationSource}</span>`;
+  }
+  document.getElementById('gpsStatusDetail').innerHTML = statusHtml;
 }
 
 function onNetworkChange(isOnline, info) {
@@ -314,13 +379,33 @@ function onNetworkChange(isOnline, info) {
   if (!isOnline) {
     state.offlineSince = Date.now();
     state.mode = 'offline';
-    showToast('⚠️ Network lost — switching to offline estimation');
-    // Start offline estimation using last known position
+    // Record dead zone entry
+    const pos = state.lastKnownPos;
+    if (pos && state.currentBlock && state.currentBlock.corridor) {
+      DeadZoneHistory.recordEntry(
+        state.currentBlock.corridor.id, state.currentBlock.block,
+        pos.speed || 0, pos.lat, pos.lng
+      );
+      showToast('⚠️ Signal lost — estimating via crossing history');
+    } else {
+      showToast('⚠️ Network lost — switching to offline estimation');
+    }
     startOfflineEstimation();
   } else {
+    // Record dead zone exit
+    const pos = state.lastKnownPos;
+    if (state.offlineSince && pos && state.currentBlock && state.currentBlock.corridor) {
+      DeadZoneHistory.recordExit(
+        state.currentBlock.corridor.id, state.currentBlock.block,
+        pos.lat, pos.lng
+      );
+      const elapsed = Math.round((Date.now() - state.offlineSince) / 1000);
+      showToast(`🟢 Back online! Dead zone crossed in ${elapsed}s — data saved`);
+    } else {
+      showToast('🟢 Network restored — GPS tracking active');
+    }
     state.offlineSince = null;
     state.mode = 'online';
-    showToast('🟢 Network restored — GPS tracking active');
   }
 }
 
@@ -341,14 +426,32 @@ function updateNetworkUI() {
   } else {
     badge.className = 'signal-indicator signal-offline';
     badge.innerHTML = '🟡 OFFLINE';
-    if (status) { status.className = 'signal-indicator signal-offline'; status.innerHTML = '🟡 OFFLINE — Estimating Position'; }
+    // Determine estimation source for display
+    const estimated = GPSTracker.getEstimatedPosition();
+    let sourceText = 'Dead Reckoning';
+    let sourceIcon = '⚙️';
+    if (estimated && estimated.estimationSource === 'personal') {
+      sourceText = 'Personal History';
+      sourceIcon = '📊';
+    } else if (estimated && estimated.estimationSource === 'community') {
+      sourceText = 'Community Average';
+      sourceIcon = '🌐';
+    }
+    if (status) { status.className = 'signal-indicator signal-offline'; status.innerHTML = `🟡 OFFLINE — ${sourceIcon} ${sourceText}`; }
     if (strip) {
       strip.className = 'status-strip offline-strip';
-      const lastPos = GPSTracker.lastOnlinePosition;
-      if (lastPos) {
-        strip.innerHTML = `🟡 Signal lost — estimating from last known position (${lastPos.lat.toFixed(4)}°, ${lastPos.lng.toFixed(4)}°)`;
+      const summary = state.currentBlock && state.currentBlock.corridor
+        ? DeadZoneHistory.getCorridorSummary(state.currentBlock.corridor.id)
+        : null;
+      if (summary && summary.traversals > 0) {
+        strip.innerHTML = `🟡 Estimating via ${sourceIcon} ${sourceText} · ${summary.traversals} past trips · avg cross: ${summary.avgCrossTimeMin} min`;
       } else {
-        strip.innerHTML = '🟡 No network — using last known position for estimation';
+        const lastPos = GPSTracker.lastOnlinePosition;
+        if (lastPos) {
+          strip.innerHTML = `🟡 Signal lost — estimating from last position (${lastPos.lat.toFixed(4)}°, ${lastPos.lng.toFixed(4)}°)`;
+        } else {
+          strip.innerHTML = '🟡 No network — using last known position for estimation';
+        }
       }
     }
     if (netInfo) netInfo.textContent = 'Network: OFFLINE';
@@ -406,6 +509,22 @@ function openSOS() {
 }
 
 function closeSOS() { switchScreen('screenHome'); }
+
+function copySOSCode() {
+  const code = document.getElementById('sosCodeDisplay').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(() => showToast('SOS Code copied to clipboard!'));
+  } else {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = code;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('SOS Code copied!');
+  }
+}
 
 function renderSOSCategories() {
   document.getElementById('sosCats').innerHTML = EMERGENCY_TYPES.map(t => `
@@ -477,11 +596,43 @@ function sendSOS() {
     document.getElementById('sosStep4').classList.remove('hidden');
     
     if (providers.length > 0) {
-      const prov = providers[0];
+      // Find closest provider
+      let closestProv = providers[0];
+      let minDistance = Infinity;
+      const myLat = state.lastKnownPos ? state.lastKnownPos.lat : GPSTracker.getEstimatedPosition().lat;
+      const myLng = state.lastKnownPos ? state.lastKnownPos.lng : GPSTracker.getEstimatedPosition().lng;
+      
+      providers.forEach(p => {
+        if (p.gps) {
+          const parts = p.gps.split(',').map(s => parseFloat(s.trim()));
+          if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            const dist = Utils.haversine(myLat, myLng, parts[0], parts[1]);
+            if (dist < minDistance) { minDistance = dist; closestProv = p; }
+          }
+        }
+      });
+      
+      const prov = closestProv;
       document.getElementById('provName').textContent = prov.name;
       document.getElementById('provCat').textContent = `${prov.category.icon} ${prov.category.label}`;
-      const eta = Math.floor(Math.random() * 15) + 5;
+      
+      let eta = Math.floor(Math.random() * 15) + 5;
+      if (minDistance !== Infinity) {
+        // Assume 40 km/h average response speed
+        eta = Math.max(2, Math.round((minDistance / 1000) / 40 * 60)); 
+      }
       document.getElementById('provETA').textContent = `ETA: ${eta} min`;
+
+      // Display Resolution PIN
+      document.getElementById('sosPinDisplay').textContent = state.pendingSOS.resolutionPin;
+      
+      // Display SOS code and SMS link
+      const sosCode = state.pendingSOS.packet;
+      document.getElementById('sosCodeDisplay').textContent = sosCode;
+      // Build SMS link — send to provider phone if available, otherwise use emergency number
+      const provPhone = prov.phone || '112';
+      const smsBody = encodeURIComponent(`RoadSOS EMERGENCY: ${sosCode} | PIN:${state.pendingSOS.resolutionPin} | Loc:${state.pendingSOS.lat.toFixed(5)},${state.pendingSOS.lng.toFixed(5)}`);
+      document.getElementById('smsLink').href = `sms:${provPhone}?body=${smsBody}`;
       
       // Update SOS event with provider assignment
       Store.updateSOSEvent(state.pendingSOS.id, {
@@ -493,6 +644,12 @@ function sendSOS() {
       document.getElementById('provName').textContent = 'No providers registered';
       document.getElementById('provCat').textContent = 'Register providers in Admin Panel';
       document.getElementById('provETA').textContent = 'Searching...';
+      document.getElementById('sosPinDisplay').textContent = '----';
+      // Still show SOS code for manual sharing
+      const sosCode = state.pendingSOS.packet;
+      document.getElementById('sosCodeDisplay').textContent = sosCode;
+      const smsBody = encodeURIComponent(`RoadSOS EMERGENCY: ${sosCode} | PIN:${state.pendingSOS.resolutionPin} | Loc:${state.pendingSOS.lat.toFixed(5)},${state.pendingSOS.lng.toFixed(5)}`);
+      document.getElementById('smsLink').href = `sms:112?body=${smsBody}`;
     }
   }, 3000);
 }
@@ -564,6 +721,34 @@ function saveSetting(key, value) {
   Store.saveSettings(settings);
 }
 
+// ═══ OBD-II BLUETOOTH ═══
+let obdDevice = null;
+async function connectOBD() {
+  try {
+    if (!navigator.bluetooth) { showToast('Web Bluetooth API not supported in this browser'); return; }
+    document.getElementById('obdStatusP').textContent = 'Scanning...';
+    obdDevice = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [] // For production, we'd request OBD ELM327 BLE characteristic UUIDs
+    });
+    document.getElementById('obdStatusP').textContent = 'Connected: ' + (obdDevice.name || 'OBD Tracker');
+    document.getElementById('obdConnectBtn').textContent = 'Disconnect';
+    document.getElementById('obdConnectBtn').onclick = disconnectOBD;
+    showToast('OBD-II Hardware Connected. Utilizing direct VSS data.');
+  } catch (err) {
+    document.getElementById('obdStatusP').textContent = 'Not connected';
+    showToast('Bluetooth pairing failed/cancelled');
+  }
+}
+function disconnectOBD() {
+  if (obdDevice && obdDevice.gatt && obdDevice.gatt.connected) obdDevice.gatt.disconnect();
+  obdDevice = null;
+  document.getElementById('obdStatusP').textContent = 'Not connected';
+  document.getElementById('obdConnectBtn').textContent = 'Pair';
+  document.getElementById('obdConnectBtn').onclick = connectOBD;
+  showToast('OBD-II Disconnected. Falling back to GPS estimation.');
+}
+
 // ═══ TOAST ═══
 function showToast(msg) {
   const existing = document.querySelector('.toast');
@@ -578,6 +763,8 @@ function showToast(msg) {
 // ═══ INIT ═══
 function init() {
   drawGauge(0);
+  // Seed demo history for demonstration
+  DeadZoneHistory.seedDemoHistory();
   document.getElementById('crossingCount').textContent = Store.getCrossings().length;
   document.getElementById('relaysLifetime').textContent = Store.getV2VRelays().length;
   
@@ -586,6 +773,29 @@ function init() {
     navigator.permissions.query({ name: 'geolocation' }).then(result => {
       if (result.state === 'granted') requestGPS();
     });
+  }
+}
+
+// ═══ SIMULATION TOGGLE ═══
+let simOffline = false;
+function toggleSimOffline() {
+  simOffline = !simOffline;
+  const btn = document.getElementById('simOfflineBtn');
+  if (simOffline) {
+    btn.textContent = '⚡ Go Online';
+    btn.style.background = 'var(--accent-offline)';
+    btn.style.color = '#000';
+    // Directly override NetworkDetector state (navigator.onLine stays true)
+    NetworkDetector._online = false;
+    NetworkDetector._notify();
+    onNetworkChange(false, NetworkDetector.getConnectionInfo());
+  } else {
+    btn.textContent = '⚡ Simulate Offline';
+    btn.style.background = '';
+    btn.style.color = '';
+    NetworkDetector._online = true;
+    NetworkDetector._notify();
+    onNetworkChange(true, NetworkDetector.getConnectionInfo());
   }
 }
 

@@ -101,8 +101,20 @@
       <div id="profileContent"></div>
     </div>
 
+    <div id="tabLookup" style="display:none;" class="screen-pad">
+      <h3 style="font-size:1rem;margin-bottom:0.5rem;">🔍 Lookup SOS Code</h3>
+      <p class="text-xs text-muted mb-2">Paste the SOS code received via SMS to decode the location and emergency details.</p>
+      <div style="margin-bottom:1rem;">
+        <input type="text" id="lookupCodeInput" class="input" placeholder="Paste SOS code here... (e.g. NH48-B32|ACC|15:24:29|conf:87)" style="font-family:var(--font-mono);font-size:0.85rem;">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="lookupSOSCode()">🔍 Decode & Show Location</button>
+      <div id="lookupResult" style="margin-top:1rem;"></div>
+      <div id="lookupMap" style="display:none;height:250px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:1rem;"></div>
+    </div>
+
     <nav class="mobile-nav" id="providerNav" style="display:none;">
       <div class="mobile-nav-item active" onclick="showTab('tabAlerts')"><span class="nav-icon">🚨</span>Alerts</div>
+      <div class="mobile-nav-item" onclick="showTab('tabLookup')"><span class="nav-icon">🔍</span>Lookup</div>
       <div class="mobile-nav-item" onclick="showTab('tabDispatch')"><span class="nav-icon">🚀</span>Dispatch</div>
       <div class="mobile-nav-item" onclick="showTab('tabProfile')"><span class="nav-icon">👤</span>Profile</div>
     </nav>
@@ -175,11 +187,11 @@ function login() {
 
 // ═══ TABS ═══
 function showTab(tabId) {
-  ['tabAlerts', 'tabDetail', 'tabDispatch', 'tabProfile'].forEach(t => {
+  ['tabAlerts', 'tabDetail', 'tabDispatch', 'tabProfile', 'tabLookup'].forEach(t => {
     document.getElementById(t).style.display = t === tabId ? 'block' : 'none';
   });
   document.querySelectorAll('#providerNav .mobile-nav-item').forEach(n => n.classList.remove('active'));
-  const map = { tabAlerts: 0, tabDetail: 0, tabDispatch: 1, tabProfile: 2 };
+  const map = { tabAlerts: 0, tabDetail: 0, tabLookup: 1, tabDispatch: 2, tabProfile: 3 };
   if (map[tabId] !== undefined) document.querySelectorAll('#providerNav .mobile-nav-item')[map[tabId]].classList.add('active');
   if (tabId === 'tabAlerts') renderAlerts();
   if (tabId === 'tabProfile') renderProfile();
@@ -331,7 +343,9 @@ function renderDispatch() {
       <div class="text-xs text-muted">📍 ${d.lat ? d.lat.toFixed(5) + '°, ' + d.lng.toFixed(5) + '°' : 'Location unknown'}</div>
     </div>
     <div id="dispatchMap"></div>
-    <button class="btn btn-success btn-full btn-lg" onclick="resolveDispatch()">✅ Mark as Resolved</button>
+    <div id="resolveSection" class="mt-2">
+      <button class="btn btn-success btn-full btn-lg" onclick="showPinInput()">✅ Mark as Resolved</button>
+    </div>
   `;
 
   // Init dispatch map
@@ -362,8 +376,37 @@ function renderDispatch() {
   updateTimer();
 }
 
+function showPinInput() {
+  document.getElementById('resolveSection').innerHTML = `
+    <div style="background:var(--bg-card);padding:1rem;border-radius:var(--radius-sm);border:1px solid var(--border);text-align:center;">
+      <h4 style="margin-bottom:0.5rem;font-size:0.9rem;">Enter Resolution PIN</h4>
+      <p class="text-xs text-muted mb-2">Ask the driver for their 4-digit PIN to confirm resolution.</p>
+      <input type="text" id="resolutionPinInput" class="input" placeholder="----" maxlength="4" style="font-family:var(--font-mono);font-size:1.5rem;text-align:center;letter-spacing:0.5em;margin-bottom:1rem;">
+      <div style="display:flex;gap:0.5rem;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="cancelPinInput()">Cancel</button>
+        <button class="btn btn-success" style="flex:1;" onclick="resolveDispatch()">Confirm</button>
+      </div>
+    </div>
+  `;
+}
+
+function cancelPinInput() {
+  document.getElementById('resolveSection').innerHTML = `<button class="btn btn-success btn-full btn-lg" onclick="showPinInput()">✅ Mark as Resolved</button>`;
+}
+
 function resolveDispatch() {
   if (!activeDispatch) return;
+  
+  const pinInput = document.getElementById('resolutionPinInput');
+  if (pinInput) {
+    const enteredPin = pinInput.value.trim();
+    if (enteredPin !== activeDispatch.resolutionPin) {
+      showToast('❌ Incorrect PIN. Please ask the driver for the correct 4-digit PIN.');
+      pinInput.value = '';
+      return;
+    }
+  }
+
   clearInterval(dispatchInterval);
   const elapsed = Math.floor((Date.now() - activeDispatch.dispatchTime) / 1000);
   const resMin = Math.round(elapsed / 60);
@@ -455,6 +498,118 @@ function showToast(msg) {
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 4000);
+}
+
+// ═══ LOOKUP SOS CODE ═══
+let lookupMapInstance = null;
+
+function lookupSOSCode() {
+  const input = document.getElementById('lookupCodeInput').value.trim();
+  if (!input) {
+    showToast('Please paste an SOS code first');
+    return;
+  }
+
+  // Parse the SOS code packet format: BLOCKCODE|TYPECODE|TIME|conf:XX
+  // Example: NH48-B32|ACC|15:24:29|conf:87
+  // Also handle full SMS: RoadSOS EMERGENCY: NH48-B32|ACC|15:24:29|conf:87 | PIN:1234 | Loc:20.59370,78.96290
+  let packet = input;
+  let pin = null;
+  let lat = null;
+  let lng = null;
+
+  // Extract from full SMS format
+  if (input.includes('RoadSOS EMERGENCY:')) {
+    const mainMatch = input.match(/RoadSOS EMERGENCY:\s*([^|]+\|[^|]+\|[^|]+\|[^|]+)/);
+    if (mainMatch) packet = mainMatch[1].trim();
+    const pinMatch = input.match(/PIN:(\d+)/);
+    if (pinMatch) pin = pinMatch[1];
+    const locMatch = input.match(/Loc:([\d.]+),([\d.]+)/);
+    if (locMatch) {
+      lat = parseFloat(locMatch[1]);
+      lng = parseFloat(locMatch[2]);
+    }
+  }
+
+  // Parse packet: BLOCKCODE|TYPECODE|TIME|conf:XX
+  const parts = packet.split('|').map(s => s.trim());
+  if (parts.length < 3) {
+    showToast('Invalid SOS code format');
+    return;
+  }
+
+  const blockCode = parts[0]; // e.g. NH48-B32
+  const typeCode = parts[1];  // e.g. ACC
+  const time = parts[2];      // e.g. 15:24:29
+  const confPart = parts[3];  // e.g. conf:87
+  const confidence = confPart ? parseInt(confPart.replace('conf:', '')) : 0;
+
+  // Find emergency type
+  const type = EMERGENCY_TYPES.find(t => t.code === typeCode) || { icon: '🚨', label: typeCode, color: '#F87171' };
+
+  // Find matching SOS event in localStorage
+  const events = Store.getSOSEvents();
+  const matchingEvent = events.find(e => e.blockCode === blockCode && e.packet && e.packet.includes(typeCode));
+
+  if (matchingEvent) {
+    lat = matchingEvent.lat || lat;
+    lng = matchingEvent.lng || lng;
+    pin = matchingEvent.resolutionPin || pin;
+  }
+
+  // If no lat/lng, estimate from block code
+  if (!lat || !lng) {
+    const corridors = Store.getCorridors();
+    const codeMatch = blockCode.match(/^(\w+)-B(\d+)$/);
+    if (codeMatch) {
+      const corridorCode = codeMatch[1];
+      const blockNum = parseInt(codeMatch[2]);
+      const basePositions = {
+        'NH44': { lat: 33.5, lng: 75.0 },
+        'NH48': { lat: 19.5, lng: 73.8 },
+        'NH66': { lat: 11.9, lng: 75.3 },
+        'NH7':  { lat: 30.5, lng: 78.5 },
+        'NH39': { lat: 25.7, lng: 94.1 },
+      };
+      const base = basePositions[corridorCode] || { lat: 20.5, lng: 78.9 };
+      lat = base.lat + (blockNum - 1) * 0.02;
+      lng = base.lng + (blockNum - 1) * 0.015;
+    }
+    if (!lat) { lat = 20.5937; lng = 78.9629; }
+  }
+
+  const confColor = confidence >= 85 ? 'var(--accent-online)' : confidence >= 60 ? 'var(--accent-offline)' : 'var(--accent-alert)';
+
+  // Display results
+  document.getElementById('lookupResult').innerHTML = `
+    <div class="card card-glow-alert mb-2">
+      <div class="flex-between">
+        <div class="alert-type" style="color:${type.color};font-size:1.1rem;">${type.icon} ${type.label}</div>
+        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted);">${time}</span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--accent-online);margin:0.5rem 0;">${blockCode}</div>
+      <div class="packet-display">${packet}</div>
+      <div style="margin-top:0.5rem;display:flex;gap:1rem;flex-wrap:wrap;">
+        <span class="text-xs">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</span>
+        <span class="text-xs" style="color:${confColor};font-weight:700;">Conf: ${confidence}%</span>
+        ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
+      </div>
+    </div>
+    ${matchingEvent ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${matchingEvent.id}')">🚀 Accept & Dispatch to This Location</button>` : ''}
+  `;
+
+  // Show map
+  document.getElementById('lookupMap').style.display = 'block';
+  setTimeout(() => {
+    if (lookupMapInstance) lookupMapInstance.remove();
+    lookupMapInstance = L.map('lookupMap').setView([lat, lng], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
+    const marker = L.marker([lat, lng]).addTo(lookupMapInstance);
+    marker.bindPopup(`<b>${type.icon} ${type.label}</b><br>${blockCode}<br>${packet}`).openPopup();
+    L.circle([lat, lng], { radius: confidence >= 85 ? 150 : 400, color: type.color, fillOpacity: 0.1 }).addTo(lookupMapInstance);
+  }, 100);
+
+  showToast(`Location decoded: ${blockCode} — ${type.label}`);
 }
 </script>
 </body>

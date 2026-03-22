@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Offline Test Harness</title>
+</head>
+<body style="margin:0;padding:0;overflow:hidden;">
+    <iframe id="appFrame" src="driver.html" style="width:100vw; height:100vh; border:none;"></iframe>
+    <script>
+        document.getElementById('appFrame').onload = function() {
+            const fw = document.getElementById('appFrame').contentWindow;
+            
+            // Wait for GPS to initialize (2 seconds)
+            setTimeout(() => {
+                // Force a moving GPS state
+                fw.state.lastKnownPos = { lat: 20.5937, lng: 78.9629, accuracy: 20, speed: 27.77, heading: 90, timestamp: Date.now() }; // 100 km/h East
+                fw.GPSTracker.lastOnlinePosition = fw.state.lastKnownPos;
+                fw.onGPSUpdate(fw.state.lastKnownPos);
+                
+                // Wait 2 more seconds to let the user see it moving online
+                setTimeout(() => {
+                    // Fire offline event
+                    fw.window.dispatchEvent(new Event('offline'));
+                    
+                    // The offline loop should now estimate position based on 100km/h East.
+                }, 2000);
+            }, 2000);
+        };
+    </script>
+</body>
+</html>
