@@ -200,6 +200,7 @@ function showTab(tabId) {
 
 // ═══ ALERTS — Real data from localStorage ═══
 function renderAlerts() {
+  // Always re-read from localStorage to get latest data from driver app
   const events = Store.getSOSEvents().filter(e => !e.resolved);
   document.getElementById('alertCount').textContent = `${events.length} active`;
   const list = document.getElementById('alertList');
@@ -217,6 +218,7 @@ function renderAlerts() {
     const type = a.type || EMERGENCY_TYPES.find(t => t.code === a.typeCode) || EMERGENCY_TYPES[0];
     const confColor = a.confidence >= 85 ? '#22D3EE' : a.confidence >= 60 ? '#FACC15' : '#F97316';
     const tx = a.transmission || TRANSMISSION_METHODS[0];
+    const hasLocation = (a.lat != null && a.lng != null && a.lat !== 0 && a.lng !== 0);
     return `<div class="alert-card ${i === 0 ? 'new' : ''}" onclick="showAlertDetail('${a.id}')">
       <div class="alert-top">
         <div class="alert-type" style="color:${type.color}">${type.icon} ${type.label}</div>
@@ -226,7 +228,7 @@ function renderAlerts() {
       <div class="alert-meta">
         <span><span class="conf-dot" style="background:${confColor}"></span> Conf: ${a.confidence}%</span>
         <span class="badge ${tx.badge}">${tx.code}</span>
-        ${a.lat ? `<span>📍 ${a.lat.toFixed(4)}°, ${a.lng.toFixed(4)}°</span>` : ''}
+        ${hasLocation ? `<span>📍 ${a.lat.toFixed(4)}°, ${a.lng.toFixed(4)}°</span>` : '<span>📍 Location pending</span>'}
       </div>
     </div>`;
   }).join('');
@@ -240,6 +242,7 @@ function formatElapsed(sec) {
 
 // ═══ ALERT DETAIL with Live Map ═══
 function showAlertDetail(id) {
+  // Re-read from localStorage to get latest SOS event data (with correct location)
   const alert = Store.getSOSEvents().find(e => e.id === id);
   if (!alert) return;
   showTab('tabDetail');
@@ -247,6 +250,12 @@ function showAlertDetail(id) {
   const type = alert.type || EMERGENCY_TYPES.find(t => t.code === alert.typeCode) || EMERGENCY_TYPES[0];
   const confColor = alert.confidence >= 85 ? 'var(--accent-online)' : alert.confidence >= 60 ? 'var(--accent-offline)' : 'var(--accent-alert)';
   const tx = alert.transmission || TRANSMISSION_METHODS[0];
+
+  // Use actual GPS coordinates from the SOS event, only fall back if truly missing
+  const hasRealLocation = (alert.lat != null && alert.lng != null && alert.lat !== 0 && alert.lng !== 0);
+  const mapLat = hasRealLocation ? alert.lat : 20.5937;
+  const mapLng = hasRealLocation ? alert.lng : 78.9629;
+  const mapZoom = hasRealLocation ? 15 : 5;
 
   document.getElementById('alertDetail').innerHTML = `
     <div class="card card-glow-alert mb-2">
@@ -256,7 +265,7 @@ function showAlertDetail(id) {
       </div>
       <div style="font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--accent-online);margin:0.5rem 0;">${alert.blockCode}</div>
       <div class="packet-display">${alert.packet}</div>
-      ${alert.lat ? `<div class="text-xs text-muted mt-1">📍 ${alert.lat.toFixed(5)}°, ${alert.lng.toFixed(5)}°</div>` : ''}
+      ${hasRealLocation ? `<div class="text-xs text-muted mt-1">📍 ${alert.lat.toFixed(5)}°, ${alert.lng.toFixed(5)}°</div>` : '<div class="text-xs" style="color:var(--accent-alert);" >⚠️ Driver GPS coordinates not available — showing approximate block location</div>'}
     </div>
 
     <div style="margin-bottom:1rem;">
@@ -270,6 +279,7 @@ function showAlertDetail(id) {
       <div class="detail-field"><span class="label">Confidence</span><span style="color:${confColor};font-weight:700;">${alert.confidence}%</span></div>
       <div class="detail-field"><span class="label">Time</span><span>${alert.timeStr || new Date(alert.timestamp).toLocaleTimeString()}</span></div>
       <div class="detail-field"><span class="label">Transmission</span><span class="badge ${tx.badge}">${tx.code}</span></div>
+      <div class="detail-field"><span class="label">GPS Coords</span><span style="font-family:var(--font-mono);">${hasRealLocation ? alert.lat.toFixed(5) + '°, ' + alert.lng.toFixed(5) + '°' : 'Not available'}</span></div>
     </div>
 
     <button class="btn btn-primary btn-full btn-lg" onclick="acceptDispatch('${alert.id}')" style="margin-bottom:0.75rem;">
@@ -285,14 +295,12 @@ function showAlertDetail(id) {
   // Initialize Leaflet map for alert location
   setTimeout(() => {
     if (detailMap) detailMap.remove();
-    const lat = alert.lat || 20.5937;
-    const lng = alert.lng || 78.9629;
-    detailMap = L.map('detailMap').setView([lat, lng], 15);
+    detailMap = L.map('detailMap').setView([mapLat, mapLng], mapZoom);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(detailMap);
-    const marker = L.marker([lat, lng]).addTo(detailMap);
-    marker.bindPopup(`<b>🚨 ${type.label}</b><br>${alert.blockCode}<br>${alert.packet}`).openPopup();
+    const marker = L.marker([mapLat, mapLng]).addTo(detailMap);
+    marker.bindPopup(`<b>🚨 ${type.label}</b><br>${alert.blockCode}<br>📍 ${mapLat.toFixed(5)}°, ${mapLng.toFixed(5)}°<br>${alert.packet}`).openPopup();
     // Add circle for accuracy
-    L.circle([lat, lng], { radius: 200, color: type.color, fillOpacity: 0.1 }).addTo(detailMap);
+    L.circle([mapLat, mapLng], { radius: hasRealLocation ? 200 : 2000, color: type.color, fillOpacity: 0.1 }).addTo(detailMap);
   }, 100);
 }
 
@@ -348,16 +356,18 @@ function renderDispatch() {
     </div>
   `;
 
-  // Init dispatch map
+  // Init dispatch map with actual SOS coordinates
   setTimeout(() => {
     if (dispatchMap) dispatchMap.remove();
-    const lat = d.lat || 20.5937;
-    const lng = d.lng || 78.9629;
-    dispatchMap = L.map('dispatchMap').setView([lat, lng], 15);
+    const hasRealLoc = (d.lat != null && d.lng != null && d.lat !== 0 && d.lng !== 0);
+    const lat = hasRealLoc ? d.lat : 20.5937;
+    const lng = hasRealLoc ? d.lng : 78.9629;
+    const zoom = hasRealLoc ? 15 : 5;
+    dispatchMap = L.map('dispatchMap').setView([lat, lng], zoom);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(dispatchMap);
     L.marker([lat, lng]).addTo(dispatchMap)
-      .bindPopup(`<b>🚨 ${type.label}</b><br>${d.blockCode}`).openPopup();
-    L.circle([lat, lng], { radius: 300, color: '#F97316', fillOpacity: 0.1 }).addTo(dispatchMap);
+      .bindPopup(`<b>🚨 ${type.label}</b><br>${d.blockCode}<br>📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`).openPopup();
+    L.circle([lat, lng], { radius: hasRealLoc ? 300 : 3000, color: '#F97316', fillOpacity: 0.1 }).addTo(dispatchMap);
   }, 100);
 
   // Timer

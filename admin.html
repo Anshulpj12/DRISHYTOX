@@ -34,6 +34,9 @@
 .empty-state { text-align:center; padding:3rem 1rem; color:var(--text-muted); }
 .empty-state .icon { font-size:3rem; margin-bottom:0.5rem; }
 .mobile-menu-btn { display: none; position: fixed; top: 1rem; left: 1rem; z-index: 200; background: var(--bg-panel); border: 1px solid var(--border); color: var(--text-primary); width: 40px; height: 40px; border-radius: 8px; font-size: 1.2rem; cursor: pointer; }
+.import-area { border:2px dashed var(--border); border-radius:var(--radius); padding:2rem; text-align:center; cursor:pointer; transition:all 0.3s; margin:1rem 0; }
+.import-area:hover { border-color:var(--accent-online); background:rgba(34,211,238,0.05); }
+.import-area input[type=file] { display:none; }
 @media (max-width: 900px) {
   .mobile-menu-btn { display: flex; align-items: center; justify-content: center; }
   .sidebar.open { display: block; }
@@ -51,6 +54,9 @@
     <div class="nav-item active" onclick="showSection('secDashboard',this)">📊 Dashboard</div>
     <div class="nav-item" onclick="showSection('secRegister',this)">➕ Register Provider</div>
     <div class="nav-item" onclick="showSection('secProviders',this)">👥 Provider Table</div>
+    <div class="nav-item" onclick="showSection('secDrivers',this)">🚗 Drivers</div>
+    <div class="nav-item" onclick="showSection('secBlockRegistry',this)">📦 Block Registry</div>
+    <div class="nav-item" onclick="showSection('secTransitLog',this)">🕐 Transit Log</div>
     <div class="nav-item" onclick="showSection('secBlockMap',this)">🗺️ Block Map</div>
     <div class="nav-item" onclick="showSection('secAudit',this)">📋 SOS Audit Trail</div>
     <div class="nav-item" onclick="showSection('secV2V',this)">📡 V2V Relay Log</div>
@@ -75,7 +81,11 @@
         <div style="margin-bottom:1rem;"><label class="label">Category *</label><select class="select" id="regCat"><option value="">Select category...</option></select></div>
         <div style="margin-bottom:1rem;"><label class="label">Phone *</label><input class="input" id="regPhone" placeholder="+91 9876543210"></div>
         <div style="margin-bottom:1rem;"><label class="label">Coverage Corridor</label><select class="select" id="regCorridor"><option value="">All corridors</option></select></div>
-        <div style="margin-bottom:1rem;"><label class="label">GPS Coordinates (optional)</label><input class="input" id="regGPS" placeholder="28.6139, 77.2090"></div>
+        <div style="margin-bottom:1rem;">
+          <label class="label">GPS Coordinates * <span style="color:var(--accent-alert);font-size:0.75rem;">(Required for closest-provider matching)</span></label>
+          <input class="input" id="regGPS" placeholder="28.6139, 77.2090" required>
+          <div class="text-xs text-muted mt-1">Enter latitude, longitude (e.g. 28.6139, 77.2090). Required for distance calculation.</div>
+        </div>
         <button class="btn btn-primary btn-full" onclick="registerProvider()">Register Provider</button>
       </div>
       <div id="credResult" class="hidden"></div>
@@ -91,7 +101,47 @@
         </div>
       </div>
       <div class="table-wrap"><table id="providerTable"></table></div>
-      <div id="emptyProviders" class="empty-state hidden"><div class="icon">👥</div><p>No providers registered yet. Use "Register Provider" to add service providers.</p></div>
+      <div id="emptyProviders" class="empty-state hidden"><div class="icon">👥</div><p>No providers registered yet.</p></div>
+    </div>
+
+    <!-- Drivers -->
+    <div class="section" id="secDrivers">
+      <div class="page-header"><h2>Registered Drivers</h2><p>All drivers who have logged in via mobile number</p></div>
+      <div class="table-wrap"><table id="driverTable"></table></div>
+      <div id="emptyDrivers" class="empty-state"><div class="icon">🚗</div><p>No drivers registered yet. Drivers register automatically when they log in via the Driver App.</p></div>
+    </div>
+
+    <!-- Block Registry -->
+    <div class="section" id="secBlockRegistry">
+      <div class="page-header"><h2>Block Registry</h2><p>All auto-generated 1km blocks — immutable once created</p></div>
+      <div class="flex-between mb-2" style="flex-wrap:wrap;gap:0.75rem;">
+        <div>
+          <span class="badge badge-active" id="blockCountBadge">0 blocks</span>
+        </div>
+        <div class="flex-row gap-1">
+          <button class="btn btn-primary btn-sm" onclick="exportBlockRegistry()">📥 Export JSON</button>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;">📤 Import JSON<input type="file" accept=".json" onchange="importBlockRegistry(event)" style="display:none;"></label>
+        </div>
+      </div>
+      <div class="table-wrap"><table id="blockTable"></table></div>
+      <div id="emptyBlocks" class="empty-state"><div class="icon">📦</div><p>No blocks generated yet. Blocks are auto-created as drivers explore new areas.</p></div>
+    </div>
+
+    <!-- Transit Log -->
+    <div class="section" id="secTransitLog">
+      <div class="page-header"><h2>Transit Log</h2><p>Entry/exit timestamps for every block crossing</p></div>
+      <div class="flex-between mb-2" style="flex-wrap:wrap;gap:0.75rem;">
+        <div class="flex-row gap-1">
+          <input class="input" placeholder="Filter by Block ID..." id="transitBlockFilter" oninput="renderTransitLog()" style="width:200px;font-size:0.8rem;">
+          <input class="input" placeholder="Filter by Driver ID..." id="transitDriverFilter" oninput="renderTransitLog()" style="width:200px;font-size:0.8rem;">
+        </div>
+        <div class="flex-row gap-1">
+          <button class="btn btn-primary btn-sm" onclick="exportTransitLog()">📥 Export JSON</button>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;">📤 Import JSON<input type="file" accept=".json" onchange="importTransitLog(event)" style="display:none;"></label>
+        </div>
+      </div>
+      <div class="table-wrap"><table id="transitTable"></table></div>
+      <div id="emptyTransits" class="empty-state"><div class="icon">🕐</div><p>No transit records yet.</p></div>
     </div>
 
     <!-- Block Map -->
@@ -102,18 +152,18 @@
 
     <!-- SOS Audit -->
     <div class="section" id="secAudit">
-      <div class="page-header"><h2>SOS Audit Trail</h2><p>Complete history of all SOS events — real data from user triggers</p></div>
+      <div class="page-header"><h2>SOS Audit Trail</h2><p>Complete history of all SOS events</p></div>
       <div class="flex-between mb-2" style="flex-wrap:wrap;gap:0.75rem;">
         <div class="flex-row gap-1" style="flex-wrap:wrap;">
           <select class="select" style="width:auto;padding:0.4rem 2rem 0.4rem 0.6rem;font-size:0.8rem;" id="auditStatus" onchange="renderAudit()">
-            <option value="">All Status</option><option value="resolved">Resolved</option><option value="active">Active</option>
+            <option value="">All Status</option><option value="resolved">Resolved</option><option value="active">Active</option><option value="cancelled">Cancelled</option>
           </select>
           <select class="select" style="width:auto;padding:0.4rem 2rem 0.4rem 0.6rem;font-size:0.8rem;" id="auditType" onchange="renderAudit()"><option value="">All Types</option></select>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="exportAudit()">📥 Export CSV</button>
       </div>
       <div class="table-wrap"><table id="auditTable"></table></div>
-      <div id="emptyAudit" class="empty-state hidden"><div class="icon">📋</div><p>No SOS events recorded yet. Events will appear here when users trigger SOS from the Driver App.</p></div>
+      <div id="emptyAudit" class="empty-state hidden"><div class="icon">📋</div><p>No SOS events recorded yet.</p></div>
       <div id="auditTimeline" class="hidden card mt-2"></div>
     </div>
 
@@ -131,7 +181,7 @@
 <div class="modal-overlay hidden" id="deleteModal">
   <div class="modal">
     <h3>⚠️ Delete Provider</h3>
-    <p class="text-sm text-muted mt-1">Are you sure you want to remove this provider? This action cannot be undone. The provider will lose access immediately.</p>
+    <p class="text-sm text-muted mt-1">Are you sure? This action cannot be undone.</p>
     <div class="card mt-2" id="deleteProvInfo"></div>
     <div class="flex-row mt-2" style="justify-content:flex-end;">
       <button class="btn btn-secondary btn-sm" onclick="closeDeleteModal()">Cancel</button>
@@ -156,26 +206,32 @@ function showSection(id, el) {
   document.querySelector('.sidebar').classList.remove('open');
   if (id === 'secDashboard') renderDashboard();
   if (id === 'secProviders') renderProviderTable();
+  if (id === 'secDrivers') renderDrivers();
+  if (id === 'secBlockRegistry') renderBlockRegistry();
+  if (id === 'secTransitLog') renderTransitLog();
   if (id === 'secBlockMap') renderCorridors();
   if (id === 'secAudit') renderAudit();
   if (id === 'secV2V') renderV2V();
 }
 
-// ═══ DASHBOARD — Real stats from localStorage ═══
+// ═══ DASHBOARD ═══
 function renderDashboard() {
   const stats = Store.getStats();
+  const blockCount = BlockRegistry.getBlockCount();
+  const driverCount = DriverRegistry.getDriverCount();
+  const transitCount = BlockTransitLog.getTransitCount();
+
   document.getElementById('statsGrid').innerHTML = [
     { v: stats.totalProviders, l: 'Total Providers', c: 'var(--accent-online)' },
     { v: stats.activeProviders, l: 'Active Providers', c: 'var(--success)' },
+    { v: driverCount, l: 'Registered Drivers', c: 'var(--accent-v2v)' },
+    { v: blockCount, l: 'Blocks Explored', c: 'var(--accent-online)' },
+    { v: transitCount, l: 'Transit Records', c: 'var(--accent-offline)' },
     { v: stats.totalSOS.today, l: 'SOS Today', c: 'var(--accent-alert)' },
     { v: stats.totalSOS.week, l: 'SOS This Week', c: 'var(--accent-alert)' },
-    { v: stats.totalSOS.month, l: 'SOS This Month', c: 'var(--accent-alert)' },
     { v: stats.avgResponseMin ? stats.avgResponseMin + ' min' : '—', l: 'Avg Response', c: 'var(--accent-offline)' },
-    { v: stats.totalCrossings, l: 'Total Crossings', c: 'var(--accent-online)' },
-    { v: stats.corridorsCovered, l: 'Corridors', c: 'var(--accent-v2v)' },
   ].map(d => `<div class="stat-card"><div class="stat-value" style="color:${d.c}">${d.v}</div><div class="stat-label">${d.l}</div></div>`).join('');
 
-  // Category bar chart
   const events = Store.getSOSEvents();
   const catData = EMERGENCY_TYPES.map(t => ({
     label: t.label,
@@ -190,11 +246,7 @@ function renderDashboard() {
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: 'SOS Events by Category', color: '#F1F5F9' } }, scales: { x: { ticks: { color: '#64748B' }, grid: { color: '#1E293B' } }, y: { ticks: { color: '#64748B' }, grid: { color: '#1E293B' } } } }
   });
 
-  // Timeline chart
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - 6 + i);
-    return d;
-  });
+  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 6 + i); return d; });
   const dayLabels = days.map(d => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }));
   const dayCounts = days.map(d => events.filter(e => new Date(e.timestamp).toDateString() === d.toDateString()).length);
 
@@ -206,7 +258,7 @@ function renderDashboard() {
   });
 }
 
-// ═══ REGISTER ═══
+// ═══ REGISTER (GPS now mandatory) ═══
 function initRegForm() {
   const catSel = document.getElementById('regCat');
   PROVIDER_CATEGORIES.forEach(c => { const o = document.createElement('option'); o.value = c.code; o.textContent = `${c.icon} ${c.label}`; catSel.appendChild(o); });
@@ -220,7 +272,17 @@ function registerProvider() {
   const name = document.getElementById('regName').value.trim();
   const catCode = document.getElementById('regCat').value;
   const phone = document.getElementById('regPhone').value.trim();
+  const gps = document.getElementById('regGPS').value.trim();
+
   if (!name || !catCode || !phone) { showToast('Please fill in Name, Category, and Phone'); return; }
+
+  // Validate GPS coordinates (mandatory)
+  if (!gps) { showToast('⚠️ GPS Coordinates are required for closest-provider matching!'); return; }
+  const gpsParts = gps.split(',').map(s => parseFloat(s.trim()));
+  if (gpsParts.length !== 2 || isNaN(gpsParts[0]) || isNaN(gpsParts[1]) || Math.abs(gpsParts[0]) > 90 || Math.abs(gpsParts[1]) > 180) {
+    showToast('⚠️ Invalid GPS coordinates. Format: latitude, longitude (e.g. 28.6139, 77.2090)');
+    return;
+  }
 
   const category = PROVIDER_CATEGORIES.find(c => c.code === catCode);
   const providers = Store.getProviders();
@@ -228,16 +290,13 @@ function registerProvider() {
   const password = Math.random().toString(36).slice(2, 10).toUpperCase();
   const corridorId = document.getElementById('regCorridor').value;
   const corridor = Store.getCorridors().find(c => c.id === corridorId);
-  const gps = document.getElementById('regGPS').value.trim();
 
   const provider = {
     id, name, category, phone, password,
     corridorId: corridorId || null,
     corridorName: corridor ? corridor.name : 'All corridors',
-    gps: gps || null,
-    status: 'Active',
-    available: true,
-    lastLogin: null,
+    gps: gps,
+    status: 'Active', available: true, lastLogin: null,
     registeredAt: new Date().toISOString(),
   };
 
@@ -252,9 +311,7 @@ function registerProvider() {
     <div class="cred-field"><span class="text-xs text-muted">Registration ID</span><code>${id}</code><button class="copy-btn" onclick="copyText('${id}')">Copy</button></div>
     <div class="cred-field"><span class="text-xs text-muted">Password</span><code>${password}</code><button class="copy-btn" onclick="copyText('${password}')">Copy</button></div>
   </div>`;
-  showToast('Provider activated. Credentials ready to push.');
-
-  // Clear form
+  showToast('Provider activated. Credentials ready.');
   document.getElementById('regName').value = '';
   document.getElementById('regCat').value = '';
   document.getElementById('regPhone').value = '';
@@ -263,7 +320,7 @@ function registerProvider() {
 
 function copyText(text) { navigator.clipboard.writeText(text).then(() => showToast('Copied!')); }
 
-// ═══ PROVIDER TABLE with Delete ═══
+// ═══ PROVIDER TABLE ═══
 function renderProviderTable() {
   const search = (document.getElementById('provSearch')?.value || '').toLowerCase();
   const allProviders = Store.getProviders();
@@ -277,16 +334,17 @@ function renderProviderTable() {
   const page = filtered.slice((providerPage - 1) * PER_PAGE, providerPage * PER_PAGE);
 
   document.getElementById('providerTable').innerHTML = `
-    <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
+    <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Phone</th><th>GPS</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>${page.map(p => `<tr>
       <td><code style="font-size:0.75rem;color:var(--accent-alert);">${p.id}</code></td>
       <td>${p.name}</td>
       <td>${p.category?.icon || ''} ${p.category?.label || ''}</td>
       <td class="text-sm">${p.phone}</td>
+      <td class="text-xs" style="font-family:var(--font-mono);">${p.gps || '<span style="color:var(--accent-alert);">Missing!</span>'}</td>
       <td><span class="badge ${p.status==='Active'?'badge-active':'badge-inactive'}">${p.status}</span></td>
       <td style="white-space:nowrap;">
         <button class="btn btn-sm ${p.status==='Active'?'btn-secondary':'btn-success'}" onclick="toggleProvider('${p.id}')" style="margin-right:0.25rem;">${p.status==='Active'?'Deactivate':'Activate'}</button>
-        <button class="btn btn-sm btn-danger" onclick="openDeleteModal('${p.id}')">🗑️ Delete</button>
+        <button class="btn btn-sm btn-danger" onclick="openDeleteModal('${p.id}')">🗑️</button>
       </td>
     </tr>`).join('')}</tbody>`;
 }
@@ -294,37 +352,141 @@ function renderProviderTable() {
 function toggleProvider(id) {
   const providers = Store.getProviders();
   const p = providers.find(pr => pr.id === id);
-  if (p) {
-    Store.updateProvider(id, { status: p.status === 'Active' ? 'Inactive' : 'Active' });
-    renderProviderTable();
-  }
+  if (p) { Store.updateProvider(id, { status: p.status === 'Active' ? 'Inactive' : 'Active' }); renderProviderTable(); }
 }
 
-// ═══ DELETE PROVIDER ═══
 function openDeleteModal(id) {
   const p = Store.getProviders().find(pr => pr.id === id);
   if (!p) return;
   document.getElementById('deleteModal').classList.remove('hidden');
-  document.getElementById('deleteProvInfo').innerHTML = `
-    <div class="text-sm"><strong>${p.name}</strong> — ${p.category?.label || ''}<br>
-    <span class="text-muted" style="font-family:var(--font-mono);">${p.id}</span></div>`;
+  document.getElementById('deleteProvInfo').innerHTML = `<div class="text-sm"><strong>${p.name}</strong> — ${p.category?.label || ''}<br><span class="text-muted" style="font-family:var(--font-mono);">${p.id}</span></div>`;
   document.getElementById('confirmDeleteBtn').onclick = () => {
-    Store.deleteProvider(id);
-    closeDeleteModal();
-    renderProviderTable();
+    Store.deleteProvider(id); closeDeleteModal(); renderProviderTable();
     showToast('Provider deleted: ' + p.name);
   };
 }
 
-function closeDeleteModal() {
-  document.getElementById('deleteModal').classList.add('hidden');
-}
+function closeDeleteModal() { document.getElementById('deleteModal').classList.add('hidden'); }
 
 function exportCSV() {
   const providers = Store.getProviders();
   if (providers.length === 0) { showToast('No providers to export'); return; }
-  const csv = 'ID,Name,Category,Phone,Status\n' + providers.map(p => `${p.id},"${p.name}",${p.category?.label||''},${p.phone},${p.status}`).join('\n');
+  const csv = 'ID,Name,Category,Phone,GPS,Status\n' + providers.map(p => `${p.id},"${p.name}",${p.category?.label||''},${p.phone},"${p.gps||''}",${p.status}`).join('\n');
   downloadFile(csv, 'providers.csv', 'text/csv');
+}
+
+// ═══ DRIVERS ═══
+function renderDrivers() {
+  const drivers = DriverRegistry.getAllDrivers();
+  const emptyEl = document.getElementById('emptyDrivers');
+  if (drivers.length === 0) { emptyEl.style.display = 'block'; document.getElementById('driverTable').innerHTML = ''; return; }
+  emptyEl.style.display = 'none';
+
+  document.getElementById('driverTable').innerHTML = `
+    <thead><tr><th>Driver ID</th><th>Mobile</th><th>Registered</th><th>Last Login</th><th>Sessions</th></tr></thead>
+    <tbody>${drivers.map(d => `<tr>
+      <td><code style="font-size:0.8rem;color:var(--accent-online);">${d.id}</code></td>
+      <td style="font-family:var(--font-mono);">${d.mobile}</td>
+      <td class="text-xs">${new Date(d.registeredAt).toLocaleDateString('en-IN')}</td>
+      <td class="text-xs">${new Date(d.lastLogin).toLocaleString('en-IN', {dateStyle:'short',timeStyle:'short'})}</td>
+      <td class="text-center">${d.totalSessions || 1}</td>
+    </tr>`).join('')}</tbody>`;
+}
+
+// ═══ BLOCK REGISTRY ═══
+function renderBlockRegistry() {
+  const blocks = BlockRegistry.getAllBlocks();
+  const blockList = Object.values(blocks);
+  document.getElementById('blockCountBadge').textContent = `${blockList.length} blocks`;
+
+  const emptyEl = document.getElementById('emptyBlocks');
+  if (blockList.length === 0) { emptyEl.style.display = 'block'; document.getElementById('blockTable').innerHTML = ''; return; }
+  emptyEl.style.display = 'none';
+
+  // Sort by creation date descending
+  blockList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  document.getElementById('blockTable').innerHTML = `
+    <thead><tr><th>Block ID</th><th>Center Lat/Lng</th><th>Created</th><th>Created By</th><th>Source</th><th>Transits</th></tr></thead>
+    <tbody>${blockList.slice(0, 100).map(b => {
+      const transitCount = BlockTransitLog.getByBlock(b.id).length;
+      const sourceColor = b.source === 'gps' ? 'var(--accent-online)' : 'var(--accent-offline)';
+      return `<tr>
+      <td><code style="font-size:0.75rem;color:var(--accent-online);">${b.id}</code></td>
+      <td class="text-xs" style="font-family:var(--font-mono);">${b.centerLat?.toFixed(4) || '--'}°, ${b.centerLng?.toFixed(4) || '--'}°</td>
+      <td class="text-xs">${new Date(b.createdAt).toLocaleString('en-IN', {dateStyle:'short',timeStyle:'short'})}</td>
+      <td class="text-xs" style="font-family:var(--font-mono);">${b.createdBy}</td>
+      <td><span style="color:${sourceColor};font-size:0.75rem;font-weight:700;">${b.source === 'gps' ? '📡 GPS' : '📴 Offline'}</span></td>
+      <td class="text-center">${transitCount}</td>
+    </tr>`;
+    }).join('')}</tbody>`;
+}
+
+function exportBlockRegistry() {
+  const json = BlockRegistry.exportToJSON();
+  if (json === '{}') { showToast('No blocks to export'); return; }
+  downloadFile(json, 'blocks_registry.json', 'application/json');
+  showToast('Block registry exported!');
+}
+
+function importBlockRegistry(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const added = BlockRegistry.importFromJSON(e.target.result);
+    showToast(`Imported ${added} new blocks`);
+    renderBlockRegistry();
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ═══ TRANSIT LOG ═══
+function renderTransitLog() {
+  const blockFilter = (document.getElementById('transitBlockFilter')?.value || '').trim();
+  const driverFilter = (document.getElementById('transitDriverFilter')?.value || '').trim();
+  let records = BlockTransitLog.getAll();
+  if (blockFilter) records = records.filter(r => r.blockId && r.blockId.includes(blockFilter));
+  if (driverFilter) records = records.filter(r => r.driverId && r.driverId.includes(driverFilter));
+
+  const emptyEl = document.getElementById('emptyTransits');
+  if (BlockTransitLog.getTransitCount() === 0) { emptyEl.style.display = 'block'; document.getElementById('transitTable').innerHTML = ''; return; }
+  emptyEl.style.display = 'none';
+
+  document.getElementById('transitTable').innerHTML = `
+    <thead><tr><th>Time</th><th>Type</th><th>Block</th><th>Driver</th><th>Speed</th><th>Location</th></tr></thead>
+    <tbody>${records.slice(0, 100).map(r => {
+      const typeColor = r.type === 'entry' ? 'var(--accent-online)' : 'var(--accent-alert)';
+      return `<tr>
+      <td class="text-xs" style="font-family:var(--font-mono);">${new Date(r.timestamp).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'medium'})}</td>
+      <td><span style="color:${typeColor};font-weight:700;font-size:0.8rem;">${r.type === 'entry' ? '→ ENTER' : '← EXIT'}</span></td>
+      <td><code style="font-size:0.75rem;color:var(--accent-online);">${r.blockId}</code></td>
+      <td class="text-xs" style="font-family:var(--font-mono);">${r.driverId || '—'}</td>
+      <td class="text-xs">${Math.round(r.speed || 0)} km/h</td>
+      <td class="text-xs">${r.lat ? r.lat.toFixed(4) + '°, ' + r.lng.toFixed(4) + '°' : '—'}</td>
+    </tr>`;
+    }).join('')}</tbody>`;
+}
+
+function exportTransitLog() {
+  const json = BlockTransitLog.exportToJSON();
+  if (json === '[]') { showToast('No transit records to export'); return; }
+  downloadFile(json, 'transit_log.json', 'application/json');
+  showToast('Transit log exported!');
+}
+
+function importTransitLog(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const added = BlockTransitLog.importFromJSON(e.target.result);
+    showToast(`Imported ${added} new transit records`);
+    renderTransitLog();
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 // ═══ BLOCK MAP ═══
@@ -342,14 +504,15 @@ function renderCorridors() {
   }).join('');
 }
 
-// ═══ AUDIT — Real data ═══
+// ═══ AUDIT ═══
 function renderAudit() {
   const typeFilter = document.getElementById('auditType').value;
   const statusFilter = document.getElementById('auditStatus').value;
   let events = Store.getSOSEvents();
   if (typeFilter) events = events.filter(e => (e.type?.code || e.typeCode) === typeFilter);
-  if (statusFilter === 'resolved') events = events.filter(e => e.resolved);
+  if (statusFilter === 'resolved') events = events.filter(e => e.resolved && !e.cancelledByDriver);
   if (statusFilter === 'active') events = events.filter(e => !e.resolved);
+  if (statusFilter === 'cancelled') events = events.filter(e => e.cancelledByDriver);
 
   const emptyEl = document.getElementById('emptyAudit');
   if (Store.getSOSEvents().length === 0) { emptyEl.classList.remove('hidden'); document.getElementById('auditTable').innerHTML = ''; return; }
@@ -360,13 +523,16 @@ function renderAudit() {
     <tbody>${events.slice(0, 30).map(e => {
       const type = e.type || EMERGENCY_TYPES.find(t => t.code === e.typeCode) || EMERGENCY_TYPES[0];
       const confColor = e.confidence >= 85 ? 'var(--accent-online)' : e.confidence >= 60 ? 'var(--accent-offline)' : 'var(--accent-alert)';
+      let statusBadge = '<span class="badge badge-inactive">Active</span>';
+      if (e.cancelledByDriver) statusBadge = '<span class="badge" style="background:rgba(239,68,68,0.15);color:#F87171;">Cancelled</span>';
+      else if (e.resolved) statusBadge = '<span class="badge badge-active">Resolved</span>';
       return `<tr>
         <td class="text-xs" style="font-family:var(--font-mono);">${new Date(e.timestamp).toLocaleString('en-IN',{hour12:false,dateStyle:'short',timeStyle:'short'})}</td>
         <td style="font-family:var(--font-mono);color:var(--accent-online);">${e.blockCode}</td>
         <td>${type.icon} ${type.label}</td>
         <td style="color:${confColor};font-weight:700;">${e.confidence}%</td>
         <td class="text-xs">${e.lat ? e.lat.toFixed(4) + '°, ' + e.lng.toFixed(4) + '°' : '—'}</td>
-        <td><span class="badge ${e.resolved?'badge-active':'badge-inactive'}">${e.resolved?'Resolved':'Active'}</span></td>
+        <td>${statusBadge}</td>
         <td class="text-xs">${e.providerName || '—'}</td>
         <td><button class="btn btn-sm btn-secondary" onclick="showTimeline('${e.id}')">▶</button></td>
       </tr>`;
@@ -385,7 +551,7 @@ function showTimeline(id) {
     { t: '', text: `Location: ${e.lat ? e.lat.toFixed(5)+'°, '+e.lng.toFixed(5)+'°' : 'Unknown'}`, done: true },
     { t: '', text: `Transmitted via ${e.transmission?.code || 'Data'}`, done: true },
     { t: '', text: e.providerName ? `Provider: ${e.providerName}` : 'Awaiting provider...', done: !!e.providerName },
-    { t: '', text: e.resolved ? `✅ Resolved in ${e.resolutionMin} min` : '⏳ Pending resolution', done: e.resolved },
+    { t: '', text: e.cancelledByDriver ? '❌ Cancelled by driver' : (e.resolved ? `✅ Resolved in ${e.resolutionMin} min` : '⏳ Pending resolution'), done: e.resolved },
   ];
   tl.innerHTML = `<h4 style="margin-bottom:1rem;">Event Timeline — ${e.id}</h4>
     <div class="timeline">${steps.map(s => `<div class="timeline-item ${s.done?'done':''}"><div class="t-time">${s.t}</div><div class="t-text">${s.text}</div></div>`).join('')}</div>
@@ -396,7 +562,7 @@ function exportAudit() {
   const events = Store.getSOSEvents();
   if (events.length === 0) { showToast('No events to export'); return; }
   const csv = 'ID,Time,Block,Type,Confidence,Lat,Lng,Status,Provider,Resolution\n' + events.map(e =>
-    `${e.id},${e.timestamp},${e.blockCode},${e.type?.label||e.typeCode},${e.confidence},${e.lat||''},${e.lng||''},${e.resolved?'Resolved':'Active'},${e.providerName||''},${e.resolutionMin||''}`
+    `${e.id},${e.timestamp},${e.blockCode},${e.type?.label||e.typeCode},${e.confidence},${e.lat||''},${e.lng||''},${e.cancelledByDriver?'Cancelled':(e.resolved?'Resolved':'Active')},${e.providerName||''},${e.resolutionMin||''}`
   ).join('\n');
   downloadFile(csv, 'sos_audit.csv', 'text/csv');
 }
@@ -417,8 +583,7 @@ function showToast(msg) {
   const existing = document.querySelector('.toast');
   if (existing) existing.remove();
   const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
+  t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 4000);
 }
@@ -435,10 +600,11 @@ function downloadFile(content, filename, type) {
 initRegForm();
 renderDashboard();
 
-// Auto-refresh dashboard every 5 seconds
 setInterval(() => {
   if (document.getElementById('secDashboard').classList.contains('active')) renderDashboard();
   if (document.getElementById('secAudit').classList.contains('active')) renderAudit();
+  if (document.getElementById('secBlockRegistry').classList.contains('active')) renderBlockRegistry();
+  if (document.getElementById('secTransitLog').classList.contains('active')) renderTransitLog();
 }, 5000);
 </script>
 </body>

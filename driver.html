@@ -56,181 +56,248 @@
 .gps-permission { text-align:center; padding:3rem 1.5rem; }
 .gps-permission .gps-icon { font-size:4rem; margin-bottom:1rem; }
 .net-info { font-family:var(--font-mono); font-size:0.7rem; color:var(--text-muted); text-align:center; margin-top:0.3rem; }
+/* Login screen */
+.login-container { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:2rem; }
+.login-box { width:100%; max-width:380px; }
+.login-logo { text-align:center; margin-bottom:2rem; }
+.login-logo h1 { font-family:var(--font-mono); font-size:2rem; color:var(--accent-alert); }
+.login-logo p { color:var(--text-muted); font-size:0.85rem; margin-top:0.3rem; }
+/* Active SOS Banner */
+.sos-banner { background:linear-gradient(135deg, rgba(239,68,68,0.15), rgba(249,115,22,0.15)); border:2px solid var(--accent-alert); border-radius:var(--radius); padding:1rem; margin:0.75rem 1.25rem; animation:urgent-border 1.5s infinite; cursor:pointer; }
+.sos-banner h4 { color:var(--accent-alert); font-size:0.9rem; margin-bottom:0.5rem; }
+.sos-banner .sos-code-val { font-family:var(--font-mono); font-size:0.85rem; color:var(--accent-online); word-break:break-all; margin:0.3rem 0; }
+.sos-banner .sos-pin-val { font-family:var(--font-mono); font-size:1.8rem; font-weight:700; color:var(--accent-online); letter-spacing:0.2em; }
+.sos-banner .sos-actions { display:flex; gap:0.5rem; margin-top:0.75rem; }
+.sos-banner .sos-actions button, .sos-banner .sos-actions a { flex:1; font-size:0.75rem; padding:0.5rem; }
+/* Buffer indicator */
+.buffer-indicator { font-family:var(--font-mono); font-size:0.65rem; color:var(--text-muted); text-align:center; padding:0.3rem; background:rgba(34,211,238,0.05); border-radius:4px; margin:0.5rem 1.25rem; }
+/* Driver ID badge */
+.driver-id-badge { font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-online); background:rgba(34,211,238,0.1); padding:0.2rem 0.5rem; border-radius:4px; }
 </style>
 </head>
 <body>
 <div class="driver-app" id="app">
-  <div class="header-bar">
-    <h1>🛡️ RoadSOS</h1>
-    <div style="display:flex;align-items:center;gap:0.5rem;">
-      <button id="simOfflineBtn" class="btn btn-sm btn-secondary" style="font-size:0.7rem;padding:0.3rem 0.6rem;" onclick="toggleSimOffline()">⚡ Simulate Offline</button>
-      <span id="signalBadge" class="signal-indicator signal-online">🟢 ONLINE</span>
-    </div>
-  </div>
-
-  <!-- Screen: Home / GPS -->
-  <div class="screen active" id="screenHome">
-    <!-- GPS Permission Request -->
-    <div class="gps-permission" id="gpsPermission">
-      <div class="gps-icon">📍</div>
-      <h3>Enable Location</h3>
-      <p class="text-muted text-sm mt-1">RoadSOS needs your GPS location to track your position and provide emergency assistance.</p>
-      <button class="btn btn-primary btn-lg mt-2" onclick="requestGPS()">Enable GPS Tracking</button>
-    </div>
-
-    <!-- GPS Active Display -->
-    <div id="gpsActive" class="hidden">
-      <div class="gps-hero">
-        <div class="gps-coords" id="gpsCoords">Waiting for GPS...</div>
-        <div class="block-main online" id="blockCode">---</div>
-        <div id="signalStatus" class="signal-indicator signal-online" style="margin:0.5rem auto;display:inline-flex;">🟢 ONLINE — GPS Active</div>
-        <div class="net-info" id="netInfo">Network: checking...</div>
-        <div style="margin-top:1rem;">
-          <div class="speed-display" id="speedVal">0</div>
-          <div class="speed-unit">km/h</div>
+  <!-- Screen: Login -->
+  <div class="screen active" id="screenDriverLogin">
+    <div class="login-container">
+      <div class="login-box">
+        <div class="login-logo">
+          <div style="font-size:3rem;margin-bottom:0.5rem;">🛡️</div>
+          <h1>RoadSOS</h1>
+          <p>Driver App — Enter your mobile to start</p>
         </div>
-      </div>
-      <div style="padding:0 1.25rem;">
-        <div class="gauge-container">
-          <canvas id="gaugeCanvas" width="140" height="80"></canvas>
-          <div class="gauge-val" id="confVal" style="color:var(--accent-online);">--</div>
+        <div style="margin-bottom:1rem;">
+          <label class="label">Mobile Number</label>
+          <input class="input" type="tel" id="driverMobile" placeholder="+91 9876543210" maxlength="15" style="font-family:var(--font-mono);font-size:1.1rem;text-align:center;">
         </div>
-        <div style="text-align:center;font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">CONFIDENCE SCORE</div>
-      </div>
-      <div id="miniMap"></div>
-      <div class="info-grid">
-        <div class="info-box"><div class="val text-online" id="accuracyVal">--</div><div class="lbl">GPS Accuracy</div></div>
-        <div class="info-box"><div class="val" id="headingVal">--</div><div class="lbl">Heading</div></div>
-        <div class="info-box"><div class="val" id="crossingCount">0</div><div class="lbl">Crossings</div></div>
-        <div class="info-box"><div class="val text-v2v" id="relaysLifetime">0</div><div class="lbl">Relays</div></div>
-      </div>
-      <div id="statusStrip" class="status-strip online-strip" style="margin-top:1rem;">
-        🟢 GPS lock active — tracking your position
-      </div>
-      <div class="sos-float">
-        <button class="btn-sos" id="sosBtn" onclick="openSOS()">🚨 SOS EMERGENCY</button>
+        <button class="btn btn-primary btn-full btn-lg" onclick="driverLogin()">Start Driving</button>
+        <div class="text-center text-xs text-muted mt-2">Your mobile number generates a unique driver ID for tracking.</div>
       </div>
     </div>
   </div>
 
-  <!-- Screen: Crossing History -->
-  <div class="screen" id="screenHistory">
-    <div class="header-bar"><h1>📊 Crossing History</h1></div>
-    <div class="screen-pad">
-      <div class="storage-bar" id="storageBar">No crossings recorded yet</div>
-      <div id="crossingList"></div>
-      <div id="emptyHistory" class="text-center text-muted" style="padding:2rem;">
-        <div style="font-size:2rem;margin-bottom:0.5rem;">📊</div>
-        <p>No crossing data yet. Drive through a corridor to record crossings.</p>
+  <!-- Screen: Main App (after login) -->
+  <div class="screen" id="screenMainApp">
+    <div class="header-bar">
+      <h1>🛡️ RoadSOS</h1>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <span id="driverIdBadge" class="driver-id-badge">---</span>
+        <button id="simOfflineBtn" class="btn btn-sm btn-secondary" style="font-size:0.7rem;padding:0.3rem 0.6rem;" onclick="toggleSimOffline()">⚡ Simulate Offline</button>
+        <span id="signalBadge" class="signal-indicator signal-online">🟢 ONLINE</span>
       </div>
     </div>
-  </div>
 
-  <!-- Screen: SOS Trigger -->
-  <div class="screen" id="screenSOS">
-    <div class="header-bar"><h1>🚨 SOS Emergency</h1><button class="btn btn-sm btn-secondary" onclick="closeSOS()">✕ Cancel</button></div>
-    <div class="screen-pad">
-      <div id="sosStep1">
-        <h3 style="margin-bottom:0.5rem;">Select Emergency Type</h3>
-        <div class="sos-categories" id="sosCats"></div>
+    <!-- Sub-screen: Home / GPS -->
+    <div class="screen active" id="screenHome">
+      <!-- GPS Permission Request -->
+      <div class="gps-permission" id="gpsPermission">
+        <div class="gps-icon">📍</div>
+        <h3>Enable Location</h3>
+        <p class="text-muted text-sm mt-1">RoadSOS needs your GPS location to track your position and provide emergency assistance.</p>
+        <button class="btn btn-primary btn-lg mt-2" onclick="requestGPS()">Enable GPS Tracking</button>
       </div>
-      <div id="sosStep2" class="hidden">
-        <h3 style="margin-bottom:1rem;">Confirm SOS</h3>
-        <div class="packet-display" id="sosPacket" style="margin-bottom:1rem;font-size:1.1rem;text-align:center;"></div>
-        <div class="text-xs text-muted text-center mb-2">Packet size: <span id="packetSize">--</span> bytes</div>
-        <div class="text-xs text-muted text-center mb-2">Location: <span id="sosLocation">--</span></div>
-        <div class="text-xs text-muted text-center mb-2">Sending via: <span id="txMethod" class="badge badge-data">Data</span></div>
-        <button class="hold-btn" id="holdBtn" style="background:linear-gradient(135deg,#EF4444,var(--accent-alert));" onmousedown="startHold()" onmouseup="cancelHold()" ontouchstart="startHold()" ontouchend="cancelHold()">
-          <span class="fill" id="holdFill"></span>
-          HOLD 2 SECONDS TO SEND SOS
-        </button>
-      </div>
-      <div id="sosStep3" class="hidden" style="text-align:center;padding:2rem 0;">
-        <div class="spinner" style="margin:0 auto 1rem;width:40px;height:40px;border-width:4px;"></div>
-        <h3>SOS Sent — Provider Search in Progress…</h3>
-        <div class="packet-display mt-2" id="sentPacket"></div>
-      </div>
-      <div id="sosStep4" class="hidden">
-        <div class="provider-confirm">
-          <div class="check">✅</div>
-          <h3 id="provName">--</h3>
-          <div class="text-sm text-muted" id="provCat">--</div>
-          <div style="margin-top:1rem;font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--accent-alert);" id="provETA">--</div>
-          <div style="margin-top:1rem;background:rgba(255,255,255,0.05);padding:1rem;border-radius:var(--radius-sm);">
-            <div class="text-xs text-muted mb-1" style="letter-spacing:1px;">RESOLUTION PIN (GIVE TO PROVIDER)</div>
-            <div style="font-family:var(--font-mono);font-size:2.5rem;font-weight:700;letter-spacing:0.3em;color:var(--accent-online);" id="sosPinDisplay">----</div>
+
+      <!-- GPS Active Display -->
+      <div id="gpsActive" class="hidden">
+        <!-- Active SOS Banner (shown when SOS is active) -->
+        <div id="sosBanner" class="sos-banner hidden">
+          <h4>🚨 ACTIVE SOS EMERGENCY</h4>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div class="text-xs text-muted">SOS CODE</div>
+              <div class="sos-code-val" id="bannerSosCode">---</div>
+            </div>
+            <div style="text-align:right;">
+              <div class="text-xs text-muted">RESOLUTION PIN</div>
+              <div class="sos-pin-val" id="bannerSosPin">----</div>
+            </div>
           </div>
-          <div style="margin-top:1rem;background:rgba(249,115,22,0.08);padding:1rem;border-radius:var(--radius-sm);border:1px solid rgba(249,115,22,0.2);">
-            <div class="text-xs text-muted mb-1" style="letter-spacing:1px;">SOS CODE (SEND TO PROVIDER)</div>
-            <div style="font-family:var(--font-mono);font-size:1rem;font-weight:700;color:var(--accent-alert);word-break:break-all;" id="sosCodeDisplay">---</div>
+          <div class="sos-actions">
+            <a id="bannerSmsLink" href="#" class="btn btn-primary btn-sm" style="text-align:center;text-decoration:none;">📱 SMS</a>
+            <button class="btn btn-secondary btn-sm" onclick="copyBannerSOSCode()">📋 Copy</button>
+            <button class="btn btn-danger btn-sm" onclick="cancelActiveSOS()">❌ Cancel</button>
           </div>
         </div>
-        <a id="smsLink" href="#" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📱 Send SOS Code via SMS</a>
-        <button class="btn btn-secondary btn-full mt-1" onclick="copySOSCode()">📋 Copy SOS Code</button>
-        <button class="btn btn-secondary btn-full mt-1" onclick="closeSOS()">Back to Home</button>
+
+        <div class="gps-hero">
+          <div class="gps-coords" id="gpsCoords">Waiting for GPS...</div>
+          <div class="block-main online" id="blockCode">---</div>
+          <div id="signalStatus" class="signal-indicator signal-online" style="margin:0.5rem auto;display:inline-flex;">🟢 ONLINE — GPS Active</div>
+          <div class="net-info" id="netInfo">Network: checking...</div>
+          <div style="margin-top:1rem;">
+            <div class="speed-display" id="speedVal">0</div>
+            <div class="speed-unit">km/h</div>
+          </div>
+        </div>
+        <div style="padding:0 1.25rem;">
+          <div class="gauge-container">
+            <canvas id="gaugeCanvas" width="140" height="80"></canvas>
+            <div class="gauge-val" id="confVal" style="color:var(--accent-online);">--</div>
+          </div>
+          <div style="text-align:center;font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">CONFIDENCE SCORE</div>
+        </div>
+        <div id="miniMap"></div>
+        <div class="buffer-indicator" id="bufferIndicator">Buffer: 0 blocks, 0 transits — syncs every 5 min</div>
+        <div class="info-grid">
+          <div class="info-box"><div class="val text-online" id="accuracyVal">--</div><div class="lbl">GPS Accuracy</div></div>
+          <div class="info-box"><div class="val" id="headingVal">--</div><div class="lbl">Heading</div></div>
+          <div class="info-box"><div class="val" id="crossingCount">0</div><div class="lbl">Blocks Explored</div></div>
+          <div class="info-box"><div class="val text-v2v" id="relaysLifetime">0</div><div class="lbl">Relays</div></div>
+        </div>
+        <div id="statusStrip" class="status-strip online-strip" style="margin-top:1rem;">
+          🟢 GPS lock active — tracking your position
+        </div>
+        <div class="sos-float">
+          <button class="btn-sos" id="sosBtn" onclick="openSOS()">🚨 SOS EMERGENCY</button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Screen: V2V Relay -->
-  <div class="screen" id="screenV2V">
-    <div class="header-bar"><h1>📡 V2V Relay</h1></div>
-    <div class="screen-pad">
-      <div class="card mb-2" style="text-align:center;">
-        <div style="font-size:3rem;">📡</div>
-        <div style="font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--accent-v2v);margin:0.25rem 0;" id="relayTotal">0</div>
-        <div class="text-xs text-muted">total packets relayed lifetime</div>
-      </div>
-      <div class="card mb-2">
-        <div class="text-xs text-muted">BLE scanning active in background. Encrypted relay packets are queued silently and auto-forwarded when network is restored.</div>
-      </div>
-      <h4 style="margin:1rem 0 0.5rem;font-size:0.85rem;">Relay History</h4>
-      <div id="relayHistory"></div>
-      <div id="emptyRelay" class="text-center text-muted" style="padding:2rem;">No relay events yet.</div>
-    </div>
-  </div>
-
-  <!-- Screen: Settings -->
-  <div class="screen" id="screenSettings">
-    <div class="header-bar"><h1>⚙️ Settings</h1></div>
-    <div class="screen-pad">
-      <div class="setting-row">
-        <div class="setting-info"><h4>V2V Relay</h4><p>Carry encrypted packets for other drivers</p></div>
-        <label class="toggle-switch"><input type="checkbox" checked id="v2vToggle" onchange="saveSetting('v2vRelay', this.checked)"><span class="toggle-slider"></span></label>
-      </div>
-      <div class="setting-row">
-        <div class="setting-info"><h4>SOS Confirmation</h4><p>Hold to confirm (2 seconds)</p></div>
-        <select class="select" style="width:auto;padding:0.4rem 2rem 0.4rem 0.6rem;font-size:0.8rem;" id="sosModeSelect" onchange="saveSetting('sosMode', this.value)">
-          <option value="hold">Hold 2s</option><option value="double">Double Confirm</option><option value="single">Single Tap</option>
-        </select>
-      </div>
-      <div class="setting-row">
-        <div class="setting-info"><h4>OBD-II Bluetooth</h4><p id="obdStatusP" style="color:var(--accent-online);">Not connected</p></div>
-        <button class="btn btn-sm btn-primary" id="obdConnectBtn" onclick="connectOBD()">Pair</button>
-      </div>
-      <div class="setting-row">
-        <div class="setting-info"><h4>Alert Sound</h4><p>Play sound on incoming events</p></div>
-        <label class="toggle-switch"><input type="checkbox" checked id="soundToggle" onchange="saveSetting('alertSound', this.checked)"><span class="toggle-slider"></span></label>
-      </div>
-      <div class="card mt-2" style="text-align:center;">
-        <div class="text-xs text-muted" style="text-transform:uppercase;">DATA USAGE</div>
-        <div style="font-family:var(--font-mono);font-size:1.1rem;font-weight:700;margin:0.3rem 0;" id="dataUsage">0 KB</div>
-        <div class="text-xs text-muted" id="dataDetail">0 crossings stored</div>
-      </div>
-      <div class="card mt-2" style="text-align:center;">
-        <div class="text-xs text-muted" style="text-transform:uppercase;">GPS STATUS</div>
-        <div class="text-sm mt-1" id="gpsStatusDetail">Waiting...</div>
+    <!-- Sub-screen: Crossing History -->
+    <div class="screen" id="screenHistory">
+      <div class="header-bar"><h1>📊 Block History</h1></div>
+      <div class="screen-pad">
+        <div class="storage-bar" id="storageBar">No blocks explored yet</div>
+        <div id="crossingList"></div>
+        <div id="emptyHistory" class="text-center text-muted" style="padding:2rem;">
+          <div style="font-size:2rem;margin-bottom:0.5rem;">📊</div>
+          <p>No block data yet. Drive through an area to auto-generate blocks.</p>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Bottom Nav -->
-  <nav class="mobile-nav">
-    <div class="mobile-nav-item active" onclick="switchScreen('screenHome')"><span class="nav-icon">🏠</span>Home</div>
-    <div class="mobile-nav-item" onclick="switchScreen('screenHistory')"><span class="nav-icon">📊</span>History</div>
-    <div class="mobile-nav-item" onclick="switchScreen('screenV2V')"><span class="nav-icon">📡</span>V2V</div>
-    <div class="mobile-nav-item" onclick="switchScreen('screenSettings')"><span class="nav-icon">⚙️</span>Settings</div>
-  </nav>
+    <!-- Sub-screen: SOS Trigger -->
+    <div class="screen" id="screenSOS">
+      <div class="header-bar"><h1>🚨 SOS Emergency</h1><button class="btn btn-sm btn-secondary" onclick="closeSOS()">✕ Cancel</button></div>
+      <div class="screen-pad">
+        <div id="sosStep1">
+          <h3 style="margin-bottom:0.5rem;">Select Emergency Type</h3>
+          <div class="sos-categories" id="sosCats"></div>
+        </div>
+        <div id="sosStep2" class="hidden">
+          <h3 style="margin-bottom:1rem;">Confirm SOS</h3>
+          <div class="packet-display" id="sosPacket" style="margin-bottom:1rem;font-size:1.1rem;text-align:center;"></div>
+          <div class="text-xs text-muted text-center mb-2">Packet size: <span id="packetSize">--</span> bytes</div>
+          <div class="text-xs text-muted text-center mb-2">Location: <span id="sosLocation">--</span></div>
+          <div class="text-xs text-muted text-center mb-2">Sending via: <span id="txMethod" class="badge badge-data">Data</span></div>
+          <button class="hold-btn" id="holdBtn" style="background:linear-gradient(135deg,#EF4444,var(--accent-alert));" onmousedown="startHold()" onmouseup="cancelHold()" ontouchstart="startHold()" ontouchend="cancelHold()">
+            <span class="fill" id="holdFill"></span>
+            HOLD 2 SECONDS TO SEND SOS
+          </button>
+        </div>
+        <div id="sosStep3" class="hidden" style="text-align:center;padding:2rem 0;">
+          <div class="spinner" style="margin:0 auto 1rem;width:40px;height:40px;border-width:4px;"></div>
+          <h3>SOS Sent — Provider Search in Progress…</h3>
+          <div class="packet-display mt-2" id="sentPacket"></div>
+          <button class="btn btn-danger btn-full mt-2" onclick="cancelActiveSOS()">❌ Cancel SOS</button>
+        </div>
+        <div id="sosStep4" class="hidden">
+          <div class="provider-confirm">
+            <div class="check">✅</div>
+            <h3 id="provName">--</h3>
+            <div class="text-sm text-muted" id="provCat">--</div>
+            <div style="margin-top:1rem;font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--accent-alert);" id="provETA">--</div>
+            <div style="margin-top:1rem;background:rgba(255,255,255,0.05);padding:1rem;border-radius:var(--radius-sm);">
+              <div class="text-xs text-muted mb-1" style="letter-spacing:1px;">RESOLUTION PIN (GIVE TO PROVIDER)</div>
+              <div style="font-family:var(--font-mono);font-size:2.5rem;font-weight:700;letter-spacing:0.3em;color:var(--accent-online);" id="sosPinDisplay">----</div>
+            </div>
+            <div style="margin-top:1rem;background:rgba(249,115,22,0.08);padding:1rem;border-radius:var(--radius-sm);border:1px solid rgba(249,115,22,0.2);">
+              <div class="text-xs text-muted mb-1" style="letter-spacing:1px;">SOS CODE (SEND TO PROVIDER)</div>
+              <div style="font-family:var(--font-mono);font-size:1rem;font-weight:700;color:var(--accent-alert);word-break:break-all;" id="sosCodeDisplay">---</div>
+            </div>
+          </div>
+          <a id="smsLink" href="#" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📱 Send SOS Code via SMS</a>
+          <button class="btn btn-secondary btn-full mt-1" onclick="copySOSCode()">📋 Copy SOS Code</button>
+          <button class="btn btn-danger btn-full mt-1" onclick="cancelActiveSOS()">❌ Cancel SOS</button>
+          <button class="btn btn-secondary btn-full mt-1" onclick="closeSOS()">Back to Home</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-screen: V2V Relay -->
+    <div class="screen" id="screenV2V">
+      <div class="header-bar"><h1>📡 V2V Relay</h1></div>
+      <div class="screen-pad">
+        <div class="card mb-2" style="text-align:center;">
+          <div style="font-size:3rem;">📡</div>
+          <div style="font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--accent-v2v);margin:0.25rem 0;" id="relayTotal">0</div>
+          <div class="text-xs text-muted">total packets relayed lifetime</div>
+        </div>
+        <div class="card mb-2">
+          <div class="text-xs text-muted">BLE scanning active in background. Encrypted relay packets are queued silently and auto-forwarded when network is restored.</div>
+        </div>
+        <h4 style="margin:1rem 0 0.5rem;font-size:0.85rem;">Relay History</h4>
+        <div id="relayHistory"></div>
+        <div id="emptyRelay" class="text-center text-muted" style="padding:2rem;">No relay events yet.</div>
+      </div>
+    </div>
+
+    <!-- Sub-screen: Settings -->
+    <div class="screen" id="screenSettings">
+      <div class="header-bar"><h1>⚙️ Settings</h1></div>
+      <div class="screen-pad">
+        <div class="setting-row">
+          <div class="setting-info"><h4>Driver ID</h4><p id="settingsDriverId">Not logged in</p></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><h4>V2V Relay</h4><p>Carry encrypted packets for other drivers</p></div>
+          <label class="toggle-switch"><input type="checkbox" checked id="v2vToggle" onchange="saveSetting('v2vRelay', this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><h4>SOS Confirmation</h4><p>Hold to confirm (2 seconds)</p></div>
+          <select class="select" style="width:auto;padding:0.4rem 2rem 0.4rem 0.6rem;font-size:0.8rem;" id="sosModeSelect" onchange="saveSetting('sosMode', this.value)">
+            <option value="hold">Hold 2s</option><option value="double">Double Confirm</option><option value="single">Single Tap</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><h4>OBD-II Bluetooth</h4><p id="obdStatusP" style="color:var(--accent-online);">Not connected</p></div>
+          <button class="btn btn-sm btn-primary" id="obdConnectBtn" onclick="connectOBD()">Pair</button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><h4>Alert Sound</h4><p>Play sound on incoming events</p></div>
+          <label class="toggle-switch"><input type="checkbox" checked id="soundToggle" onchange="saveSetting('alertSound', this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="card mt-2" style="text-align:center;">
+          <div class="text-xs text-muted" style="text-transform:uppercase;">DATA USAGE</div>
+          <div style="font-family:var(--font-mono);font-size:1.1rem;font-weight:700;margin:0.3rem 0;" id="dataUsage">0 KB</div>
+          <div class="text-xs text-muted" id="dataDetail">0 blocks explored</div>
+        </div>
+        <div class="card mt-2" style="text-align:center;">
+          <div class="text-xs text-muted" style="text-transform:uppercase;">GPS STATUS</div>
+          <div class="text-sm mt-1" id="gpsStatusDetail">Waiting...</div>
+        </div>
+        <button class="btn btn-danger btn-full mt-2 btn-sm" onclick="driverLogout()">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="mobile-nav">
+      <div class="mobile-nav-item active" onclick="switchScreen('screenHome')"><span class="nav-icon">🏠</span>Home</div>
+      <div class="mobile-nav-item" onclick="switchScreen('screenHistory')"><span class="nav-icon">📊</span>History</div>
+      <div class="mobile-nav-item" onclick="switchScreen('screenV2V')"><span class="nav-icon">📡</span>V2V</div>
+      <div class="mobile-nav-item" onclick="switchScreen('screenSettings')"><span class="nav-icon">⚙️</span>Settings</div>
+    </nav>
+  </div>
 </div>
 
 <script src="data.js"></script>
@@ -245,13 +312,65 @@ let state = {
   map: null,
   marker: null,
   currentBlock: null,
+  currentBlockId: null,
   lastKnownPos: null,
   offlineSince: null,
+  offlineLastPos: null,  // Position when went offline (for retro-gen)
+  driverId: null,
+  activeSOS: null,       // Persistent active SOS event
+  lastBlockChangeTime: 0,    // Timestamp of last block change (for debounce)
+  lastBlockChangePos: null,  // Position at last block change (for min-distance)
+  wakeLock: null,            // Screen wake lock reference
+  isReconnecting: false,     // Smooth reconnection flag
 };
+
+// ═══ DRIVER LOGIN ═══
+function driverLogin() {
+  const mobile = document.getElementById('driverMobile').value.trim();
+  if (!mobile || mobile.replace(/\D/g, '').length < 10) {
+    showToast('Please enter a valid 10-digit mobile number');
+    return;
+  }
+  const driver = DriverRegistry.loginDriver(mobile);
+  if (!driver) { showToast('Invalid mobile number'); return; }
+  state.driverId = driver.id;
+  localStorage.setItem('roadsos_driver_id', driver.id);
+  localStorage.setItem('roadsos_driver_mobile', mobile);
+  document.getElementById('screenDriverLogin').classList.remove('active');
+  document.getElementById('screenMainApp').classList.add('active');
+  document.getElementById('driverIdBadge').textContent = driver.id;
+  document.getElementById('settingsDriverId').textContent = driver.id;
+  // Init buffer
+  DataBuffer.init();
+  showToast(`Welcome! Your ID: ${driver.id}`);
+}
+
+function driverLogout() {
+  // Flush any buffered data before logout
+  DataBuffer.flush();
+  releaseWakeLock();
+  localStorage.removeItem('roadsos_driver_id');
+  localStorage.removeItem('roadsos_driver_mobile');
+  state.driverId = null;
+  location.reload();
+}
+
+// Check for existing session
+(function checkDriverSession() {
+  const savedId = localStorage.getItem('roadsos_driver_id');
+  if (savedId) {
+    state.driverId = savedId;
+    document.getElementById('screenDriverLogin').classList.remove('active');
+    document.getElementById('screenMainApp').classList.add('active');
+    document.getElementById('driverIdBadge').textContent = savedId;
+    document.getElementById('settingsDriverId').textContent = savedId;
+    DataBuffer.init();
+  }
+})();
 
 // ═══ SCREEN NAV ═══
 function switchScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('#screenMainApp > .screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
   const map = { screenHome: 0, screenHistory: 1, screenV2V: 2, screenSettings: 3 };
@@ -259,7 +378,10 @@ function switchScreen(id) {
   if (id === 'screenHistory') renderCrossings();
   if (id === 'screenV2V') renderRelays();
   if (id === 'screenSettings') renderSettings();
-  if (id === 'screenHome' && state.map) setTimeout(() => state.map.invalidateSize(), 100);
+  if (id === 'screenHome') {
+    updateSOSBanner(); // Always update SOS banner when coming to home
+    if (state.map) setTimeout(() => state.map.invalidateSize(), 100);
+  }
 }
 
 // ═══ GPS ═══
@@ -270,9 +392,9 @@ function requestGPS() {
   }
   navigator.geolocation.getCurrentPosition(
     () => { startGPSTracking(); },
-    (err) => { 
+    (err) => {
       showToast('GPS denied/failed. Starting in fallback test mode.');
-      startFallbackGPS(); 
+      startFallbackGPS();
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
@@ -285,7 +407,7 @@ function startFallbackGPS() {
   initMap();
   state.lastKnownPos = { lat: 20.5937, lng: 78.9629, accuracy: 100, speed: 0, heading: 45, timestamp: Date.now() };
   GPSTracker.lastOnlinePosition = state.lastKnownPos;
-  onGPSUpdate(state.lastKnownPos);
+  onGPSUpdate(state.lastKnownPos, true); // true = fresh initial reading
   startOfflineEstimation();
 }
 
@@ -295,83 +417,170 @@ function startGPSTracking() {
   document.getElementById('gpsActive').classList.remove('hidden');
   initMap();
   GPSTracker.start();
-  GPSTracker.onChange(onGPSUpdate);
+  GPSTracker.onChange((pos) => onGPSUpdate(pos, true)); // true = fresh GPS reading from device
   NetworkDetector.onChange(onNetworkChange);
   updateNetworkUI();
+  // Request wake lock to keep GPS active when screen is off
+  requestWakeLock();
 }
 
-function onGPSUpdate(pos) {
+function onGPSUpdate(pos, isFreshReading) {
   if (!pos) return;
   state.lastKnownPos = pos;
   const isOnline = NetworkDetector.isOnline();
-  
-  // Update coordinates
+
+  // ═══ UPDATE UI DISPLAY (always) ═══
   document.getElementById('gpsCoords').textContent = `${pos.lat.toFixed(5)}° N, ${pos.lng.toFixed(5)}° E`;
-  
-  // Update speed
   const speed = GPSTracker.getSpeedKmh();
   document.getElementById('speedVal').textContent = speed;
-  
-  // Update accuracy
   document.getElementById('accuracyVal').textContent = pos.accuracy ? `±${Math.round(pos.accuracy)}m` : '--';
-  
-  // Update heading
   document.getElementById('headingVal').textContent = pos.heading ? `${Math.round(pos.heading)}°` : '--';
-  
-  // Resolve block code — pass estimated position data for history-driven lookup
-  const block = BlockResolver.resolve(pos.lat, pos.lng, pos.estimated ? pos : null);
-  
-  // Track block changes for crossing recording
-  if (isOnline && state.currentBlock && state.currentBlock.blockCode !== block.blockCode) {
-    const prevBlock = state.currentBlock;
-    if (prevBlock.corridor && prevBlock.corridor.id) {
-      const transitTime = Date.now() - (state.lastBlockChangeTime || Date.now());
-      DeadZoneHistory.recordBlockCrossing(
-        prevBlock.corridor.id, prevBlock.block, block.block, transitTime,
-        pos.speed || 0
-      );
-      // Save crossing to history
-      Store.saveCrossing({
-        blockCode: block.blockCode,
-        corridor: { code: block.corridor.code, id: block.corridor.id },
-        block: block.block,
-        lat: pos.lat, lng: pos.lng,
-        speed: speed,
-        timestamp: Date.now(),
-        date: new Date().toLocaleDateString(),
-      });
-      document.getElementById('crossingCount').textContent = Store.getCrossings().length;
+
+  // ═══ BLOCK TRACKING — ONLY on fresh readings, not UI refreshes ═══
+  if (isFreshReading) {
+    if (isOnline) {
+      // ── ONLINE MODE: Only change block when real GPS proves device crossed boundary ──
+      handleOnlineBlockChange(pos, speed);
+    } else {
+      // ── OFFLINE MODE: Use estimated position from history/sensors to update estimated block ──
+      handleOfflineBlockEstimate(pos, speed);
     }
   }
-  state.lastBlockChangeTime = Date.now();
+
+  // ═══ RESOLVE BLOCK FOR DISPLAY ═══
+  const block = BlockResolver.resolve(pos.lat, pos.lng, pos.estimated ? pos : null);
   state.currentBlock = block;
-  
+
   const blockEl = document.getElementById('blockCode');
-  blockEl.textContent = block.blockCode;
+  blockEl.textContent = state.currentBlockId || block.blockCode;
   blockEl.className = 'block-main ' + (isOnline ? 'online' : 'offline');
-  
-  // Update confidence gauge — use block confidence directly
+
+  // Update confidence gauge
   const conf = block.confidence || (isOnline ? 92 : 60);
   document.getElementById('confVal').textContent = conf;
   drawGauge(conf);
-  
-  // Update map
+
+  // Update map — smooth panTo instead of setView
   if (state.map && state.marker) {
     state.marker.setLatLng([pos.lat, pos.lng]);
-    state.map.setView([pos.lat, pos.lng], state.map.getZoom());
+    if (state.isReconnecting) {
+      state.map.flyTo([pos.lat, pos.lng], state.map.getZoom(), { duration: 1.5 });
+      state.isReconnecting = false;
+    } else {
+      state.map.panTo([pos.lat, pos.lng], { animate: true, duration: 0.5 });
+    }
   }
-  
-  // GPS status detail with estimation source
+
+  // Update counters
+  document.getElementById('crossingCount').textContent = BlockRegistry.getBlockCount();
+  const bufSize = DataBuffer.getBufferSize();
+  document.getElementById('bufferIndicator').textContent = `Buffer: ${bufSize.blocks} blocks, ${bufSize.transits} transits — syncs every 5 min`;
+
+  // GPS status detail
   let statusHtml = `Lat: ${pos.lat.toFixed(5)}<br>Lng: ${pos.lng.toFixed(5)}<br>Accuracy: ±${Math.round(pos.accuracy || 0)}m<br>Speed: ${speed} km/h`;
   if (pos.estimated && pos.estimationSource) {
-    const sourceLabels = {
-      'personal': '📊 Personal History',
-      'community': '🌐 Community Average',
-      'dead_reckoning': '⚙️ Basic Dead Reckoning',
-    };
+    const sourceLabels = { 'personal': '📊 Personal History', 'community': '🌐 Community Average', 'dead_reckoning': '⚙️ Basic Dead Reckoning' };
     statusHtml += `<br><span style="color:var(--accent-offline);">Source: ${sourceLabels[pos.estimationSource] || pos.estimationSource}</span>`;
   }
   document.getElementById('gpsStatusDetail').innerHTML = statusHtml;
+}
+
+// ═══ ONLINE BLOCK CHANGE — GPS-driven, only when device physically crosses boundary ═══
+function handleOnlineBlockChange(pos, speed) {
+  const newBlockId = BlockRegistry.getBlockId(pos.lat, pos.lng);
+  if (newBlockId === state.currentBlockId) return; // Still in same block — no change
+
+  const now = Date.now();
+  const BLOCK_CHANGE_COOLDOWN = 5000; // 5s minimum between changes
+  const BLOCK_MIN_SPEED = 3;          // km/h — ignore jitter when stationary
+
+  // First block assignment — always allow
+  if (!state.currentBlockId) {
+    commitBlockChange(newBlockId, pos, speed, now);
+    return;
+  }
+
+  // Verify the device has actually moved far enough from current block center
+  const currentBlock = BlockRegistry.getBlock(state.currentBlockId);
+  if (currentBlock && currentBlock.centerLat != null) {
+    const distFromCurrentCenter = Utils.haversine(pos.lat, pos.lng, currentBlock.centerLat, currentBlock.centerLng);
+    // Only change block if we're more than 500m from current block center (half a 1km block)
+    if (distFromCurrentCenter < 500) return;
+  }
+
+  // Check debounce timer
+  const timeSinceLastChange = now - state.lastBlockChangeTime;
+  if (timeSinceLastChange < BLOCK_CHANGE_COOLDOWN) return;
+
+  // Check minimum speed (prevent stationary GPS jitter)
+  if (speed < BLOCK_MIN_SPEED) return;
+
+  // Check actual distance moved from last block change position
+  if (state.lastBlockChangePos) {
+    const distMoved = Utils.haversine(pos.lat, pos.lng, state.lastBlockChangePos.lat, state.lastBlockChangePos.lng);
+    if (distMoved < 100) return; // Must have moved at least 100m
+  }
+
+  // All checks passed — commit the block change
+  commitBlockChange(newBlockId, pos, speed, now);
+}
+
+// ═══ OFFLINE BLOCK ESTIMATE — History-driven, updates display only ═══
+function handleOfflineBlockEstimate(pos, speed) {
+  if (!pos.estimated) return; // Only process actual estimations
+
+  // Use the estimated position to determine which block we're likely in
+  const newBlockId = BlockRegistry.getBlockId(pos.lat, pos.lng);
+  if (newBlockId === state.currentBlockId) return; // Same estimated block
+
+  // In offline mode, we update the display block but DON'T record real transit events
+  // Transit events will be retro-generated when GPS returns
+  state.currentBlockId = newBlockId;
+
+  // Update the display only — no transit log entries
+  console.log(`[Offline] Estimated block changed to: ${newBlockId} (source: ${pos.estimationSource})`);
+}
+
+// ═══ COMMIT BLOCK CHANGE — Records transit events (online mode only) ═══
+function commitBlockChange(newBlockId, pos, speed, now) {
+  const nowISO = new Date().toISOString();
+
+  // Exit old block
+  if (state.currentBlockId && state.driverId) {
+    DataBuffer.bufferTransit({
+      id: `TRN-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type: 'exit', driverId: state.driverId, blockId: state.currentBlockId,
+      timestamp: nowISO, speed: speed, lat: pos.lat, lng: pos.lng,
+    });
+  }
+
+  // Create or get the new block
+  const block = BlockRegistry.getOrCreateBlock(pos.lat, pos.lng, state.driverId);
+  DataBuffer.bufferBlock(block);
+
+  // Record entry to new block
+  if (state.driverId) {
+    DataBuffer.bufferTransit({
+      id: `TRN-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type: 'entry', driverId: state.driverId, blockId: newBlockId,
+      timestamp: nowISO, speed: speed, lat: pos.lat, lng: pos.lng,
+    });
+  }
+
+  state.currentBlockId = newBlockId;
+  state.lastBlockChangeTime = now;
+  state.lastBlockChangePos = { lat: pos.lat, lng: pos.lng };
+
+  // Save crossing to history
+  Store.saveCrossing({
+    blockCode: newBlockId,
+    corridor: { code: newBlockId.split('-').slice(0, 2).join('-'), id: newBlockId },
+    block: block.gridRow, lat: pos.lat, lng: pos.lng,
+    speed: speed, timestamp: Date.now(),
+    date: new Date().toLocaleDateString(),
+  });
+
+  console.log(`[Block] Changed to: ${newBlockId} @ ${speed}km/h (GPS confirmed)`);
 }
 
 function onNetworkChange(isOnline, info) {
@@ -379,6 +588,14 @@ function onNetworkChange(isOnline, info) {
   if (!isOnline) {
     state.offlineSince = Date.now();
     state.mode = 'offline';
+    // Save position when going offline for retro-generation
+    state.offlineLastPos = state.lastKnownPos ? {
+      lat: state.lastKnownPos.lat,
+      lng: state.lastKnownPos.lng,
+      speed: state.lastKnownPos.speed || 0,
+      heading: state.lastKnownPos.heading || 0,
+      timestamp: Date.now(),
+    } : null;
     // Record dead zone entry
     const pos = state.lastKnownPos;
     if (pos && state.currentBlock && state.currentBlock.corridor) {
@@ -386,25 +603,37 @@ function onNetworkChange(isOnline, info) {
         state.currentBlock.corridor.id, state.currentBlock.block,
         pos.speed || 0, pos.lat, pos.lng
       );
-      showToast('⚠️ Signal lost — estimating via crossing history');
+      showToast('⚠️ Signal lost — will retro-generate blocks when GPS returns');
     } else {
-      showToast('⚠️ Network lost — switching to offline estimation');
+      showToast('⚠️ Network lost — tracking paused until GPS returns');
     }
     startOfflineEstimation();
   } else {
-    // Record dead zone exit
+    // ═══ SMOOTH RECONNECTION — use flyTo animation ═══
+    state.isReconnecting = true;
+
+    // ═══ RETRO-GENERATE BLOCKS WHEN GPS RETURNS ═══
     const pos = state.lastKnownPos;
+    if (state.offlineLastPos && pos && state.driverId) {
+      const newPos = { lat: pos.lat, lng: pos.lng, speed: pos.speed || 0, timestamp: Date.now() };
+      const retroBlocks = OfflineRetroGenerator.retroGenerateBlocks(state.offlineLastPos, newPos, state.driverId);
+      if (retroBlocks.length > 0) {
+        showToast(`🟢 Back online! Retro-generated ${retroBlocks.length} blocks from offline path`);
+      } else {
+        showToast('🟢 Network restored — GPS tracking active');
+      }
+    } else {
+      showToast('🟢 Network restored — GPS tracking active');
+    }
+    // Record dead zone exit
     if (state.offlineSince && pos && state.currentBlock && state.currentBlock.corridor) {
       DeadZoneHistory.recordExit(
         state.currentBlock.corridor.id, state.currentBlock.block,
         pos.lat, pos.lng
       );
-      const elapsed = Math.round((Date.now() - state.offlineSince) / 1000);
-      showToast(`🟢 Back online! Dead zone crossed in ${elapsed}s — data saved`);
-    } else {
-      showToast('🟢 Network restored — GPS tracking active');
     }
     state.offlineSince = null;
+    state.offlineLastPos = null;
     state.mode = 'online';
   }
 }
@@ -416,7 +645,7 @@ function updateNetworkUI() {
   const status = document.getElementById('signalStatus');
   const strip = document.getElementById('statusStrip');
   const netInfo = document.getElementById('netInfo');
-  
+
   if (isOnline) {
     badge.className = 'signal-indicator signal-online';
     badge.innerHTML = '🟢 ONLINE';
@@ -426,58 +655,32 @@ function updateNetworkUI() {
   } else {
     badge.className = 'signal-indicator signal-offline';
     badge.innerHTML = '🟡 OFFLINE';
-    // Determine estimation source for display
     const estimated = GPSTracker.getEstimatedPosition();
     let sourceText = 'Dead Reckoning';
     let sourceIcon = '⚙️';
-    if (estimated && estimated.estimationSource === 'personal') {
-      sourceText = 'Personal History';
-      sourceIcon = '📊';
-    } else if (estimated && estimated.estimationSource === 'community') {
-      sourceText = 'Community Average';
-      sourceIcon = '🌐';
-    }
+    if (estimated && estimated.estimationSource === 'personal') { sourceText = 'Personal History'; sourceIcon = '📊'; }
+    else if (estimated && estimated.estimationSource === 'community') { sourceText = 'Community Average'; sourceIcon = '🌐'; }
     if (status) { status.className = 'signal-indicator signal-offline'; status.innerHTML = `🟡 OFFLINE — ${sourceIcon} ${sourceText}`; }
     if (strip) {
       strip.className = 'status-strip offline-strip';
-      const summary = state.currentBlock && state.currentBlock.corridor
-        ? DeadZoneHistory.getCorridorSummary(state.currentBlock.corridor.id)
-        : null;
-      if (summary && summary.traversals > 0) {
-        strip.innerHTML = `🟡 Estimating via ${sourceIcon} ${sourceText} · ${summary.traversals} past trips · avg cross: ${summary.avgCrossTimeMin} min`;
-      } else {
-        const lastPos = GPSTracker.lastOnlinePosition;
-        if (lastPos) {
-          strip.innerHTML = `🟡 Signal lost — estimating from last position (${lastPos.lat.toFixed(4)}°, ${lastPos.lng.toFixed(4)}°)`;
-        } else {
-          strip.innerHTML = '🟡 No network — using last known position for estimation';
-        }
-      }
+      strip.innerHTML = `🟡 Offline — blocks will be retro-generated when GPS returns`;
     }
     if (netInfo) netInfo.textContent = 'Network: OFFLINE';
   }
 }
 
 function startOfflineEstimation() {
-  // When offline, periodically update estimated position
   const offlineInterval = setInterval(() => {
     if (NetworkDetector.isOnline()) { clearInterval(offlineInterval); return; }
     const estimated = GPSTracker.getEstimatedPosition();
-    if (estimated) onGPSUpdate(estimated);
+    if (estimated) onGPSUpdate(estimated, true); // true = fresh estimated reading
   }, 2000);
 }
 
 // ═══ MAP ═══
 function initMap() {
-  state.map = L.map('miniMap', {
-    zoomControl: false,
-    attributionControl: false,
-  }).setView([20.5937, 78.9629], 5); // India center
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-  }).addTo(state.map);
-
+  state.map = L.map('miniMap', { zoomControl: false, attributionControl: false }).setView([20.5937, 78.9629], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(state.map);
   state.marker = L.marker([20.5937, 78.9629]).addTo(state.map);
   state.marker.bindPopup('Your location').openPopup();
 }
@@ -497,7 +700,7 @@ function drawGauge(val) {
   document.getElementById('confVal').style.color = color;
 }
 
-// ═══ SOS FLOW ═══
+// ═══ SOS FLOW (with persistence + cancel) ═══
 function openSOS() {
   if (!state.lastKnownPos) { showToast('Waiting for GPS location...'); return; }
   state.sosCategory = null;
@@ -509,22 +712,6 @@ function openSOS() {
 }
 
 function closeSOS() { switchScreen('screenHome'); }
-
-function copySOSCode() {
-  const code = document.getElementById('sosCodeDisplay').textContent;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(code).then(() => showToast('SOS Code copied to clipboard!'));
-  } else {
-    // Fallback for older browsers
-    const ta = document.createElement('textarea');
-    ta.value = code;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    showToast('SOS Code copied!');
-  }
-}
 
 function renderSOSCategories() {
   document.getElementById('sosCats').innerHTML = EMERGENCY_TYPES.map(t => `
@@ -539,24 +726,23 @@ function selectSOSCat(code, el) {
   state.sosCategory = EMERGENCY_TYPES.find(t => t.code === code);
   document.querySelectorAll('.sos-cat-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected');
-  
+
   setTimeout(() => {
     document.getElementById('sosStep1').classList.add('hidden');
     document.getElementById('sosStep2').classList.remove('hidden');
-    
+
     const pos = state.lastKnownPos || GPSTracker.getEstimatedPosition();
     const block = state.currentBlock || BlockResolver.resolve(pos.lat, pos.lng);
-    const sosData = SOSPacket.build(block.blockCode, code, block.confidence, pos.lat, pos.lng);
-    
+    const blockCode = state.currentBlockId || block.blockCode;
+    const sosData = SOSPacket.build(blockCode, code, block.confidence, pos.lat, pos.lng);
+
     document.getElementById('sosPacket').textContent = sosData.packet;
     document.getElementById('packetSize').textContent = sosData.packet.length;
     document.getElementById('sosLocation').textContent = `${pos.lat.toFixed(5)}°, ${pos.lng.toFixed(5)}°`;
-    
+
     const txBadge = document.getElementById('txMethod');
     txBadge.textContent = sosData.transmission.code;
     txBadge.className = 'badge ' + sosData.transmission.badge;
-    
-    // Store for sending
     state.pendingSOS = sosData;
   }, 300);
 }
@@ -564,10 +750,7 @@ function selectSOSCat(code, el) {
 function startHold() {
   state.holdStarted = true;
   document.getElementById('holdFill').style.width = '100%';
-  state.holdTimer = setTimeout(() => {
-    if (!state.holdStarted) return;
-    sendSOS();
-  }, 2000);
+  state.holdTimer = setTimeout(() => { if (!state.holdStarted) return; sendSOS(); }, 2000);
 }
 
 function cancelHold() {
@@ -580,28 +763,28 @@ function cancelHold() {
 
 function sendSOS() {
   if (!state.pendingSOS) return;
-  
-  // Save SOS event to localStorage (visible to admin and provider)
   Store.saveSOSEvent(state.pendingSOS);
-  
+
+  // ═══ PERSIST ACTIVE SOS (localStorage for survival across browser close) ═══
+  state.activeSOS = state.pendingSOS;
+  localStorage.setItem('roadsos_active_sos', JSON.stringify(state.pendingSOS));
+
   document.getElementById('sosStep2').classList.add('hidden');
   document.getElementById('sosStep3').classList.remove('hidden');
   document.getElementById('sentPacket').textContent = state.pendingSOS.packet;
-  
-  // Search for available provider
+
   const providers = Store.getProviders().filter(p => p.status === 'Active' && p.available !== false);
-  
+
   setTimeout(() => {
     document.getElementById('sosStep3').classList.add('hidden');
     document.getElementById('sosStep4').classList.remove('hidden');
-    
+
     if (providers.length > 0) {
-      // Find closest provider
       let closestProv = providers[0];
       let minDistance = Infinity;
       const myLat = state.lastKnownPos ? state.lastKnownPos.lat : GPSTracker.getEstimatedPosition().lat;
       const myLng = state.lastKnownPos ? state.lastKnownPos.lng : GPSTracker.getEstimatedPosition().lng;
-      
+
       providers.forEach(p => {
         if (p.gps) {
           const parts = p.gps.split(',').map(s => parseFloat(s.trim()));
@@ -611,47 +794,105 @@ function sendSOS() {
           }
         }
       });
-      
+
       const prov = closestProv;
       document.getElementById('provName').textContent = prov.name;
       document.getElementById('provCat').textContent = `${prov.category.icon} ${prov.category.label}`;
-      
+
       let eta = Math.floor(Math.random() * 15) + 5;
       if (minDistance !== Infinity) {
-        // Assume 40 km/h average response speed
-        eta = Math.max(2, Math.round((minDistance / 1000) / 40 * 60)); 
+        eta = Math.max(2, Math.round((minDistance / 1000) / 40 * 60));
       }
       document.getElementById('provETA').textContent = `ETA: ${eta} min`;
-
-      // Display Resolution PIN
       document.getElementById('sosPinDisplay').textContent = state.pendingSOS.resolutionPin;
-      
-      // Display SOS code and SMS link
-      const sosCode = state.pendingSOS.packet;
-      document.getElementById('sosCodeDisplay').textContent = sosCode;
-      // Build SMS link — send to provider phone if available, otherwise use emergency number
+      document.getElementById('sosCodeDisplay').textContent = state.pendingSOS.packet;
+
       const provPhone = prov.phone || '112';
-      const smsBody = encodeURIComponent(`RoadSOS EMERGENCY: ${sosCode} | PIN:${state.pendingSOS.resolutionPin} | Loc:${state.pendingSOS.lat.toFixed(5)},${state.pendingSOS.lng.toFixed(5)}`);
+      const smsBody = encodeURIComponent(`RoadSOS EMERGENCY: ${state.pendingSOS.packet} | PIN:${state.pendingSOS.resolutionPin} | Loc:${state.pendingSOS.lat.toFixed(5)},${state.pendingSOS.lng.toFixed(5)}`);
       document.getElementById('smsLink').href = `sms:${provPhone}?body=${smsBody}`;
-      
-      // Update SOS event with provider assignment
+
       Store.updateSOSEvent(state.pendingSOS.id, {
-        providerId: prov.id,
-        providerName: prov.name,
-        dispatchedAt: new Date().toISOString(),
+        providerId: prov.id, providerName: prov.name, dispatchedAt: new Date().toISOString(),
       });
     } else {
       document.getElementById('provName').textContent = 'No providers registered';
       document.getElementById('provCat').textContent = 'Register providers in Admin Panel';
       document.getElementById('provETA').textContent = 'Searching...';
-      document.getElementById('sosPinDisplay').textContent = '----';
-      // Still show SOS code for manual sharing
-      const sosCode = state.pendingSOS.packet;
-      document.getElementById('sosCodeDisplay').textContent = sosCode;
-      const smsBody = encodeURIComponent(`RoadSOS EMERGENCY: ${sosCode} | PIN:${state.pendingSOS.resolutionPin} | Loc:${state.pendingSOS.lat.toFixed(5)},${state.pendingSOS.lng.toFixed(5)}`);
+      document.getElementById('sosPinDisplay').textContent = state.pendingSOS.resolutionPin;
+      document.getElementById('sosCodeDisplay').textContent = state.pendingSOS.packet;
+      const smsBody = encodeURIComponent(`RoadSOS EMERGENCY: ${state.pendingSOS.packet} | PIN:${state.pendingSOS.resolutionPin} | Loc:${state.pendingSOS.lat.toFixed(5)},${state.pendingSOS.lng.toFixed(5)}`);
       document.getElementById('smsLink').href = `sms:112?body=${smsBody}`;
     }
+
+    // Update the persistent banner
+    updateSOSBanner();
   }, 3000);
+}
+
+// ═══ SOS CANCEL ═══
+function cancelActiveSOS() {
+  if (state.activeSOS) {
+    Store.updateSOSEvent(state.activeSOS.id, { resolved: true, resolutionMin: 0, cancelledByDriver: true });
+    showToast('SOS Cancelled');
+  }
+  state.activeSOS = null;
+  state.pendingSOS = null;
+  localStorage.removeItem('roadsos_active_sos');
+  updateSOSBanner();
+  switchScreen('screenHome');
+}
+
+// ═══ SOS BANNER (persistent on home screen) ═══
+function updateSOSBanner() {
+  const banner = document.getElementById('sosBanner');
+  // Check localStorage for active SOS (persists across browser close)
+  if (!state.activeSOS) {
+    const saved = localStorage.getItem('roadsos_active_sos');
+    if (saved) {
+      try { state.activeSOS = JSON.parse(saved); } catch(e) {}
+    }
+  }
+  // Check if the SOS is still active (not resolved)
+  if (state.activeSOS) {
+    const event = Store.getSOSEvents().find(e => e.id === state.activeSOS.id);
+    if (event && event.resolved) {
+      state.activeSOS = null;
+      localStorage.removeItem('roadsos_active_sos');
+    }
+  }
+
+  if (state.activeSOS) {
+    banner.classList.remove('hidden');
+    document.getElementById('bannerSosCode').textContent = state.activeSOS.packet;
+    document.getElementById('bannerSosPin').textContent = state.activeSOS.resolutionPin;
+    // SMS link
+    const smsBody = encodeURIComponent(`RoadSOS EMERGENCY: ${state.activeSOS.packet} | PIN:${state.activeSOS.resolutionPin} | Loc:${state.activeSOS.lat.toFixed(5)},${state.activeSOS.lng.toFixed(5)}`);
+    document.getElementById('bannerSmsLink').href = `sms:112?body=${smsBody}`;
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+function copySOSCode() {
+  const code = document.getElementById('sosCodeDisplay').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(() => showToast('SOS Code copied to clipboard!'));
+  } else {
+    const ta = document.createElement('textarea'); ta.value = code;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta); showToast('SOS Code copied!');
+  }
+}
+
+function copyBannerSOSCode() {
+  const code = document.getElementById('bannerSosCode').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(() => showToast('SOS Code copied!'));
+  } else {
+    const ta = document.createElement('textarea'); ta.value = code;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta); showToast('SOS Code copied!');
+  }
 }
 
 // ═══ CROSSINGS ═══
@@ -659,16 +900,12 @@ function renderCrossings() {
   const crossings = Store.getCrossings();
   const list = document.getElementById('crossingList');
   const empty = document.getElementById('emptyHistory');
-  
-  if (crossings.length === 0) {
-    list.innerHTML = '';
-    empty.classList.remove('hidden');
-    return;
-  }
+
+  if (crossings.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
-  list.innerHTML = crossings.map(c => `
+  list.innerHTML = crossings.slice(0, 50).map(c => `
     <div class="crossing-item">
-      <div class="route">${c.blockCode || c.corridor?.code || 'Unknown'}</div>
+      <div class="route">${c.blockCode || 'Unknown'}</div>
       <div class="meta">
         <span>📅 ${c.date || new Date(c.timestamp).toLocaleDateString()}</span>
         <span>📍 ${c.lat?.toFixed(4) || '--'}°, ${c.lng?.toFixed(4) || '--'}°</span>
@@ -676,10 +913,9 @@ function renderCrossings() {
       </div>
     </div>
   `).join('');
-  
-  const bytes = crossings.length * 120;
-  document.getElementById('storageBar').textContent = `Your history: ${crossings.length} crossings, ${(bytes/1024).toFixed(1)} KB`;
-  document.getElementById('crossingCount').textContent = crossings.length;
+
+  document.getElementById('storageBar').textContent = `Explored: ${BlockRegistry.getBlockCount()} blocks, ${crossings.length} crossings`;
+  document.getElementById('crossingCount').textContent = BlockRegistry.getBlockCount();
 }
 
 // ═══ RELAYS ═══
@@ -689,7 +925,6 @@ function renderRelays() {
   const empty = document.getElementById('emptyRelay');
   document.getElementById('relayTotal').textContent = relays.length;
   document.getElementById('relaysLifetime').textContent = relays.length;
-  
   if (relays.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
   list.innerHTML = relays.map(r => `
@@ -708,11 +943,9 @@ function renderSettings() {
   document.getElementById('v2vToggle').checked = settings.v2vRelay !== false;
   document.getElementById('soundToggle').checked = settings.alertSound !== false;
   if (settings.sosMode) document.getElementById('sosModeSelect').value = settings.sosMode;
-  
-  const crossings = Store.getCrossings();
-  const bytes = crossings.length * 120;
-  document.getElementById('dataUsage').textContent = `${(bytes/1024).toFixed(1)} KB`;
-  document.getElementById('dataDetail').textContent = `${crossings.length} crossings stored`;
+  const blockCount = BlockRegistry.getBlockCount();
+  document.getElementById('dataUsage').textContent = `${blockCount} blocks`;
+  document.getElementById('dataDetail').textContent = `${Store.getCrossings().length} crossings, ${BlockTransitLog.getTransitCount()} transits`;
 }
 
 function saveSetting(key, value) {
@@ -727,14 +960,11 @@ async function connectOBD() {
   try {
     if (!navigator.bluetooth) { showToast('Web Bluetooth API not supported in this browser'); return; }
     document.getElementById('obdStatusP').textContent = 'Scanning...';
-    obdDevice = await navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: [] // For production, we'd request OBD ELM327 BLE characteristic UUIDs
-    });
+    obdDevice = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [] });
     document.getElementById('obdStatusP').textContent = 'Connected: ' + (obdDevice.name || 'OBD Tracker');
     document.getElementById('obdConnectBtn').textContent = 'Disconnect';
     document.getElementById('obdConnectBtn').onclick = disconnectOBD;
-    showToast('OBD-II Hardware Connected. Utilizing direct VSS data.');
+    showToast('OBD-II Hardware Connected.');
   } catch (err) {
     document.getElementById('obdStatusP').textContent = 'Not connected';
     showToast('Bluetooth pairing failed/cancelled');
@@ -746,7 +976,7 @@ function disconnectOBD() {
   document.getElementById('obdStatusP').textContent = 'Not connected';
   document.getElementById('obdConnectBtn').textContent = 'Pair';
   document.getElementById('obdConnectBtn').onclick = connectOBD;
-  showToast('OBD-II Disconnected. Falling back to GPS estimation.');
+  showToast('OBD-II Disconnected.');
 }
 
 // ═══ TOAST ═══
@@ -754,24 +984,77 @@ function showToast(msg) {
   const existing = document.querySelector('.toast');
   if (existing) existing.remove();
   const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
+  t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 4000);
+}
+
+// ═══ SCREEN WAKE LOCK — Keep GPS tracking when screen is off ═══
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    state.wakeLock = await navigator.wakeLock.request('screen');
+    state.wakeLock.addEventListener('release', () => { state.wakeLock = null; });
+    console.log('[WakeLock] Screen wake lock acquired');
+  } catch (err) {
+    console.warn('[WakeLock] Could not acquire:', err.message);
+  }
+}
+
+function releaseWakeLock() {
+  if (state.wakeLock) {
+    state.wakeLock.release();
+    state.wakeLock = null;
+  }
+}
+
+// Re-acquire wake lock when tab becomes visible again
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && state.gpsStarted) {
+    await requestWakeLock();
+    // Refresh position immediately on tab re-focus (UI only, not block change)
+    if (state.lastKnownPos) onGPSUpdate(state.lastKnownPos, false);
+    if (state.map) state.map.invalidateSize();
+    updateNetworkUI();
+    updateSOSBanner();
+  }
+});
+
+// ═══ AUTO-REFRESH UI (every 5s, no loading screen) ═══
+// IMPORTANT: This only refreshes UI display, does NOT re-evaluate block changes
+function autoRefreshUI() {
+  if (!state.gpsStarted) return;
+  // Refresh UI display only (isFreshReading = false → no block evaluation)
+  if (state.lastKnownPos) onGPSUpdate(state.lastKnownPos, false);
+  // Update network status
+  updateNetworkUI();
+  // Update SOS banner
+  updateSOSBanner();
+  // Update buffer indicator
+  const bufSize = DataBuffer.getBufferSize();
+  document.getElementById('bufferIndicator').textContent = `Buffer: ${bufSize.blocks} blocks, ${bufSize.transits} transits — syncs every 5 min`;
+  // Update block count
+  document.getElementById('crossingCount').textContent = BlockRegistry.getBlockCount();
+  // Update relay count
+  document.getElementById('relaysLifetime').textContent = Store.getV2VRelays().length;
+  // Ensure map size is correct
+  if (state.map) state.map.invalidateSize();
 }
 
 // ═══ INIT ═══
 function init() {
   drawGauge(0);
-  // Seed demo history for demonstration
   DeadZoneHistory.seedDemoHistory();
-  document.getElementById('crossingCount').textContent = Store.getCrossings().length;
+  document.getElementById('crossingCount').textContent = BlockRegistry.getBlockCount();
   document.getElementById('relaysLifetime').textContent = Store.getV2VRelays().length;
-  
-  // Check if GPS was previously granted
+  updateSOSBanner();
+
+  // Start 5-second silent auto-refresh
+  setInterval(autoRefreshUI, 5000);
+
   if (navigator.permissions) {
     navigator.permissions.query({ name: 'geolocation' }).then(result => {
-      if (result.state === 'granted') requestGPS();
+      if (result.state === 'granted' && state.driverId) requestGPS();
     });
   }
 }
@@ -782,19 +1065,12 @@ function toggleSimOffline() {
   simOffline = !simOffline;
   const btn = document.getElementById('simOfflineBtn');
   if (simOffline) {
-    btn.textContent = '⚡ Go Online';
-    btn.style.background = 'var(--accent-offline)';
-    btn.style.color = '#000';
-    // Directly override NetworkDetector state (navigator.onLine stays true)
-    NetworkDetector._online = false;
-    NetworkDetector._notify();
+    btn.textContent = '⚡ Go Online'; btn.style.background = 'var(--accent-offline)'; btn.style.color = '#000';
+    NetworkDetector._online = false; NetworkDetector._notify();
     onNetworkChange(false, NetworkDetector.getConnectionInfo());
   } else {
-    btn.textContent = '⚡ Simulate Offline';
-    btn.style.background = '';
-    btn.style.color = '';
-    NetworkDetector._online = true;
-    NetworkDetector._notify();
+    btn.textContent = '⚡ Simulate Offline'; btn.style.background = ''; btn.style.color = '';
+    NetworkDetector._online = true; NetworkDetector._notify();
     onNetworkChange(true, NetworkDetector.getConnectionInfo());
   }
 }

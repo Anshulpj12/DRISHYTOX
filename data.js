@@ -11,6 +11,10 @@ const STORE_KEYS = {
   LOGGED_PROVIDER: 'roadsos_logged_provider',
   SETTINGS: 'roadsos_settings',
   ZONE_HISTORY: 'roadsos_zone_history',
+  BLOCK_REGISTRY: 'roadsos_block_registry',
+  BLOCK_TRANSIT_LOG: 'roadsos_block_transit_log',
+  DRIVERS: 'roadsos_drivers',
+  DRIVER_BUFFER: 'roadsos_driver_buffer',
 };
 
 const EMERGENCY_TYPES = [
@@ -205,12 +209,13 @@ const GPSTracker = {
   lastOnlinePosition: null,
   positionHistory: [],
   _listeners: [],
+  _smoothingWindow: 3, // Average last N readings
 
   start() {
     if (!navigator.geolocation) { console.warn('Geolocation not available'); return; }
     this.watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        this.lastPosition = {
+        const raw = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy,
@@ -218,15 +223,19 @@ const GPSTracker = {
           heading: pos.coords.heading,
           timestamp: pos.timestamp,
         };
+        this.positionHistory.push({ ...raw });
+        if (this.positionHistory.length > 500) this.positionHistory.shift();
+
+        // Smooth position using last N readings to reduce GPS jitter
+        this.lastPosition = this._getSmoothedPosition(raw);
+
         if (NetworkDetector.isOnline()) {
           this.lastOnlinePosition = { ...this.lastPosition };
         }
-        this.positionHistory.push({ ...this.lastPosition });
-        if (this.positionHistory.length > 500) this.positionHistory.shift();
         this._notify();
       },
       (err) => { console.warn('GPS error:', err.message); },
-      { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
     );
   },
 
@@ -237,8 +246,26 @@ const GPSTracker = {
     }
   },
 
+  // Average last N readings to reduce jitter
+  _getSmoothedPosition(latest) {
+    const history = this.positionHistory;
+    const n = Math.min(this._smoothingWindow, history.length);
+    if (n <= 1) return latest;
+    const recent = history.slice(-n);
+    const avgLat = recent.reduce((s, p) => s + p.lat, 0) / n;
+    const avgLng = recent.reduce((s, p) => s + p.lng, 0) / n;
+    return {
+      lat: avgLat,
+      lng: avgLng,
+      accuracy: latest.accuracy,
+      speed: latest.speed,
+      heading: latest.heading,
+      timestamp: latest.timestamp,
+    };
+  },
+
   getSpeedKmh() {
-    if (this.lastPosition && this.lastPosition.speed !== null) {
+    if (this.lastPosition && this.lastPosition.speed !== null && this.lastPosition.speed >= 0) {
       return Math.round(this.lastPosition.speed * 3.6);
     }
     // Estimate from position history
@@ -679,5 +706,404 @@ const DeadZoneHistory = {
   },
 };
 
+// ═══ Block Registry — 1000m Grid-Based Immutable Blocks ═══
+// Blocks are auto-generated when vehicles enter new 1km grid cells.
+// Once created, a block is IMMUTABLE and cannot be changed.
+const BLOCK_GRID_SIZE = 1000; // meters
+const BLOCK_HYSTERESIS_DISTANCE = 100; // meters — stay in current block if within this distance of its center
+
+const BlockRegistry = {
+  _currentBlockId: null, // Track current block for hysteresis
+
+  // Convert lat/lng to grid cell coordinates
+  getGridCell(lat, lng) {
+    // 1 degree latitude ≈ 111,320 meters
+    // 1 degree longitude ≈ 111,320 * cos(lat) meters
+    const latMeters = 111320;
+    const lngMeters = 111320 * Math.cos((lat * Math.PI) / 180);
+    const gridRow = Math.floor((lat * latMeters) / BLOCK_GRID_SIZE);
+    const gridCol = Math.floor((lng * lngMeters) / BLOCK_GRID_SIZE);
+    return { gridRow, gridCol };
+  },
+
+  // Get block ID from lat/lng WITH hysteresis to prevent jitter at block edges
+  getBlockId(lat, lng) {
+    const cell = this.getGridCell(lat, lng);
+    const rawBlockId = `BLK-${cell.gridRow}-${cell.gridCol}`;
+
+    // If we have a current block, check if we're still close to its center (hysteresis)
+    if (this._currentBlockId && this._currentBlockId !== rawBlockId) {
+      const currentBlock = this.getBlock(this._currentBlockId);
+      if (currentBlock && currentBlock.centerLat != null && currentBlock.centerLng != null) {
+        const distFromCurrent = Utils.haversine(lat, lng, currentBlock.centerLat, currentBlock.centerLng);
+        // Stay in current block if within hysteresis zone
+        if (distFromCurrent < BLOCK_HYSTERESIS_DISTANCE) {
+          return this._currentBlockId;
+        }
+      }
+    }
+    this._currentBlockId = rawBlockId;
+    return rawBlockId;
+  },
+
+  // Get center coordinates of a grid cell
+  getCellCenter(gridRow, gridCol) {
+    const latMeters = 111320;
+    const centerLatDeg = ((gridRow + 0.5) * BLOCK_GRID_SIZE) / latMeters;
+    const lngMeters = 111320 * Math.cos((centerLatDeg * Math.PI) / 180);
+    const centerLngDeg = ((gridCol + 0.5) * BLOCK_GRID_SIZE) / lngMeters;
+    return { lat: centerLatDeg, lng: centerLngDeg };
+  },
+
+  // Get or create a block at this position. Returns block object.
+  getOrCreateBlock(lat, lng, creatorId) {
+    const blockId = this.getBlockId(lat, lng);
+    const blocks = this.getAllBlocks();
+    if (blocks[blockId]) return blocks[blockId]; // Already exists — immutable
+
+    const cell = this.getGridCell(lat, lng);
+    const center = this.getCellCenter(cell.gridRow, cell.gridCol);
+    const block = {
+      id: blockId,
+      gridRow: cell.gridRow,
+      gridCol: cell.gridCol,
+      centerLat: center.lat,
+      centerLng: center.lng,
+      sizeMeter: BLOCK_GRID_SIZE,
+      createdAt: new Date().toISOString(),
+      createdBy: creatorId || 'unknown',
+      source: 'gps', // 'gps' or 'offline_retrogenerated'
+      locked: true,
+    };
+    blocks[blockId] = block;
+    Store.setObj(STORE_KEYS.BLOCK_REGISTRY, blocks);
+    console.log(`[BlockRegistry] New block created: ${blockId} by ${creatorId}`);
+    return block;
+  },
+
+  // Create a block from offline retro-generation
+  createRetroBlock(lat, lng, creatorId, estimatedTime) {
+    const blockId = this.getBlockId(lat, lng);
+    const blocks = this.getAllBlocks();
+    if (blocks[blockId]) return blocks[blockId]; // Already exists
+
+    const cell = this.getGridCell(lat, lng);
+    const center = this.getCellCenter(cell.gridRow, cell.gridCol);
+    const block = {
+      id: blockId,
+      gridRow: cell.gridRow,
+      gridCol: cell.gridCol,
+      centerLat: center.lat,
+      centerLng: center.lng,
+      sizeMeter: BLOCK_GRID_SIZE,
+      createdAt: estimatedTime || new Date().toISOString(),
+      createdBy: creatorId || 'unknown',
+      source: 'offline_retrogenerated',
+      locked: true,
+    };
+    blocks[blockId] = block;
+    Store.setObj(STORE_KEYS.BLOCK_REGISTRY, blocks);
+    console.log(`[BlockRegistry] Retro-block created: ${blockId}`);
+    return block;
+  },
+
+  getAllBlocks() {
+    return Store.getObj(STORE_KEYS.BLOCK_REGISTRY);
+  },
+
+  getBlock(id) {
+    return this.getAllBlocks()[id] || null;
+  },
+
+  getBlockCount() {
+    return Object.keys(this.getAllBlocks()).length;
+  },
+
+  exportToJSON() {
+    return JSON.stringify(this.getAllBlocks(), null, 2);
+  },
+
+  importFromJSON(jsonStr) {
+    try {
+      const imported = JSON.parse(jsonStr);
+      const existing = this.getAllBlocks();
+      let added = 0;
+      for (const id in imported) {
+        if (!existing[id]) { // Never overwrite existing blocks (immutable)
+          existing[id] = imported[id];
+          added++;
+        }
+      }
+      Store.setObj(STORE_KEYS.BLOCK_REGISTRY, existing);
+      console.log(`[BlockRegistry] Imported ${added} new blocks (${Object.keys(imported).length - added} duplicates skipped)`);
+      return added;
+    } catch (e) {
+      console.error('[BlockRegistry] Import failed:', e);
+      return 0;
+    }
+  },
+};
+
+// ═══ Block Transit Log — Entry/Exit Timing Records ═══
+const BlockTransitLog = {
+  getAll() { return Store.get(STORE_KEYS.BLOCK_TRANSIT_LOG); },
+
+  recordEntry(driverId, blockId, timestamp, speed, lat, lng) {
+    const entry = {
+      id: `TRN-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type: 'entry',
+      driverId,
+      blockId,
+      timestamp: timestamp || new Date().toISOString(),
+      speed: speed || 0,
+      lat, lng,
+    };
+    const log = this.getAll();
+    log.unshift(entry);
+    if (log.length > 2000) log.pop(); // Keep max 2000 records
+    Store.set(STORE_KEYS.BLOCK_TRANSIT_LOG, log);
+    return entry;
+  },
+
+  recordExit(driverId, blockId, timestamp, speed, lat, lng) {
+    const entry = {
+      id: `TRN-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type: 'exit',
+      driverId,
+      blockId,
+      timestamp: timestamp || new Date().toISOString(),
+      speed: speed || 0,
+      lat, lng,
+    };
+    const log = this.getAll();
+    log.unshift(entry);
+    if (log.length > 2000) log.pop();
+    Store.set(STORE_KEYS.BLOCK_TRANSIT_LOG, log);
+    return entry;
+  },
+
+  getByBlock(blockId) {
+    return this.getAll().filter(e => e.blockId === blockId);
+  },
+
+  getByDriver(driverId) {
+    return this.getAll().filter(e => e.driverId === driverId);
+  },
+
+  getAvgSpeedForBlock(blockId) {
+    const records = this.getByBlock(blockId).filter(e => e.speed > 0);
+    if (records.length === 0) return null;
+    return records.reduce((s, e) => s + e.speed, 0) / records.length;
+  },
+
+  getTransitCount() {
+    return this.getAll().length;
+  },
+
+  exportToJSON() {
+    return JSON.stringify(this.getAll(), null, 2);
+  },
+
+  importFromJSON(jsonStr) {
+    try {
+      const imported = JSON.parse(jsonStr);
+      const existing = this.getAll();
+      const existingIds = new Set(existing.map(e => e.id));
+      let added = 0;
+      imported.forEach(record => {
+        if (!existingIds.has(record.id)) {
+          existing.push(record);
+          added++;
+        }
+      });
+      // Sort by timestamp descending, keep max 2000
+      existing.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      if (existing.length > 2000) existing.length = 2000;
+      Store.set(STORE_KEYS.BLOCK_TRANSIT_LOG, existing);
+      console.log(`[BlockTransitLog] Imported ${added} new records`);
+      return added;
+    } catch (e) {
+      console.error('[BlockTransitLog] Import failed:', e);
+      return 0;
+    }
+  },
+};
+
+// ═══ Driver Registry — Mobile-Based Login ═══
+const DriverRegistry = {
+  loginDriver(mobileNumber) {
+    const cleaned = mobileNumber.replace(/\D/g, '').slice(-10); // Last 10 digits
+    if (cleaned.length < 10) return null;
+    const driverId = `DRV-${cleaned}`;
+    const drivers = Store.get(STORE_KEYS.DRIVERS);
+    let driver = drivers.find(d => d.id === driverId);
+    if (!driver) {
+      driver = {
+        id: driverId,
+        mobile: cleaned,
+        registeredAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+        totalSessions: 1,
+      };
+      drivers.push(driver);
+    } else {
+      driver.lastLogin = new Date().toISOString();
+      driver.totalSessions = (driver.totalSessions || 0) + 1;
+    }
+    Store.set(STORE_KEYS.DRIVERS, drivers);
+    return driver;
+  },
+
+  getDriver(id) {
+    return Store.get(STORE_KEYS.DRIVERS).find(d => d.id === id) || null;
+  },
+
+  getAllDrivers() {
+    return Store.get(STORE_KEYS.DRIVERS);
+  },
+
+  getDriverCount() {
+    return Store.get(STORE_KEYS.DRIVERS).length;
+  },
+};
+
+// ═══ Data Buffer — 5-Minute Batched Sync ═══
+// Buffers block and transit data in sessionStorage, flushes to main localStorage every 5 min.
+const DataBuffer = {
+  BUFFER_KEY: 'roadsos_session_buffer',
+  FLUSH_INTERVAL: 5 * 60 * 1000, // 5 minutes
+  _flushTimer: null,
+
+  init() {
+    // Start periodic flush
+    this._flushTimer = setInterval(() => this.flush(), this.FLUSH_INTERVAL);
+    // Flush on page unload
+    window.addEventListener('beforeunload', () => this.flush());
+    console.log('[DataBuffer] Initialized — flushing every 5 minutes');
+  },
+
+  _getBuffer() {
+    try {
+      return JSON.parse(sessionStorage.getItem(this.BUFFER_KEY)) || { blocks: {}, transits: [] };
+    } catch { return { blocks: {}, transits: [] }; }
+  },
+
+  _saveBuffer(buffer) {
+    sessionStorage.setItem(this.BUFFER_KEY, JSON.stringify(buffer));
+  },
+
+  // Buffer a new block (will be flushed to BlockRegistry)
+  bufferBlock(block) {
+    const buffer = this._getBuffer();
+    if (!buffer.blocks[block.id]) {
+      buffer.blocks[block.id] = block;
+      this._saveBuffer(buffer);
+    }
+  },
+
+  // Buffer a transit record (will be flushed to BlockTransitLog)
+  bufferTransit(transit) {
+    const buffer = this._getBuffer();
+    buffer.transits.push(transit);
+    this._saveBuffer(buffer);
+  },
+
+  // Flush all buffered data to main localStorage
+  flush() {
+    const buffer = this._getBuffer();
+    let blocksFlushed = 0;
+    let transitsFlushed = 0;
+
+    // Flush blocks
+    if (Object.keys(buffer.blocks).length > 0) {
+      const existing = Store.getObj(STORE_KEYS.BLOCK_REGISTRY);
+      for (const id in buffer.blocks) {
+        if (!existing[id]) {
+          existing[id] = buffer.blocks[id];
+          blocksFlushed++;
+        }
+      }
+      Store.setObj(STORE_KEYS.BLOCK_REGISTRY, existing);
+    }
+
+    // Flush transits
+    if (buffer.transits.length > 0) {
+      const existing = Store.get(STORE_KEYS.BLOCK_TRANSIT_LOG);
+      buffer.transits.forEach(t => existing.unshift(t));
+      if (existing.length > 2000) existing.length = 2000;
+      Store.set(STORE_KEYS.BLOCK_TRANSIT_LOG, existing);
+      transitsFlushed = buffer.transits.length;
+    }
+
+    // Clear buffer
+    sessionStorage.removeItem(this.BUFFER_KEY);
+
+    if (blocksFlushed > 0 || transitsFlushed > 0) {
+      console.log(`[DataBuffer] Flushed: ${blocksFlushed} blocks, ${transitsFlushed} transits`);
+    }
+  },
+
+  getBufferSize() {
+    const buffer = this._getBuffer();
+    return {
+      blocks: Object.keys(buffer.blocks).length,
+      transits: buffer.transits.length,
+    };
+  },
+};
+
+// ═══ Offline Retro-Generator — Creates blocks when GPS returns ═══
+const OfflineRetroGenerator = {
+  // Called when GPS comes back after being offline
+  // lastPos: {lat, lng, speed, heading, timestamp} - position when went offline
+  // newPos: {lat, lng, speed, timestamp} - position when GPS returned
+  // driverId: the driver's ID
+  retroGenerateBlocks(lastPos, newPos, driverId) {
+    if (!lastPos || !newPos) return [];
+
+    const distance = Utils.haversine(lastPos.lat, lastPos.lng, newPos.lat, newPos.lng);
+    const elapsedMs = newPos.timestamp - lastPos.timestamp;
+    const elapsedSec = elapsedMs / 1000;
+
+    if (distance < BLOCK_GRID_SIZE || elapsedSec < 10) return []; // Too short
+
+    // Calculate number of intermediate points
+    const numSteps = Math.ceil(distance / BLOCK_GRID_SIZE);
+    const generatedBlocks = [];
+    const generatedTransits = [];
+
+    // Walk a straight line from lastPos to newPos
+    for (let i = 0; i <= numSteps; i++) {
+      const fraction = i / numSteps;
+      const lat = lastPos.lat + (newPos.lat - lastPos.lat) * fraction;
+      const lng = lastPos.lng + (newPos.lng - lastPos.lng) * fraction;
+      const estimatedTime = new Date(lastPos.timestamp + elapsedMs * fraction).toISOString();
+      const avgSpeed = distance / elapsedSec; // m/s
+
+      // Create block
+      const block = BlockRegistry.createRetroBlock(lat, lng, driverId, estimatedTime);
+      generatedBlocks.push(block);
+
+      // Record transit
+      if (i > 0) {
+        const prevBlockId = generatedBlocks[i - 1].id;
+        if (prevBlockId !== block.id) {
+          // Exit previous block
+          BlockTransitLog.recordExit(driverId, prevBlockId, estimatedTime, avgSpeed * 3.6, lat, lng);
+          // Enter new block
+          BlockTransitLog.recordEntry(driverId, block.id, estimatedTime, avgSpeed * 3.6, lat, lng);
+        }
+      } else {
+        // First block — record entry
+        BlockTransitLog.recordEntry(driverId, block.id, estimatedTime, avgSpeed * 3.6, lat, lng);
+      }
+    }
+
+    console.log(`[RetroGen] Generated ${generatedBlocks.length} blocks over ${Math.round(distance)}m in ${Math.round(elapsedSec)}s`);
+    return generatedBlocks;
+  },
+};
+
 // Init network detector
 NetworkDetector.init();
+
