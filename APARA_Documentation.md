@@ -1,6 +1,6 @@
-# 🛡️ RoadSOS — Complete Feature Documentation
+# 🛡️ APARA — Complete Feature Documentation
 
-> **Project:** DRISHYTOX / RoadSOS  
+> **Project:** APARA / APARA  
 > **Purpose:** GPS-based emergency response platform for India's highway dead zones  
 > **Tagline:** *Works where every other system fails*  
 > **Built for:** National Road Safety Hackathon · IIT Madras · 2026  
@@ -9,7 +9,7 @@
 
 ## 📌 Overview
 
-RoadSOS is a fully offline-capable, browser-based emergency response system designed for India's 1,750 km of highway dead zones. It connects distressed drivers with verified service providers even in areas with zero mobile signal, using dead reckoning, V2V relay, and ultra-compressed SOS packets.
+APARA is a fully offline-capable, browser-based emergency response system designed for India's 1,750 km of highway dead zones. It connects distressed drivers with verified service providers even in areas with zero mobile signal, using dead reckoning, V2V relay, and ultra-compressed SOS packets.
 
 **The core problem it solves:**
 | Statistic | Source |
@@ -44,7 +44,7 @@ Driver App ──→ localStorage ──→ Provider App
 
 ---
 
-## 📄 Page 1 — Landing Page ([index.html](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/index.html))
+## 📄 Page 1 — Landing Page ([index.html](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/index.html))
 
 ### Purpose
 Marketing/info homepage that explains the platform to the public.
@@ -117,7 +117,7 @@ Visual flowchart: Distressed Vehicle → BLE Broadcast → Passing Vehicle → E
 
 ---
 
-## 📱 Page 2 — Driver App ([driver.html](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/driver.html))
+## 📱 Page 2 — Driver App ([driver.html](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/driver.html))
 
 ### Purpose
 Mobile-optimized web app for drivers. Works offline after first GPS lock.
@@ -176,7 +176,7 @@ When an SOS is active, a **persistent red banner** appears on the home screen sh
 When network is detected as offline:
 1. `offlineLastPos` is saved (position when went offline)
 2. `DeadZoneHistory.recordEntry()` is called
-3. [startOfflineEstimation()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/driver.html#596-603) polls every 2 seconds
+3. [startOfflineEstimation()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/driver.html#596-603) polls every 2 seconds
 4. `GPSTracker.getEstimatedPosition()` runs **4-tier estimation**:
    - Tier 1: Personal crossing history + OBD-II speed
    - Tier 2: Community average + OBD-II
@@ -262,7 +262,7 @@ Driver taps the floating red **🚨 SOS EMERGENCY** button. Grid of 5 emergency 
 
 ---
 
-## 🚑 Page 3 — Provider Dashboard ([provider.html](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/provider.html))
+## 🚑 Page 3 — Provider Dashboard ([provider.html](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/provider.html))
 
 ### Purpose
 Mobile-optimized app for registered service providers (hospitals, mechanics, fuel stations, etc.) to receive and respond to SOS alerts.
@@ -303,7 +303,7 @@ Mobile-optimized app for registered service providers (hospitals, mechanics, fue
 ### Tab B — Lookup SOS Code
 - Provider pastes an SOS code received via SMS
 - System parses the packet format: `BLOCKCODE|TYPECODE|TIME|conf:XX`
-- Also handles full SMS format: `RoadSOS EMERGENCY: ... | PIN:XXXX | Loc:lat,lng`
+- Also handles full SMS format: `APARA EMERGENCY: ... | PIN:XXXX | Loc:lat,lng`
 - Extracts and displays:
   - Emergency type
   - Block code
@@ -337,7 +337,7 @@ When provider accepts an alert:
 
 ---
 
-## 🛡️ Page 4 — Admin Panel ([admin.html](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/admin.html))
+## 🛡️ Page 4 — Admin Panel ([admin.html](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/admin.html))
 
 ### Purpose
 Full-featured desktop admin dashboard to manage all providers, view analytics, audit SOS events, and monitor the entire platform.
@@ -446,44 +446,44 @@ Complete event log with filtering:
 
 ---
 
-## ⚙️ Shared Data Engine ([data.js](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js))
+## ⚙️ Shared Data Engine ([data.js](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/data.js))
 
 All data is stored in browser **`localStorage`** with these keys:
 
 | Key | Content |
 |---|---|
-| `roadsos_providers` | Array of registered service providers |
-| `roadsos_sos_events` | Array of all SOS events (active + resolved) |
-| `roadsos_corridors` | Highway corridor definitions |
-| `roadsos_crossings` | Driver crossing history |
-| `roadsos_v2v_relays` | V2V relay event log |
-| `roadsos_zone_history` | Dead zone traversal history for offline estimation |
-| `roadsos_block_registry` | Immutable 1km grid block definitions |
-| `roadsos_block_transit_log` | Block entry/exit timestamps with driver IDs |
-| `roadsos_drivers` | Registered driver profiles |
-| `roadsos_driver_buffer` | Pending data to sync every 5 minutes |
-| `roadsos_settings` | Driver app settings |
-| `roadsos_logged_provider` | Currently logged-in provider session |
+| `apara_providers` | Array of registered service providers |
+| `apara_sos_events` | Array of all SOS events (active + resolved) |
+| `apara_corridors` | Highway corridor definitions |
+| `apara_crossings` | Driver crossing history |
+| `apara_v2v_relays` | V2V relay event log |
+| `apara_zone_history` | Dead zone traversal history for offline estimation |
+| `apara_block_registry` | Immutable 1km grid block definitions |
+| `apara_block_transit_log` | Block entry/exit timestamps with driver IDs |
+| `apara_drivers` | Registered driver profiles |
+| `apara_driver_buffer` | Pending data to sync every 5 minutes |
+| `apara_settings` | Driver app settings |
+| `apara_logged_provider` | Currently logged-in provider session |
 
 ### Key Modules
 
-#### [BlockRegistry](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/admin.html#425-431) — 1km Immutable Grid
+#### [BlockRegistry](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/admin.html#425-431) — 1km Immutable Grid
 - Divides earth into 1,000m × 1,000m grid cells using lat/lng math
-- [getBlockId(lat, lng)](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js#703-708) → `BLK-{gridRow}-{gridCol}`
-- [getOrCreateBlock()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js#718-743) → creates block if new, returns existing if already in registry
+- [getBlockId(lat, lng)](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/data.js#703-708) → `BLK-{gridRow}-{gridCol}`
+- [getOrCreateBlock()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/data.js#718-743) → creates block if new, returns existing if already in registry
 - Blocks tagged `locked: true` — never modified after creation
-- **Retro-block generation** ([createRetroBlock](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js#744-769)) for offline path reconstruction
+- **Retro-block generation** ([createRetroBlock](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/data.js#744-769)) for offline path reconstruction
 
 #### `DataBuffer` — 5-Minute Sync
 - Buffers block records and transit events in session
-- [bufferBlock()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js#955-963) / [bufferTransit()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js#964-970) — queues items
-- [flush()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js#971-1005) — writes buffer to persistent localStorage store
+- [bufferBlock()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/data.js#955-963) / [bufferTransit()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/data.js#964-970) — queues items
+- [flush()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/data.js#971-1005) — writes buffer to persistent localStorage store
 - Auto-flushes every 5 minutes; flushes on logout
 
 #### `DeadZoneHistory` — Offline Positioning Engine
 - Records every corridor traversal (entry block, exit block, speed, time)
 - Builds per-block **average transit time profiles**
-- When offline, [estimateFromHistory()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js#488-589) walks through block profiles using elapsed time to determine current block
+- When offline, [estimateFromHistory()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/data.js#488-589) walks through block profiles using elapsed time to determine current block
 - Falls back to **basic dead reckoning** (dead_reckoning source) if no history available
 - Confidence degrades over time but slower than raw dead reckoning
 
@@ -494,14 +494,14 @@ All data is stored in browser **`localStorage`** with these keys:
 
 #### `GPSTracker` — Position Tracker
 - `watchPosition()` for continuous live GPS
-- [getSpeedKmh()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js#244-258) — uses OBD-II if available, else calculates from position delta
-- [getEstimatedPosition()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js#259-305) — tiered estimation pipeline (personal → community → dead reckoning)
+- [getSpeedKmh()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/data.js#244-258) — uses OBD-II if available, else calculates from position delta
+- [getEstimatedPosition()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/data.js#259-305) — tiered estimation pipeline (personal → community → dead reckoning)
 - Keeps last 500 position samples in memory
 
 #### `NetworkDetector` — Connectivity Monitor
 - Listens to `window online/offline` events
 - Reads `navigator.connection` for connection quality (type, downlink, RTT)
-- [isWeakConnection()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js#196-200) — detects slow-2g / 2g / <0.5Mbps
+- [isWeakConnection()](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/APARA/data.js#196-200) — detects slow-2g / 2g / <0.5Mbps
 
 #### `SOSPacket` — Emergency Packet Builder
 - Builds compact packet: `BLOCKCODE|TYPECODE|HH:MM:SS|conf:XX`

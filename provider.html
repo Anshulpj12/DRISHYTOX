@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RoadSOS — Provider Dashboard</title>
-<meta name="description" content="RoadSOS Service Provider Dashboard — Receive and respond to emergency SOS alerts">
+<title>APARA — Provider Dashboard</title>
+<meta name="description" content="APARA Service Provider Dashboard — Receive and respond to emergency SOS alerts">
 <link rel="stylesheet" href="shared.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -49,10 +49,10 @@
       <div class="login-box">
         <div class="login-logo">
           <div style="font-size:3rem;margin-bottom:0.5rem;">🛡️</div>
-          <h1>RoadSOS</h1>
+          <h1>APARA</h1>
           <p>Service Provider Dashboard</p>
         </div>
-        <div class="login-error" id="loginError">Credentials invalid. Contact RoadSOS Admin.</div>
+        <div class="login-error" id="loginError">Credentials invalid. Contact APARA Admin.</div>
         <div style="margin-bottom:1rem;">
           <label class="label">Registration ID</label>
           <input class="input" type="text" id="loginId" placeholder="RSOS-XXXX-000000" style="font-family:var(--font-mono);">
@@ -70,7 +70,7 @@
   <!-- Main Dashboard -->
   <div class="screen" id="screenMain">
     <div class="header-bar">
-      <h1>🛡️ RoadSOS</h1>
+      <h1>🛡️ APARA</h1>
       <div class="flex-row"><span class="text-xs text-muted" id="provBadge"></span></div>
     </div>
 
@@ -102,12 +102,18 @@
     </div>
 
     <div id="tabLookup" style="display:none;" class="screen-pad">
-      <h3 style="font-size:1rem;margin-bottom:0.5rem;">🔍 Lookup SOS Code</h3>
-      <p class="text-xs text-muted mb-2">Paste the SOS code received via SMS to decode the location and emergency details.</p>
-      <div style="margin-bottom:1rem;">
-        <input type="text" id="lookupCodeInput" class="input" placeholder="Paste SOS code here... (e.g. NH48-B32|ACC|15:24:29|conf:87)" style="font-family:var(--font-mono);font-size:0.85rem;">
+      <h3 style="font-size:1rem;margin-bottom:0.5rem;">🔍 Decode SOS Code</h3>
+      <p class="text-xs text-muted mb-2">Enter the 8-character code from the SMS to get the driver's exact location and emergency type.</p>
+      <div style="margin-bottom:0.75rem;">
+        <input type="text" id="lookupCodeInput" class="input" maxlength="8" placeholder="e.g. K7M2N4AC" style="font-family:var(--font-mono);font-size:1.5rem;text-align:center;letter-spacing:0.15em;text-transform:uppercase;">
+        <div class="text-xs text-muted" style="text-align:center;margin-top:0.3rem;">8-character India block code with checksum</div>
       </div>
-      <button class="btn btn-primary btn-full" onclick="lookupSOSCode()">🔍 Decode & Show Location</button>
+      <button class="btn btn-primary btn-full" onclick="lookupSOSCode()">🔍 Decode Location</button>
+      <div style="margin:0.75rem 0;text-align:center;">
+        <span class="text-xs text-muted">— or paste full SOS packet —</span>
+      </div>
+      <input type="text" id="lookupCodeInputLegacy" class="input" placeholder="NH48-B32|ACC|15:24:29|conf:87" style="font-family:var(--font-mono);font-size:0.8rem;">
+      <button class="btn btn-secondary btn-full btn-sm mt-1" onclick="lookupLegacyCode()">🔍 Decode Legacy Packet</button>
       <div id="lookupResult" style="margin-top:1rem;"></div>
       <div id="lookupMap" style="display:none;height:250px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:1rem;"></div>
     </div>
@@ -146,7 +152,7 @@ function doLogin() {
 
   if (!provider) {
     document.getElementById('loginError').style.display = 'block';
-    document.getElementById('loginError').textContent = 'Credentials invalid. Contact RoadSOS Admin.';
+    document.getElementById('loginError').textContent = 'Credentials invalid. Contact APARA Admin.';
     return;
   }
 
@@ -510,87 +516,90 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 4000);
 }
 
-// ═══ LOOKUP SOS CODE ═══
+// ═══ LOOKUP 8-CHAR SOS CODE (NEW SYSTEM) ═══
 let lookupMapInstance = null;
 
 function lookupSOSCode() {
-  const input = document.getElementById('lookupCodeInput').value.trim();
-  if (!input) {
-    showToast('Please paste an SOS code first');
-    return;
+  let input = document.getElementById('lookupCodeInput').value.trim().toUpperCase();
+  if (!input) { showToast('Enter an 8-character SOS code'); return; }
+
+  // Handle SMS format: "SOS K7M2N4AC" or just "K7M2N4AC"
+  if (input.startsWith('SOS ')) input = input.substring(4).trim();
+  input = input.replace(/[^0-9A-Z]/g, '');
+
+  if (input.length !== 8) {
+    showToast(`Code must be 8 characters (got ${input.length})`); return;
   }
 
-  // Parse the SOS code packet format: BLOCKCODE|TYPECODE|TIME|conf:XX
-  // Example: NH48-B32|ACC|15:24:29|conf:87
-  // Also handle full SMS: RoadSOS EMERGENCY: NH48-B32|ACC|15:24:29|conf:87 | PIN:1234 | Loc:20.59370,78.96290
-  let packet = input;
-  let pin = null;
-  let lat = null;
-  let lng = null;
-
-  // Extract from full SMS format
-  if (input.includes('RoadSOS EMERGENCY:')) {
-    const mainMatch = input.match(/RoadSOS EMERGENCY:\s*([^|]+\|[^|]+\|[^|]+\|[^|]+)/);
-    if (mainMatch) packet = mainMatch[1].trim();
-    const pinMatch = input.match(/PIN:(\d+)/);
-    if (pinMatch) pin = pinMatch[1];
-    const locMatch = input.match(/Loc:([\d.]+),([\d.]+)/);
-    if (locMatch) {
-      lat = parseFloat(locMatch[1]);
-      lng = parseFloat(locMatch[2]);
-    }
+  const decoded = BlockCodeEncoder.decode(input);
+  if (!decoded.valid) {
+    showToast(`❌ ${decoded.error}`); return;
   }
 
-  // Parse packet: BLOCKCODE|TYPECODE|TIME|conf:XX
-  const parts = packet.split('|').map(s => s.trim());
-  if (parts.length < 3) {
-    showToast('Invalid SOS code format');
-    return;
-  }
+  const type = decoded.sosType || { icon: '🚨', label: decoded.sosTypeCode || 'Unknown', color: '#F87171' };
+  const lat = decoded.lat;
+  const lng = decoded.lng;
 
-  const blockCode = parts[0]; // e.g. NH48-B32
-  const typeCode = parts[1];  // e.g. ACC
-  const time = parts[2];      // e.g. 15:24:29
-  const confPart = parts[3];  // e.g. conf:87
-  const confidence = confPart ? parseInt(confPart.replace('conf:', '')) : 0;
-
-  // Find emergency type
-  const type = EMERGENCY_TYPES.find(t => t.code === typeCode) || { icon: '🚨', label: typeCode, color: '#F87171' };
-
-  // Find matching SOS event in localStorage
+  // Find matching SOS event (by blockCode8)
   const events = Store.getSOSEvents();
-  const matchingEvent = events.find(e => e.blockCode === blockCode && e.packet && e.packet.includes(typeCode));
+  const matchingEvent = events.find(e => e.blockCode8 === input) || events.find(e => {
+    if (!e.lat || !e.lng) return false;
+    return Utils.haversine(e.lat, e.lng, lat, lng) < 1500; // within 1.5km
+  });
+  const pin = matchingEvent?.resolutionPin || null;
 
-  if (matchingEvent) {
-    lat = matchingEvent.lat || lat;
-    lng = matchingEvent.lng || lng;
-    pin = matchingEvent.resolutionPin || pin;
+  document.getElementById('lookupResult').innerHTML = `
+    <div class="card card-glow-alert mb-2">
+      <div class="flex-between">
+        <div class="alert-type" style="color:${type.color};font-size:1.1rem;">${type.icon} ${type.label}</div>
+        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent-online);">8-CHAR CODE</span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:2.5rem;font-weight:800;color:var(--accent-alert);margin:0.5rem 0;text-align:center;letter-spacing:0.12em;">${input}</div>
+      <div style="margin-top:0.5rem;display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
+        <span class="text-xs">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</span>
+        <span class="text-xs" style="font-family:var(--font-mono);color:var(--text-muted);">Block: ${decoded.blockId}</span>
+        ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
+      </div>
+      <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📍 Navigate to Location</a>
+    </div>
+    ${matchingEvent ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${matchingEvent.id}')">🚀 Accept & Dispatch</button>` : ''}
+  `;
+
+  // Show map
+  document.getElementById('lookupMap').style.display = 'block';
+  setTimeout(() => {
+    if (lookupMapInstance) lookupMapInstance.remove();
+    lookupMapInstance = L.map('lookupMap').setView([lat, lng], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
+    L.marker([lat, lng]).addTo(lookupMapInstance)
+      .bindPopup(`<b>${type.icon} ${type.label}</b><br>Code: ${input}<br>${lat.toFixed(5)}°, ${lng.toFixed(5)}°`).openPopup();
+    L.circle([lat, lng], { radius: 500, color: type.color, fillOpacity: 0.1 }).addTo(lookupMapInstance);
+  }, 100);
+
+  showToast(`✅ Location decoded: ${type.icon} ${type.label}`);
+}
+
+// ═══ LEGACY LOOKUP (old packet format) ═══
+function lookupLegacyCode() {
+  const input = (document.getElementById('lookupCodeInputLegacy')?.value || '').trim();
+  if (!input) { showToast('Paste an SOS packet'); return; }
+  let packet = input, pin = null, lat = null, lng = null;
+  if (input.includes('APARA EMERGENCY:')) {
+    const m = input.match(/APARA EMERGENCY:\s*([^|]+\|[^|]+\|[^|]+\|[^|]+)/);
+    if (m) packet = m[1].trim();
+    const pm = input.match(/PIN:(\d+)/); if (pm) pin = pm[1];
+    const lm = input.match(/Loc:([\d.]+),([\d.]+)/); if (lm) { lat = parseFloat(lm[1]); lng = parseFloat(lm[2]); }
   }
-
-  // If no lat/lng, estimate from block code
-  if (!lat || !lng) {
-    const corridors = Store.getCorridors();
-    const codeMatch = blockCode.match(/^(\w+)-B(\d+)$/);
-    if (codeMatch) {
-      const corridorCode = codeMatch[1];
-      const blockNum = parseInt(codeMatch[2]);
-      const basePositions = {
-        'NH44': { lat: 33.5, lng: 75.0 },
-        'NH48': { lat: 19.5, lng: 73.8 },
-        'NH66': { lat: 11.9, lng: 75.3 },
-        'NH7':  { lat: 30.5, lng: 78.5 },
-        'NH39': { lat: 25.7, lng: 94.1 },
-      };
-      const base = basePositions[corridorCode] || { lat: 20.5, lng: 78.9 };
-      lat = base.lat + (blockNum - 1) * 0.02;
-      lng = base.lng + (blockNum - 1) * 0.015;
-    }
-    if (!lat) { lat = 20.5937; lng = 78.9629; }
-  }
-
+  const parts = packet.split('|').map(s => s.trim());
+  if (parts.length < 3) { showToast('Invalid SOS code format'); return; }
+  const blockCode = parts[0], typeCode = parts[1], time = parts[2], confPart = parts[3];
+  const confidence = confPart ? parseInt(confPart.replace('conf:', '')) : 0;
+  const type = EMERGENCY_TYPES.find(t => t.code === typeCode) || { icon: '🚨', label: typeCode, color: '#F87171' };
+  const events = Store.getSOSEvents();
+  const me = events.find(e => e.blockCode === blockCode && e.packet?.includes(typeCode));
+  if (me) { lat = me.lat || lat; lng = me.lng || lng; pin = me.resolutionPin || pin; }
+  if (!lat || !lng) { lat = 20.5937; lng = 78.9629; }
   const confColor = confidence >= 85 ? 'var(--accent-online)' : confidence >= 60 ? 'var(--accent-offline)' : 'var(--accent-alert)';
-
-  // Display results
   document.getElementById('lookupResult').innerHTML = `
     <div class="card card-glow-alert mb-2">
       <div class="flex-between">
@@ -605,21 +614,17 @@ function lookupSOSCode() {
         ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
       </div>
     </div>
-    ${matchingEvent ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${matchingEvent.id}')">🚀 Accept & Dispatch to This Location</button>` : ''}
+    ${me ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${me.id}')">🚀 Accept & Dispatch</button>` : ''}
   `;
-
-  // Show map
   document.getElementById('lookupMap').style.display = 'block';
   setTimeout(() => {
     if (lookupMapInstance) lookupMapInstance.remove();
     lookupMapInstance = L.map('lookupMap').setView([lat, lng], 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
-    const marker = L.marker([lat, lng]).addTo(lookupMapInstance);
-    marker.bindPopup(`<b>${type.icon} ${type.label}</b><br>${blockCode}<br>${packet}`).openPopup();
+    L.marker([lat, lng]).addTo(lookupMapInstance).bindPopup(`<b>${type.icon} ${type.label}</b><br>${blockCode}`).openPopup();
     L.circle([lat, lng], { radius: confidence >= 85 ? 150 : 400, color: type.color, fillOpacity: 0.1 }).addTo(lookupMapInstance);
   }, 100);
-
-  showToast(`Location decoded: ${blockCode} — ${type.label}`);
+  showToast(`Location decoded: ${blockCode}`);
 }
 </script>
 </body>

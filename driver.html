@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RoadSOS — Driver App</title>
-<meta name="description" content="RoadSOS Driver App — GPS-based emergency response for India's highway dead zones">
+<title>APARA — Driver App</title>
+<meta name="description" content="APARA Driver App — GPS-based emergency response for India's highway dead zones">
 <link rel="stylesheet" href="shared.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -73,6 +73,22 @@
 .buffer-indicator { font-family:var(--font-mono); font-size:0.65rem; color:var(--text-muted); text-align:center; padding:0.3rem; background:rgba(34,211,238,0.05); border-radius:4px; margin:0.5rem 1.25rem; }
 /* Driver ID badge */
 .driver-id-badge { font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-online); background:rgba(34,211,238,0.1); padding:0.2rem 0.5rem; border-radius:4px; }
+/* Zone status bar */
+.zone-status { font-size:0.7rem; padding:0.5rem 1rem; margin:0.5rem 1.25rem; border-radius:var(--radius-sm); background:rgba(34,211,238,0.06); border:1px solid rgba(34,211,238,0.15); display:flex; align-items:center; justify-content:space-between; gap:0.5rem; }
+.zone-status .zone-label { color:var(--accent-online); font-weight:600; }
+.zone-status .zone-detail { color:var(--text-muted); font-family:var(--font-mono); font-size:0.65rem; }
+/* Config push banner */
+.config-banner { background:linear-gradient(135deg, rgba(34,211,238,0.1), rgba(139,92,246,0.1)); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius); padding:0.75rem 1rem; margin:0.5rem 1.25rem; animation:fade-in 0.3s; }
+.config-banner h4 { font-size:0.8rem; color:var(--accent-v2v); margin-bottom:0.3rem; }
+.config-banner p { font-size:0.7rem; color:var(--text-muted); }
+.config-banner .config-actions { display:flex; gap:0.5rem; margin-top:0.5rem; }
+/* Batch sync card */
+.batch-sync-card { background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; margin-top:0.75rem; }
+.batch-sync-card h4 { font-size:0.85rem; margin-bottom:0.5rem; color:var(--text-primary); }
+.batch-progress { height:6px; background:var(--bg-deep); border-radius:3px; overflow:hidden; margin:0.5rem 0; }
+.batch-progress .fill { height:100%; border-radius:3px; background:linear-gradient(90deg, var(--accent-online), var(--accent-v2v)); transition:width 0.3s; }
+/* SOS code large display */
+.sos-code-8 { font-family:var(--font-mono); font-size:2.5rem; font-weight:800; letter-spacing:0.15em; color:var(--accent-alert); text-align:center; padding:0.5rem 0; }
 </style>
 </head>
 <body>
@@ -83,7 +99,7 @@
       <div class="login-box">
         <div class="login-logo">
           <div style="font-size:3rem;margin-bottom:0.5rem;">🛡️</div>
-          <h1>RoadSOS</h1>
+          <h1>APARA</h1>
           <p>Driver App — Enter your mobile to start</p>
         </div>
         <div style="margin-bottom:1rem;">
@@ -99,7 +115,7 @@
   <!-- Screen: Main App (after login) -->
   <div class="screen" id="screenMainApp">
     <div class="header-bar">
-      <h1>🛡️ RoadSOS</h1>
+      <h1>🛡️ APARA</h1>
       <div style="display:flex;align-items:center;gap:0.5rem;">
         <span id="driverIdBadge" class="driver-id-badge">---</span>
         <button id="simOfflineBtn" class="btn btn-sm btn-secondary" style="font-size:0.7rem;padding:0.3rem 0.6rem;" onclick="toggleSimOffline()">⚡ Simulate Offline</button>
@@ -113,19 +129,29 @@
       <div class="gps-permission" id="gpsPermission">
         <div class="gps-icon">📍</div>
         <h3>Enable Location</h3>
-        <p class="text-muted text-sm mt-1">RoadSOS needs your GPS location to track your position and provide emergency assistance.</p>
+        <p class="text-muted text-sm mt-1">APARA needs your GPS location to track your position and provide emergency assistance.</p>
         <button class="btn btn-primary btn-lg mt-2" onclick="requestGPS()">Enable GPS Tracking</button>
       </div>
 
       <!-- GPS Active Display -->
       <div id="gpsActive" class="hidden">
+        <!-- Config Push Banner (shown when provider updates available) -->
+        <div id="configBanner" class="config-banner hidden">
+          <h4>🔄 Provider Updates Available</h4>
+          <p id="configBannerText">New providers in your area</p>
+          <div class="config-actions">
+            <button class="btn btn-primary btn-sm" onclick="applyConfigPush()" style="flex:1;">Update Now</button>
+            <button class="btn btn-secondary btn-sm" onclick="dismissConfigPush()" style="flex:1;">Later</button>
+          </div>
+        </div>
+
         <!-- Active SOS Banner (shown when SOS is active) -->
         <div id="sosBanner" class="sos-banner hidden">
           <h4>🚨 ACTIVE SOS EMERGENCY</h4>
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div>
-              <div class="text-xs text-muted">SOS CODE</div>
-              <div class="sos-code-val" id="bannerSosCode">---</div>
+              <div class="text-xs text-muted">SOS CODE (8-char)</div>
+              <div class="sos-code-val" id="bannerSosCode" style="font-size:1.2rem;letter-spacing:0.1em;">--------</div>
             </div>
             <div style="text-align:right;">
               <div class="text-xs text-muted">RESOLUTION PIN</div>
@@ -157,7 +183,12 @@
           <div style="text-align:center;font-size:0.7rem;color:var(--text-muted);margin-top:0.2rem;">CONFIDENCE SCORE</div>
         </div>
         <div id="miniMap"></div>
-        <div class="buffer-indicator" id="bufferIndicator">Buffer: 0 blocks, 0 transits — syncs every 5 min</div>
+        <!-- Zone Status Indicator -->
+        <div class="zone-status" id="zoneStatus">
+          <span class="zone-label">📡 Zone: <span id="zoneIdDisplay">---</span></span>
+          <span class="zone-detail"><span id="zoneCachedProviders">0</span> providers cached</span>
+        </div>
+        <div class="buffer-indicator" id="bufferIndicator">📦 Batch: 0 records — syncs in 15 days</div>
         <div class="info-grid">
           <div class="info-box"><div class="val text-online" id="accuracyVal">--</div><div class="lbl">GPS Accuracy</div></div>
           <div class="info-box"><div class="val" id="headingVal">--</div><div class="lbl">Heading</div></div>
@@ -282,6 +313,29 @@
           <div style="font-family:var(--font-mono);font-size:1.1rem;font-weight:700;margin:0.3rem 0;" id="dataUsage">0 KB</div>
           <div class="text-xs text-muted" id="dataDetail">0 blocks explored</div>
         </div>
+        <!-- 15-Day Batch Sync -->
+        <div class="batch-sync-card">
+          <h4>📦 15-Day Batch Sync</h4>
+          <div class="text-xs text-muted">Your road data is stored locally and uploaded every 15 days in a single compressed file.</div>
+          <div class="batch-progress"><div class="fill" id="batchProgressFill" style="width:0%"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-top:0.3rem;">
+            <span class="text-muted">Last sync: <span id="batchLastSync" style="color:var(--accent-online);">Never</span></span>
+            <span class="text-muted">Next in: <span id="batchNextSync" style="color:var(--accent-alert);">15 days</span></span>
+          </div>
+          <div style="text-align:center;margin-top:0.5rem;font-family:var(--font-mono);font-size:0.75rem;">
+            <span id="batchRecordCount" style="color:var(--accent-online);">0</span> transits · <span id="batchBlockCount" style="color:var(--accent-v2v);">0</span> blocks · <span id="batchSizeKB" style="color:var(--text-muted);">0 KB</span>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+            <button class="btn btn-primary btn-sm" style="flex:1;font-size:0.7rem;" onclick="manualBatchSync()">Sync Now</button>
+            <button class="btn btn-secondary btn-sm" style="flex:1;font-size:0.7rem;" onclick="exportBatchData()">📥 Export</button>
+          </div>
+        </div>
+        <!-- Zone Cache Info -->
+        <div class="card mt-2" style="text-align:center;">
+          <div class="text-xs text-muted" style="text-transform:uppercase;">ZONE CACHE</div>
+          <div style="font-family:var(--font-mono);font-size:1.1rem;font-weight:700;margin:0.3rem 0;color:var(--accent-online);" id="zoneCacheInfo">0 zones · 0 providers</div>
+          <div class="text-xs text-muted" id="zoneCacheSize">~0 KB cached permanently</div>
+        </div>
         <div class="card mt-2" style="text-align:center;">
           <div class="text-xs text-muted" style="text-transform:uppercase;">GPS STATUS</div>
           <div class="text-sm mt-1" id="gpsStatusDetail">Waiting...</div>
@@ -334,30 +388,38 @@ function driverLogin() {
   const driver = DriverRegistry.loginDriver(mobile);
   if (!driver) { showToast('Invalid mobile number'); return; }
   state.driverId = driver.id;
-  localStorage.setItem('roadsos_driver_id', driver.id);
-  localStorage.setItem('roadsos_driver_mobile', mobile);
+  localStorage.setItem('apara_driver_id', driver.id);
+  localStorage.setItem('apara_driver_mobile', mobile);
   document.getElementById('screenDriverLogin').classList.remove('active');
   document.getElementById('screenMainApp').classList.add('active');
   document.getElementById('driverIdBadge').textContent = driver.id;
   document.getElementById('settingsDriverId').textContent = driver.id;
   // Init buffer
   DataBuffer.init();
+  // Init config push listener
+  ConfigPush.onChange(onConfigPushUpdate);
+  ConfigPush.init();
   showToast(`Welcome! Your ID: ${driver.id}`);
 }
 
 function driverLogout() {
   // Flush any buffered data before logout
   DataBuffer.flush();
+  // Partial batch sync on logout
+  if (state.driverId) {
+    const payload = TransitBatchSync.sync(state.driverId);
+    console.log(`[Logout] Batch synced: ${payload.records} transits, ${payload.blocks} blocks`);
+  }
   releaseWakeLock();
-  localStorage.removeItem('roadsos_driver_id');
-  localStorage.removeItem('roadsos_driver_mobile');
+  localStorage.removeItem('apara_driver_id');
+  localStorage.removeItem('apara_driver_mobile');
   state.driverId = null;
   location.reload();
 }
 
 // Check for existing session
 (function checkDriverSession() {
-  const savedId = localStorage.getItem('roadsos_driver_id');
+  const savedId = localStorage.getItem('apara_driver_id');
   if (savedId) {
     state.driverId = savedId;
     document.getElementById('screenDriverLogin').classList.remove('active');
@@ -436,6 +498,22 @@ function onGPSUpdate(pos, isFreshReading) {
   document.getElementById('accuracyVal').textContent = pos.accuracy ? `±${Math.round(pos.accuracy)}m` : '--';
   document.getElementById('headingVal').textContent = pos.heading ? `${Math.round(pos.heading)}°` : '--';
 
+  // ═══ ZONE AUTO-DETECTION — Check if we've crossed into a new 100km zone ═══
+  if (isFreshReading) {
+    const zoneResult = ZoneManager.checkBoundary(pos.lat, pos.lng);
+    if (zoneResult.zoneChanged) {
+      showToast(`📡 New area loaded: Zone ${zoneResult.newZone}`);
+    } else if (zoneResult.prefetching) {
+      showToast(`📡 Prefetching next area: ${zoneResult.prefetchZone}`);
+    }
+    // Update zone UI
+    const zStatus = ZoneManager.getStatus();
+    const zoneIdEl = document.getElementById('zoneIdDisplay');
+    const zonePEl = document.getElementById('zoneCachedProviders');
+    if (zoneIdEl) zoneIdEl.textContent = zStatus.currentZone || '---';
+    if (zonePEl) zonePEl.textContent = zStatus.totalProviders;
+  }
+
   // ═══ BLOCK TRACKING — ONLY on fresh readings, not UI refreshes ═══
   if (isFreshReading) {
     if (isOnline) {
@@ -473,8 +551,8 @@ function onGPSUpdate(pos, isFreshReading) {
 
   // Update counters
   document.getElementById('crossingCount').textContent = BlockRegistry.getBlockCount();
-  const bufSize = DataBuffer.getBufferSize();
-  document.getElementById('bufferIndicator').textContent = `Buffer: ${bufSize.blocks} blocks, ${bufSize.transits} transits — syncs every 5 min`;
+  const batchStats = TransitBatchSync.getStats();
+  document.getElementById('bufferIndicator').textContent = `📦 Batch: ${batchStats.transitCount} transits · ${batchStats.blockCount} blocks — syncs in ${batchStats.daysUntilSync} days`;
 
   // GPS status detail
   let statusHtml = `Lat: ${pos.lat.toFixed(5)}<br>Lng: ${pos.lng.toFixed(5)}<br>Accuracy: ±${Math.round(pos.accuracy || 0)}m<br>Speed: ${speed} km/h`;
@@ -547,24 +625,32 @@ function commitBlockChange(newBlockId, pos, speed, now) {
 
   // Exit old block
   if (state.currentBlockId && state.driverId) {
-    DataBuffer.bufferTransit({
+    const exitRecord = {
       id: `TRN-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       type: 'exit', driverId: state.driverId, blockId: state.currentBlockId,
       timestamp: nowISO, speed: speed, lat: pos.lat, lng: pos.lng,
-    });
+    };
+    DataBuffer.bufferTransit(exitRecord);
+    // Also buffer for 15-day batch sync
+    TransitBatchSync.bufferTransit(exitRecord);
   }
 
   // Create or get the new block
   const block = BlockRegistry.getOrCreateBlock(pos.lat, pos.lng, state.driverId);
   DataBuffer.bufferBlock(block);
+  // Also buffer block for 15-day batch sync
+  TransitBatchSync.bufferBlock(block);
 
   // Record entry to new block
   if (state.driverId) {
-    DataBuffer.bufferTransit({
+    const entryRecord = {
       id: `TRN-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       type: 'entry', driverId: state.driverId, blockId: newBlockId,
       timestamp: nowISO, speed: speed, lat: pos.lat, lng: pos.lng,
-    });
+    };
+    DataBuffer.bufferTransit(entryRecord);
+    // Also buffer for 15-day batch sync
+    TransitBatchSync.bufferTransit(entryRecord);
   }
 
   state.currentBlockId = newBlockId;
@@ -765,68 +851,76 @@ function sendSOS() {
   if (!state.pendingSOS) return;
   Store.saveSOSEvent(state.pendingSOS);
 
-  // ═══ PERSIST ACTIVE SOS (localStorage for survival across browser close) ═══
+  // ═══ GENERATE 8-CHAR BLOCK CODE ═══
+  const pos = state.lastKnownPos || GPSTracker.getEstimatedPosition();
+  const sosTypeCode = state.sosCategory?.code || 'ACC';
+  const blockCode8 = BlockCodeEncoder.encode(pos.lat, pos.lng, sosTypeCode);
+  state.pendingSOS.blockCode8 = blockCode8;
+
+  // ═══ INSTANT LOCAL SEARCH — Zero DB reads ═══
+  const nearestProvider = ZoneManager.searchBySOS(pos.lat, pos.lng, sosTypeCode);
+  state.pendingSOS.nearestProvider = nearestProvider;
+
+  // ═══ PERSIST ACTIVE SOS ═══
   state.activeSOS = state.pendingSOS;
-  localStorage.setItem('roadsos_active_sos', JSON.stringify(state.pendingSOS));
+  localStorage.setItem('apara_active_sos', JSON.stringify(state.pendingSOS));
 
+  // Skip the 3-second spinner — search is INSTANT (local)
   document.getElementById('sosStep2').classList.add('hidden');
-  document.getElementById('sosStep3').classList.remove('hidden');
-  document.getElementById('sentPacket').textContent = state.pendingSOS.packet;
+  document.getElementById('sosStep3').classList.add('hidden');
+  document.getElementById('sosStep4').classList.remove('hidden');
 
-  const providers = Store.getProviders().filter(p => p.status === 'Active' && p.available !== false);
+  if (nearestProvider) {
+    const distKm = (nearestProvider.distance / 1000).toFixed(1);
+    const eta = Math.max(2, Math.round((nearestProvider.distance / 1000) / 40 * 60));
+    document.getElementById('provName').textContent = nearestProvider.name;
+    document.getElementById('provCat').textContent = `${nearestProvider.catIcon} ${nearestProvider.catLabel} · ${distKm} km`;
+    document.getElementById('provETA').textContent = `ETA: ${eta} min`;
+    document.getElementById('sosPinDisplay').textContent = state.pendingSOS.resolutionPin;
+    document.getElementById('sosCodeDisplay').innerHTML = `<div class="sos-code-8">${blockCode8}</div><div class="text-xs text-muted" style="margin-top:0.3rem;">8-character unique location code</div>`;
 
-  setTimeout(() => {
-    document.getElementById('sosStep3').classList.add('hidden');
-    document.getElementById('sosStep4').classList.remove('hidden');
+    // Auto-open SMS with 8-char code
+    const provPhone = nearestProvider.phone || '112';
+    const smsBody = encodeURIComponent(`SOS ${blockCode8}`);
+    document.getElementById('smsLink').href = `sms:${provPhone}?body=${smsBody}`;
+    document.getElementById('smsLink').textContent = `📱 Send SOS to ${nearestProvider.name}`;
 
-    if (providers.length > 0) {
-      let closestProv = providers[0];
-      let minDistance = Infinity;
-      const myLat = state.lastKnownPos ? state.lastKnownPos.lat : GPSTracker.getEstimatedPosition().lat;
-      const myLng = state.lastKnownPos ? state.lastKnownPos.lng : GPSTracker.getEstimatedPosition().lng;
-
-      providers.forEach(p => {
-        if (p.gps) {
-          const parts = p.gps.split(',').map(s => parseFloat(s.trim()));
-          if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-            const dist = Utils.haversine(myLat, myLng, parts[0], parts[1]);
-            if (dist < minDistance) { minDistance = dist; closestProv = p; }
-          }
+    Store.updateSOSEvent(state.pendingSOS.id, {
+      providerId: nearestProvider.id, providerName: nearestProvider.name,
+      dispatchedAt: new Date().toISOString(), blockCode8,
+    });
+  } else {
+    // Fallback: search from old-style localStorage providers
+    const fallbackProviders = Store.getProviders().filter(p => p.status === 'Active');
+    let closestProv = fallbackProviders[0];
+    let minDist = Infinity;
+    fallbackProviders.forEach(p => {
+      if (p.gps) {
+        const parts = p.gps.split(',').map(s => parseFloat(s.trim()));
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          const dist = Utils.haversine(pos.lat, pos.lng, parts[0], parts[1]);
+          if (dist < minDist) { minDist = dist; closestProv = p; }
         }
-      });
-
-      const prov = closestProv;
-      document.getElementById('provName').textContent = prov.name;
-      document.getElementById('provCat').textContent = `${prov.category.icon} ${prov.category.label}`;
-
-      let eta = Math.floor(Math.random() * 15) + 5;
-      if (minDistance !== Infinity) {
-        eta = Math.max(2, Math.round((minDistance / 1000) / 40 * 60));
       }
+    });
+    if (closestProv) {
+      document.getElementById('provName').textContent = closestProv.name;
+      document.getElementById('provCat').textContent = `${closestProv.category?.icon || ''} ${closestProv.category?.label || ''}`;
+      const eta = minDist !== Infinity ? Math.max(2, Math.round((minDist / 1000) / 40 * 60)) : '—';
       document.getElementById('provETA').textContent = `ETA: ${eta} min`;
-      document.getElementById('sosPinDisplay').textContent = state.pendingSOS.resolutionPin;
-      document.getElementById('sosCodeDisplay').textContent = state.pendingSOS.packet;
-
-      const provPhone = prov.phone || '112';
-      const smsBody = encodeURIComponent(`RoadSOS EMERGENCY: ${state.pendingSOS.packet} | PIN:${state.pendingSOS.resolutionPin} | Loc:${state.pendingSOS.lat.toFixed(5)},${state.pendingSOS.lng.toFixed(5)}`);
-      document.getElementById('smsLink').href = `sms:${provPhone}?body=${smsBody}`;
-
-      Store.updateSOSEvent(state.pendingSOS.id, {
-        providerId: prov.id, providerName: prov.name, dispatchedAt: new Date().toISOString(),
-      });
     } else {
-      document.getElementById('provName').textContent = 'No providers registered';
+      document.getElementById('provName').textContent = 'No providers in cache';
       document.getElementById('provCat').textContent = 'Register providers in Admin Panel';
       document.getElementById('provETA').textContent = 'Searching...';
-      document.getElementById('sosPinDisplay').textContent = state.pendingSOS.resolutionPin;
-      document.getElementById('sosCodeDisplay').textContent = state.pendingSOS.packet;
-      const smsBody = encodeURIComponent(`RoadSOS EMERGENCY: ${state.pendingSOS.packet} | PIN:${state.pendingSOS.resolutionPin} | Loc:${state.pendingSOS.lat.toFixed(5)},${state.pendingSOS.lng.toFixed(5)}`);
-      document.getElementById('smsLink').href = `sms:112?body=${smsBody}`;
     }
+    document.getElementById('sosPinDisplay').textContent = state.pendingSOS.resolutionPin;
+    document.getElementById('sosCodeDisplay').innerHTML = `<div class="sos-code-8">${blockCode8}</div><div class="text-xs text-muted" style="margin-top:0.3rem;">8-character unique location code</div>`;
+    const smsBody = encodeURIComponent(`SOS ${blockCode8}`);
+    document.getElementById('smsLink').href = `sms:112?body=${smsBody}`;
+  }
 
-    // Update the persistent banner
-    updateSOSBanner();
-  }, 3000);
+  // Update the persistent banner
+  updateSOSBanner();
 }
 
 // ═══ SOS CANCEL ═══
@@ -837,7 +931,7 @@ function cancelActiveSOS() {
   }
   state.activeSOS = null;
   state.pendingSOS = null;
-  localStorage.removeItem('roadsos_active_sos');
+  localStorage.removeItem('apara_active_sos');
   updateSOSBanner();
   switchScreen('screenHome');
 }
@@ -847,7 +941,7 @@ function updateSOSBanner() {
   const banner = document.getElementById('sosBanner');
   // Check localStorage for active SOS (persists across browser close)
   if (!state.activeSOS) {
-    const saved = localStorage.getItem('roadsos_active_sos');
+    const saved = localStorage.getItem('apara_active_sos');
     if (saved) {
       try { state.activeSOS = JSON.parse(saved); } catch(e) {}
     }
@@ -857,17 +951,20 @@ function updateSOSBanner() {
     const event = Store.getSOSEvents().find(e => e.id === state.activeSOS.id);
     if (event && event.resolved) {
       state.activeSOS = null;
-      localStorage.removeItem('roadsos_active_sos');
+      localStorage.removeItem('apara_active_sos');
     }
   }
 
   if (state.activeSOS) {
     banner.classList.remove('hidden');
-    document.getElementById('bannerSosCode').textContent = state.activeSOS.packet;
+    // Show 8-char code if available, else fallback to packet
+    document.getElementById('bannerSosCode').textContent = state.activeSOS.blockCode8 || state.activeSOS.packet;
     document.getElementById('bannerSosPin').textContent = state.activeSOS.resolutionPin;
-    // SMS link
-    const smsBody = encodeURIComponent(`RoadSOS EMERGENCY: ${state.activeSOS.packet} | PIN:${state.activeSOS.resolutionPin} | Loc:${state.activeSOS.lat.toFixed(5)},${state.activeSOS.lng.toFixed(5)}`);
-    document.getElementById('bannerSmsLink').href = `sms:112?body=${smsBody}`;
+    // SMS link with compact 8-char code
+    const code8 = state.activeSOS.blockCode8 || state.activeSOS.packet;
+    const provPhone = state.activeSOS.nearestProvider?.phone || '112';
+    const smsBody = encodeURIComponent(`SOS ${code8}`);
+    document.getElementById('bannerSmsLink').href = `sms:${provPhone}?body=${smsBody}`;
   } else {
     banner.classList.add('hidden');
   }
@@ -946,6 +1043,21 @@ function renderSettings() {
   const blockCount = BlockRegistry.getBlockCount();
   document.getElementById('dataUsage').textContent = `${blockCount} blocks`;
   document.getElementById('dataDetail').textContent = `${Store.getCrossings().length} crossings, ${BlockTransitLog.getTransitCount()} transits`;
+
+  // Batch sync stats
+  const bs = TransitBatchSync.getStats();
+  document.getElementById('batchRecordCount').textContent = bs.transitCount;
+  document.getElementById('batchBlockCount').textContent = bs.blockCount;
+  document.getElementById('batchSizeKB').textContent = `${bs.rawSizeKB} KB`;
+  document.getElementById('batchProgressFill').style.width = `${Math.min(100, (bs.daysSinceSync / BATCH_SYNC_DAYS) * 100)}%`;
+  document.getElementById('batchNextSync').textContent = bs.daysUntilSync > 0 ? `${bs.daysUntilSync} days` : 'Ready!';
+  const meta = TransitBatchSync._getMeta();
+  document.getElementById('batchLastSync').textContent = meta.lastSyncAt ? new Date(meta.lastSyncAt).toLocaleDateString('en-IN') : 'Never';
+
+  // Zone cache info
+  const zs = ZoneManager.getStatus();
+  document.getElementById('zoneCacheInfo').textContent = `${zs.zoneCount} zones · ${zs.totalProviders} providers`;
+  document.getElementById('zoneCacheSize').textContent = `~${zs.estimatedSizeKB} KB cached permanently`;
 }
 
 function saveSetting(key, value) {
@@ -1021,33 +1133,75 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ═══ AUTO-REFRESH UI (every 5s, no loading screen) ═══
-// IMPORTANT: This only refreshes UI display, does NOT re-evaluate block changes
 function autoRefreshUI() {
   if (!state.gpsStarted) return;
-  // Refresh UI display only (isFreshReading = false → no block evaluation)
   if (state.lastKnownPos) onGPSUpdate(state.lastKnownPos, false);
-  // Update network status
   updateNetworkUI();
-  // Update SOS banner
   updateSOSBanner();
-  // Update buffer indicator
-  const bufSize = DataBuffer.getBufferSize();
-  document.getElementById('bufferIndicator').textContent = `Buffer: ${bufSize.blocks} blocks, ${bufSize.transits} transits — syncs every 5 min`;
-  // Update block count
+  // Update batch sync indicator
+  const bs = TransitBatchSync.getStats();
+  document.getElementById('bufferIndicator').textContent = `📦 Batch: ${bs.transitCount} transits · ${bs.blockCount} blocks — syncs in ${bs.daysUntilSync} days`;
   document.getElementById('crossingCount').textContent = BlockRegistry.getBlockCount();
-  // Update relay count
   document.getElementById('relaysLifetime').textContent = Store.getV2VRelays().length;
-  // Ensure map size is correct
   if (state.map) state.map.invalidateSize();
+  // Check if batch sync is due
+  if (TransitBatchSync.shouldSync()) {
+    document.getElementById('bufferIndicator').textContent = '📦 Batch sync ready! Go to Settings to upload.';
+    document.getElementById('bufferIndicator').style.background = 'rgba(249,115,22,0.1)';
+    document.getElementById('bufferIndicator').style.color = 'var(--accent-alert)';
+  }
 }
 
 // ═══ INIT ═══
+// ═══ CONFIG PUSH HANDLERS ═══
+function onConfigPushUpdate(changes) {
+  const banner = document.getElementById('configBanner');
+  if (!banner) return;
+  let text = '';
+  if (changes.added > 0) text += `+${changes.added} new provider${changes.added > 1 ? 's' : ''}`;
+  if (changes.removed > 0) text += `${text ? ' · ' : ''}-${changes.removed} removed`;
+  text += ` in ${changes.zones} zone${changes.zones > 1 ? 's' : ''}`;
+  document.getElementById('configBannerText').textContent = text;
+  banner.classList.remove('hidden');
+}
+
+function applyConfigPush() {
+  ConfigPush.dismissChanges();
+  document.getElementById('configBanner').classList.add('hidden');
+  showToast('✅ Provider list updated!');
+}
+
+function dismissConfigPush() {
+  ConfigPush.dismissChanges();
+  document.getElementById('configBanner').classList.add('hidden');
+}
+
+// ═══ BATCH SYNC HANDLERS ═══
+function manualBatchSync() {
+  if (!state.driverId) { showToast('Not logged in'); return; }
+  const payload = TransitBatchSync.sync(state.driverId);
+  showToast(`✅ Synced! ${payload.records} transits + ${payload.blocks} blocks (${payload.compressedSizeKB} KB)`);
+  renderSettings();
+}
+
+function exportBatchData() {
+  if (!state.driverId) { showToast('Not logged in'); return; }
+  const payload = TransitBatchSync.exportBatch(state.driverId);
+  showToast(`📥 Exported ${payload.records} transits + ${payload.blocks} blocks`);
+}
+
 function init() {
   drawGauge(0);
   DeadZoneHistory.seedDemoHistory();
   document.getElementById('crossingCount').textContent = BlockRegistry.getBlockCount();
   document.getElementById('relaysLifetime').textContent = Store.getV2VRelays().length;
   updateSOSBanner();
+
+  // Init config push for returning sessions
+  if (state.driverId) {
+    ConfigPush.onChange(onConfigPushUpdate);
+    ConfigPush.init();
+  }
 
   // Start 5-second silent auto-refresh
   setInterval(autoRefreshUI, 5000);

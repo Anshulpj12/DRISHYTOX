@@ -1,20 +1,25 @@
-// ═══════════ RoadSOS Shared Data Store (localStorage-based) ═══════════
+// ═══════════ APARA Shared Data Store (localStorage-based) ═══════════
 // All data is stored in localStorage and shared across all windows.
 // No mock/fake data — everything is entered by admin, providers, and users.
 
 const STORE_KEYS = {
-  PROVIDERS: 'roadsos_providers',
-  SOS_EVENTS: 'roadsos_sos_events',
-  CORRIDORS: 'roadsos_corridors',
-  CROSSINGS: 'roadsos_crossings',
-  V2V_RELAYS: 'roadsos_v2v_relays',
-  LOGGED_PROVIDER: 'roadsos_logged_provider',
-  SETTINGS: 'roadsos_settings',
-  ZONE_HISTORY: 'roadsos_zone_history',
-  BLOCK_REGISTRY: 'roadsos_block_registry',
-  BLOCK_TRANSIT_LOG: 'roadsos_block_transit_log',
-  DRIVERS: 'roadsos_drivers',
-  DRIVER_BUFFER: 'roadsos_driver_buffer',
+  PROVIDERS: 'apara_providers',
+  SOS_EVENTS: 'apara_sos_events',
+  CORRIDORS: 'apara_corridors',
+  CROSSINGS: 'apara_crossings',
+  V2V_RELAYS: 'apara_v2v_relays',
+  LOGGED_PROVIDER: 'apara_logged_provider',
+  SETTINGS: 'apara_settings',
+  ZONE_HISTORY: 'apara_zone_history',
+  BLOCK_REGISTRY: 'apara_block_registry',
+  BLOCK_TRANSIT_LOG: 'apara_block_transit_log',
+  DRIVERS: 'apara_drivers',
+  DRIVER_BUFFER: 'apara_driver_buffer',
+  ZONE_INDEX: 'apara_zone_index',
+  ZONE_PREFIX: 'apara_zone_',
+  BATCH_BUFFER: 'apara_batch_buffer',
+  BATCH_META: 'apara_batch_meta',
+  CONFIG_VERSION: 'apara_config_version',
 };
 
 const EMERGENCY_TYPES = [
@@ -970,7 +975,7 @@ const DriverRegistry = {
 // ═══ Data Buffer — 5-Minute Batched Sync ═══
 // Buffers block and transit data in sessionStorage, flushes to main localStorage every 5 min.
 const DataBuffer = {
-  BUFFER_KEY: 'roadsos_session_buffer',
+  BUFFER_KEY: 'apara_session_buffer',
   FLUSH_INTERVAL: 5 * 60 * 1000, // 5 minutes
   _flushTimer: null,
 
@@ -1102,6 +1107,415 @@ const OfflineRetroGenerator = {
     console.log(`[RetroGen] Generated ${generatedBlocks.length} blocks over ${Math.round(distance)}m in ${Math.round(elapsedSec)}s`);
     return generatedBlocks;
   },
+};
+
+// ═══ India-Specific Block Code Encoder — 8-Character Unique Codes ═══
+// Format: RRR CCC T K  (Row 3 chars + Col 3 chars + Type 1 char + Checksum 1 char)
+// Covers all of India at 1km resolution. No two blocks share a code.
+const INDIA_ROW_BASE = 800;
+const INDIA_COL_BASE = 5500;
+const BASE36 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+const BlockCodeEncoder = {
+  SOS_TYPE_CHARS: { 'ACC': 'A', 'MED': 'M', 'TYR': 'T', 'FUL': 'F', 'TOW': 'W' },
+  SOS_CHAR_TYPES: { 'A': 'ACC', 'M': 'MED', 'T': 'TYR', 'F': 'FUL', 'W': 'TOW' },
+
+  _toBase36(num, len) {
+    let s = '';
+    let n = Math.max(0, Math.floor(num));
+    for (let i = 0; i < len; i++) {
+      s = BASE36[n % 36] + s;
+      n = Math.floor(n / 36);
+    }
+    return s;
+  },
+
+  _fromBase36(str) {
+    let n = 0;
+    for (let i = 0; i < str.length; i++) {
+      n = n * 36 + BASE36.indexOf(str[i].toUpperCase());
+    }
+    return n;
+  },
+
+  _checksum(s) {
+    let sum = 0;
+    for (let i = 0; i < s.length; i++) {
+      sum = (sum + BASE36.indexOf(s[i].toUpperCase()) * (i + 1)) % 36;
+    }
+    return BASE36[sum];
+  },
+
+  // Encode lat/lng + SOS type → 8-char code
+  encode(lat, lng, sosTypeCode) {
+    const grid = BlockRegistry.getGridCell(lat, lng);
+    const relRow = Math.max(0, grid.gridRow - INDIA_ROW_BASE);
+    const relCol = Math.max(0, grid.gridCol - INDIA_COL_BASE);
+    const rowCode = this._toBase36(relRow, 3);
+    const colCode = this._toBase36(relCol, 3);
+    const typeChar = this.SOS_TYPE_CHARS[sosTypeCode] || 'A';
+    const body = rowCode + colCode + typeChar;
+    return body + this._checksum(body);
+  },
+
+  // Decode 8-char code → { lat, lng, sosType, valid }
+  decode(code) {
+    if (!code || code.length < 8) return { valid: false, error: 'Code must be 8 characters' };
+    code = code.toUpperCase().replace(/[^0-9A-Z]/g, '');
+    if (code.length !== 8) return { valid: false, error: 'Invalid characters in code' };
+
+    const body = code.substring(0, 7);
+    const checkChar = code[7];
+    if (this._checksum(body) !== checkChar) return { valid: false, error: 'Invalid checksum — check for typos' };
+
+    const rowCode = code.substring(0, 3);
+    const colCode = code.substring(3, 6);
+    const typeChar = code[6];
+
+    const relRow = this._fromBase36(rowCode);
+    const relCol = this._fromBase36(colCode);
+    const gridRow = relRow + INDIA_ROW_BASE;
+    const gridCol = relCol + INDIA_COL_BASE;
+
+    const center = BlockRegistry.getCellCenter(gridRow, gridCol);
+    const sosTypeCode = this.SOS_CHAR_TYPES[typeChar];
+    const sosType = EMERGENCY_TYPES.find(t => t.code === sosTypeCode);
+
+    return {
+      valid: true,
+      lat: center.lat,
+      lng: center.lng,
+      gridRow, gridCol,
+      blockId: `BLK-${gridRow}-${gridCol}`,
+      sosTypeCode, sosType, typeChar,
+      fullCode: code,
+    };
+  },
+};
+
+// ═══ Zone Manager — Auto Zone Detection + Permanent Provider Caching ═══
+// Divides India into 1°×1° zones (~111km). Loads providers per zone permanently.
+// Auto-prefetches adjacent zones when driver approaches zone boundary.
+const ZONE_SIZE_DEG = 1;
+const ZONE_PREFETCH_KM = 80;
+
+const ZoneManager = {
+  _currentZoneId: null,
+  _prefetchedSet: {},
+  _listeners: [],
+
+  getZoneId(lat, lng) {
+    const zLat = Math.floor(lat / ZONE_SIZE_DEG) * ZONE_SIZE_DEG;
+    const zLng = Math.floor(lng / ZONE_SIZE_DEG) * ZONE_SIZE_DEG;
+    return `Z-${zLat}-${zLng}`;
+  },
+
+  getZoneCenter(zoneId) {
+    const parts = zoneId.split('-');
+    return { lat: parseInt(parts[1]) + ZONE_SIZE_DEG / 2, lng: parseInt(parts[2]) + ZONE_SIZE_DEG / 2 };
+  },
+
+  _getIndex() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEYS.ZONE_INDEX)) || { zones: [] }; }
+    catch { return { zones: [] }; }
+  },
+
+  _saveIndex(idx) { localStorage.setItem(STORE_KEYS.ZONE_INDEX, JSON.stringify(idx)); },
+
+  isZoneCached(zoneId) { return localStorage.getItem(STORE_KEYS.ZONE_PREFIX + zoneId) !== null; },
+
+  getZoneData(zoneId) {
+    try { return JSON.parse(localStorage.getItem(STORE_KEYS.ZONE_PREFIX + zoneId)); }
+    catch { return null; }
+  },
+
+  getCachedZoneIds() { return this._getIndex().zones; },
+
+  getTotalCachedProviders() {
+    let c = 0;
+    this.getCachedZoneIds().forEach(zId => {
+      const d = this.getZoneData(zId);
+      if (d && d.providers) c += d.providers.length;
+    });
+    return c;
+  },
+
+  // Load zone — filter providers by distance, store permanently
+  loadZone(zoneId, allProviders) {
+    if (this.isZoneCached(zoneId)) return this.getZoneData(zoneId);
+    const center = this.getZoneCenter(zoneId);
+    const radiusM = ZONE_SIZE_DEG * 111320;
+    const provs = (allProviders || Store.getProviders()).filter(p => {
+      if (!p.gps) return false;
+      const parts = p.gps.split(',').map(s => parseFloat(s.trim()));
+      if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return false;
+      return Utils.haversine(center.lat, center.lng, parts[0], parts[1]) <= radiusM;
+    }).map(p => {
+      const pts = p.gps.split(',').map(s => parseFloat(s.trim()));
+      return { id: p.id, name: p.name, cat: p.category?.code || '', catIcon: p.category?.icon || '', catLabel: p.category?.label || '', phone: p.phone, lat: pts[0], lng: pts[1], status: p.status };
+    });
+
+    const zoneData = {
+      zoneId, centerLat: center.lat, centerLng: center.lng,
+      loadedAt: new Date().toISOString(),
+      configVersion: parseInt(localStorage.getItem(STORE_KEYS.CONFIG_VERSION) || '1'),
+      providerCount: provs.length, providers: provs,
+    };
+    localStorage.setItem(STORE_KEYS.ZONE_PREFIX + zoneId, JSON.stringify(zoneData));
+    const idx = this._getIndex();
+    if (!idx.zones.includes(zoneId)) { idx.zones.push(zoneId); idx.lastUpdated = new Date().toISOString(); this._saveIndex(idx); }
+    console.log(`[ZoneManager] Zone ${zoneId} cached permanently: ${provs.length} providers`);
+    this._notify({ type: 'zone_loaded', zoneId, providerCount: provs.length });
+    return zoneData;
+  },
+
+  // Auto-detect zone boundary + prefetch
+  checkBoundary(lat, lng) {
+    const curZone = this.getZoneId(lat, lng);
+    const result = { zoneChanged: false, newZone: null, prefetching: false, prefetchZone: null };
+    if (curZone !== this._currentZoneId) {
+      this._currentZoneId = curZone;
+      if (!this.isZoneCached(curZone)) {
+        this.loadZone(curZone);
+        result.zoneChanged = true;
+        result.newZone = curZone;
+      }
+    }
+    // Check proximity to boundary for prefetch
+    const center = this.getZoneCenter(curZone);
+    const distKm = Utils.haversine(lat, lng, center.lat, center.lng) / 1000;
+    if (distKm > ZONE_PREFETCH_KM) {
+      const adjacent = [
+        this.getZoneId(lat + ZONE_SIZE_DEG, lng),
+        this.getZoneId(lat - ZONE_SIZE_DEG, lng),
+        this.getZoneId(lat, lng + ZONE_SIZE_DEG),
+        this.getZoneId(lat, lng - ZONE_SIZE_DEG),
+      ];
+      for (const adj of adjacent) {
+        if (!this.isZoneCached(adj) && !this._prefetchedSet[adj]) {
+          this._prefetchedSet[adj] = true;
+          this.loadZone(adj);
+          result.prefetching = true;
+          result.prefetchZone = adj;
+          break;
+        }
+      }
+    }
+    return result;
+  },
+
+  // Search ALL cached zones for nearest provider
+  searchNearest(lat, lng, categoryCode) {
+    let nearest = null, minDist = Infinity;
+    this.getCachedZoneIds().forEach(zId => {
+      const zone = this.getZoneData(zId);
+      if (!zone || !zone.providers) return;
+      zone.providers.forEach(p => {
+        if (p.status !== 'Active') return;
+        if (categoryCode && p.cat !== categoryCode) return;
+        const dist = Utils.haversine(lat, lng, p.lat, p.lng);
+        if (dist < minDist) { minDist = dist; nearest = { ...p, distance: dist }; }
+      });
+    });
+    return nearest;
+  },
+
+  // Search best provider by SOS type
+  searchBySOS(lat, lng, sosTypeCode) {
+    const map = { 'ACC': ['HOSP','TOW'], 'MED': ['HOSP','PHAR'], 'TYR': ['PUNC','MECH'], 'FUL': ['FUEL'], 'TOW': ['TOW','MECH'] };
+    const cats = map[sosTypeCode] || [];
+    for (const cat of cats) {
+      const r = this.searchNearest(lat, lng, cat);
+      if (r) return r;
+    }
+    return this.searchNearest(lat, lng, null);
+  },
+
+  getStatus() {
+    const zones = this.getCachedZoneIds();
+    return { zoneCount: zones.length, totalProviders: this.getTotalCachedProviders(), currentZone: this._currentZoneId, estimatedSizeKB: Math.round(zones.length * 9) };
+  },
+
+  onChange(fn) { this._listeners.push(fn); },
+  _notify(evt) { this._listeners.forEach(fn => fn(evt)); },
+};
+
+// ═══ Transit Batch Sync — 15-Day Buffered Upload (Blocks + Transits) ═══
+// Stores all block entries/exits AND new block data locally.
+// Compresses and uploads as a single file every 15 days.
+const BATCH_SYNC_DAYS = 15;
+
+const TransitBatchSync = {
+  _getBuffer() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEYS.BATCH_BUFFER)) || { blocks: {}, transits: [], startedAt: new Date().toISOString() }; }
+    catch { return { blocks: {}, transits: [], startedAt: new Date().toISOString() }; }
+  },
+  _saveBuffer(buf) { localStorage.setItem(STORE_KEYS.BATCH_BUFFER, JSON.stringify(buf)); },
+  _getMeta() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEYS.BATCH_META)) || { lastSyncAt: null, totalSyncs: 0 }; }
+    catch { return { lastSyncAt: null, totalSyncs: 0 }; }
+  },
+  _saveMeta(meta) { localStorage.setItem(STORE_KEYS.BATCH_META, JSON.stringify(meta)); },
+
+  // Buffer a transit record
+  bufferTransit(record) {
+    const buf = this._getBuffer();
+    buf.transits.push({
+      t: record.type === 'entry' ? 'E' : 'X',
+      b: record.blockId,
+      ts: record.timestamp,
+      s: Math.round(record.speed || 0),
+      la: record.lat ? +record.lat.toFixed(5) : 0,
+      ln: record.lng ? +record.lng.toFixed(5) : 0,
+    });
+    this._saveBuffer(buf);
+  },
+
+  // Buffer a new block
+  bufferBlock(block) {
+    const buf = this._getBuffer();
+    if (!buf.blocks[block.id]) {
+      buf.blocks[block.id] = {
+        la: block.centerLat ? +block.centerLat.toFixed(5) : 0,
+        ln: block.centerLng ? +block.centerLng.toFixed(5) : 0,
+        cr: block.createdAt,
+        src: block.source === 'gps' ? 'G' : 'O',
+      };
+      this._saveBuffer(buf);
+    }
+  },
+
+  getDaysSinceSync() {
+    const meta = this._getMeta();
+    const ref = meta.lastSyncAt ? new Date(meta.lastSyncAt) : new Date(this._getBuffer().startedAt || Date.now());
+    return Math.floor((Date.now() - ref.getTime()) / 86400000);
+  },
+
+  shouldSync() { return this.getDaysSinceSync() >= BATCH_SYNC_DAYS; },
+
+  getStats() {
+    const buf = this._getBuffer();
+    const raw = JSON.stringify(buf).length;
+    return {
+      transitCount: buf.transits.length,
+      blockCount: Object.keys(buf.blocks).length,
+      rawSizeKB: Math.round(raw / 1024 * 10) / 10,
+      compressedSizeKB: Math.round(raw / 1024 * 0.15 * 10) / 10,
+      daysSinceSync: this.getDaysSinceSync(),
+      daysUntilSync: Math.max(0, BATCH_SYNC_DAYS - this.getDaysSinceSync()),
+      totalSyncs: this._getMeta().totalSyncs,
+    };
+  },
+
+  // Build compressed payload
+  buildPayload(driverId) {
+    const buf = this._getBuffer();
+    const payload = { v: 1, d: driverId, ts: new Date().toISOString(), b: buf.blocks, t: buf.transits };
+    const json = JSON.stringify(payload);
+    // Dictionary compression: replace repeated blockIds/timestamps
+    let compressed = json;
+    const dict = {}; let tid = 0;
+    const repeats = json.match(/"BLK-[0-9-]+"/g);
+    if (repeats) {
+      const freq = {};
+      repeats.forEach(r => { freq[r] = (freq[r] || 0) + 1; });
+      Object.entries(freq).filter(([,c]) => c > 1).sort((a,b) => b[1]-a[1]).slice(0, 50).forEach(([str]) => {
+        const tok = `~${tid++}~`; dict[tok] = str;
+        compressed = compressed.split(str).join(tok);
+      });
+    }
+    const final = JSON.stringify({ c: compressed, d: dict });
+    return { raw: json, compressed: final, rawSizeKB: Math.round(json.length / 1024 * 10) / 10, compressedSizeKB: Math.round(final.length / 1024 * 10) / 10, records: buf.transits.length, blocks: Object.keys(buf.blocks).length };
+  },
+
+  // Perform sync
+  sync(driverId) {
+    const payload = this.buildPayload(driverId);
+    console.log(`[BatchSync] Synced: ${payload.records} transits + ${payload.blocks} blocks (${payload.compressedSizeKB} KB)`);
+    // Clear buffer
+    localStorage.setItem(STORE_KEYS.BATCH_BUFFER, JSON.stringify({ blocks: {}, transits: [], startedAt: new Date().toISOString() }));
+    const meta = this._getMeta();
+    meta.lastSyncAt = new Date().toISOString();
+    meta.totalSyncs = (meta.totalSyncs || 0) + 1;
+    this._saveMeta(meta);
+    return payload;
+  },
+
+  // Export batch as downloadable file
+  exportBatch(driverId) {
+    const payload = this.buildPayload(driverId);
+    const blob = new Blob([payload.compressed], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `apara_batch_${driverId}_${Date.now()}.json`; a.click();
+    URL.revokeObjectURL(url);
+    return payload;
+  },
+};
+
+// ═══ Config Push — Provider Change Notifications ═══
+// Polls every 30 min for config version changes.
+// When admin adds/removes providers, affected zones are refreshed.
+const CONFIG_CHECK_INTERVAL = 30 * 60 * 1000;
+
+const ConfigPush = {
+  _timer: null,
+  _listeners: [],
+  _pendingChanges: null,
+
+  init() {
+    this._timer = setInterval(() => this.checkForUpdates(), CONFIG_CHECK_INTERVAL);
+    setTimeout(() => this.checkForUpdates(), 5000);
+  },
+
+  getVersion() { return parseInt(localStorage.getItem(STORE_KEYS.CONFIG_VERSION) || '1'); },
+  setVersion(v) { localStorage.setItem(STORE_KEYS.CONFIG_VERSION, String(v)); },
+  incrementVersion() { const v = this.getVersion() + 1; this.setVersion(v); return v; },
+  bumpVersion(changeInfo) {
+    const v = this.incrementVersion();
+    console.log(`[ConfigPush] Version bumped to v${v}`, changeInfo || '');
+    // Immediately check for zone updates
+    setTimeout(() => this.checkForUpdates(), 500);
+    return v;
+  },
+
+  checkForUpdates() {
+    const currentVersion = this.getVersion();
+    const zones = ZoneManager.getCachedZoneIds();
+    const outdated = [];
+    zones.forEach(zId => {
+      const zone = ZoneManager.getZoneData(zId);
+      if (zone && zone.configVersion < currentVersion) outdated.push(zId);
+    });
+    if (outdated.length === 0) return;
+
+    const allProviders = Store.getProviders();
+    const changes = { added: 0, removed: 0, zones: outdated.length };
+    outdated.forEach(zId => {
+      const oldZone = ZoneManager.getZoneData(zId);
+      const oldIds = new Set((oldZone?.providers || []).map(p => p.id));
+      // Force reload
+      localStorage.removeItem(STORE_KEYS.ZONE_PREFIX + zId);
+      const idx = ZoneManager._getIndex();
+      idx.zones = idx.zones.filter(z => z !== zId);
+      ZoneManager._saveIndex(idx);
+      const newZone = ZoneManager.loadZone(zId, allProviders);
+      const newIds = new Set(newZone.providers.map(p => p.id));
+      newIds.forEach(id => { if (!oldIds.has(id)) changes.added++; });
+      oldIds.forEach(id => { if (!newIds.has(id)) changes.removed++; });
+    });
+
+    if (changes.added > 0 || changes.removed > 0) {
+      this._pendingChanges = changes;
+      this._notify(changes);
+      console.log(`[ConfigPush] Updated ${outdated.length} zones: +${changes.added} -${changes.removed} providers`);
+    }
+  },
+
+  getPendingChanges() { return this._pendingChanges; },
+  dismissChanges() { this._pendingChanges = null; },
+  onChange(fn) { this._listeners.push(fn); },
+  _notify(changes) { this._listeners.forEach(fn => fn(changes)); },
 };
 
 // Init network detector

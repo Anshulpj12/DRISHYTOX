@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RoadSOS — Admin Panel</title>
-<meta name="description" content="RoadSOS Admin Panel — Manage providers, corridors, SOS events, and platform analytics">
+<title>APARA — Admin Panel</title>
+<meta name="description" content="APARA Admin Panel — Manage providers, corridors, SOS events, and platform analytics">
 <link rel="stylesheet" href="shared.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -48,7 +48,7 @@
   <button class="mobile-menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
   <nav class="sidebar">
     <div class="sidebar-logo">
-      <h2>🛡️ RoadSOS</h2>
+      <h2>🛡️ APARA</h2>
       <span>ADMIN PANEL</span>
     </div>
     <div class="nav-item active" onclick="showSection('secDashboard',this)">📊 Dashboard</div>
@@ -60,6 +60,7 @@
     <div class="nav-item" onclick="showSection('secBlockMap',this)">🗺️ Block Map</div>
     <div class="nav-item" onclick="showSection('secAudit',this)">📋 SOS Audit Trail</div>
     <div class="nav-item" onclick="showSection('secV2V',this)">📡 V2V Relay Log</div>
+    <div class="nav-item" onclick="showSection('secConfig',this)">🔄 Config Push</div>
   </nav>
 
   <div class="main-content">
@@ -174,6 +175,29 @@
       <div id="v2vContent"></div>
       <div id="emptyV2V" class="empty-state"><div class="icon">📡</div><p>No V2V relay events recorded yet.</p></div>
     </div>
+
+    <!-- Config Push -->
+    <div class="section" id="secConfig">
+      <div class="page-header"><h2>🔄 Config Push System</h2><p>Real-time provider update distribution to driver apps via lightweight version polling</p></div>
+      <div class="stats-grid" id="configStats"></div>
+      <div class="card mb-2">
+        <h4 style="font-size:0.9rem;margin-bottom:0.75rem;">How It Works</h4>
+        <div class="text-sm text-muted">
+          <p>• When you add, remove, or toggle a provider, the <strong>config version</strong> is automatically bumped.</p>
+          <p style="margin-top:0.3rem;">• Driver apps poll every 30 minutes, checking a 4-byte version number (near-zero bandwidth).</p>
+          <p style="margin-top:0.3rem;">• If the version has changed, the driver app downloads only the <strong>diff</strong> (added/removed providers).</p>
+          <p style="margin-top:0.3rem;">• Result: <strong>zero manual intervention</strong> — provider changes propagate automatically.</p>
+        </div>
+      </div>
+      <div class="card mb-2">
+        <h4 style="font-size:0.9rem;margin-bottom:0.75rem;">Provider Distribution by Zone</h4>
+        <div id="zoneDistribution" class="text-sm"></div>
+      </div>
+      <div class="flex-row gap-1">
+        <button class="btn btn-primary btn-sm" onclick="forceConfigBump()">🔄 Force Version Bump</button>
+        <button class="btn btn-secondary btn-sm" onclick="resetConfigVersion()">♻️ Reset Version</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -212,6 +236,7 @@ function showSection(id, el) {
   if (id === 'secBlockMap') renderCorridors();
   if (id === 'secAudit') renderAudit();
   if (id === 'secV2V') renderV2V();
+  if (id === 'secConfig') renderConfigPush();
 }
 
 // ═══ DASHBOARD ═══
@@ -302,16 +327,20 @@ function registerProvider() {
 
   Store.saveProvider(provider);
 
+  // ═══ BUMP CONFIG VERSION — Triggers push to all driver apps ═══
+  ConfigPush.bumpVersion({ action: 'add', providerId: id, providerName: name });
+
   const res = document.getElementById('credResult');
   res.classList.remove('hidden');
   res.innerHTML = `<div class="cred-card">
     <div style="font-size:2rem;margin-bottom:0.5rem;">✅</div>
     <h3>Provider Activated</h3>
-    <p class="text-sm text-muted mb-2">Credentials ready — share with the provider</p>
+    <p class="text-sm text-muted mb-2">Credentials ready — share with the provider. Config version bumped for auto-push to drivers.</p>
     <div class="cred-field"><span class="text-xs text-muted">Registration ID</span><code>${id}</code><button class="copy-btn" onclick="copyText('${id}')">Copy</button></div>
     <div class="cred-field"><span class="text-xs text-muted">Password</span><code>${password}</code><button class="copy-btn" onclick="copyText('${password}')">Copy</button></div>
+    <div class="text-xs text-muted" style="margin-top:0.5rem;">📡 Config v${ConfigPush.getVersion()} — drivers will receive this update within 30 min</div>
   </div>`;
-  showToast('Provider activated. Credentials ready.');
+  showToast('Provider activated. Config version bumped.');
   document.getElementById('regName').value = '';
   document.getElementById('regCat').value = '';
   document.getElementById('regPhone').value = '';
@@ -352,7 +381,13 @@ function renderProviderTable() {
 function toggleProvider(id) {
   const providers = Store.getProviders();
   const p = providers.find(pr => pr.id === id);
-  if (p) { Store.updateProvider(id, { status: p.status === 'Active' ? 'Inactive' : 'Active' }); renderProviderTable(); }
+  if (p) {
+    const newStatus = p.status === 'Active' ? 'Inactive' : 'Active';
+    Store.updateProvider(id, { status: newStatus });
+    ConfigPush.bumpVersion({ action: 'toggle', providerId: id, newStatus });
+    renderProviderTable();
+    showToast(`Provider ${newStatus}. Config v${ConfigPush.getVersion()} pushed.`);
+  }
 }
 
 function openDeleteModal(id) {
@@ -361,8 +396,10 @@ function openDeleteModal(id) {
   document.getElementById('deleteModal').classList.remove('hidden');
   document.getElementById('deleteProvInfo').innerHTML = `<div class="text-sm"><strong>${p.name}</strong> — ${p.category?.label || ''}<br><span class="text-muted" style="font-family:var(--font-mono);">${p.id}</span></div>`;
   document.getElementById('confirmDeleteBtn').onclick = () => {
-    Store.deleteProvider(id); closeDeleteModal(); renderProviderTable();
-    showToast('Provider deleted: ' + p.name);
+    Store.deleteProvider(id);
+    ConfigPush.bumpVersion({ action: 'delete', providerId: id, providerName: p.name });
+    closeDeleteModal(); renderProviderTable();
+    showToast(`Provider deleted: ${p.name}. Config v${ConfigPush.getVersion()} pushed.`);
   };
 }
 
@@ -596,6 +633,54 @@ function downloadFile(content, filename, type) {
   URL.revokeObjectURL(url);
 }
 
+// ═══ CONFIG PUSH ═══
+function renderConfigPush() {
+  const version = ConfigPush.getVersion();
+  const providers = Store.getProviders();
+  const activeProviders = providers.filter(p => p.status === 'Active');
+
+  // Zone distribution
+  const zoneMap = {};
+  activeProviders.forEach(p => {
+    if (p.gps) {
+      const parts = p.gps.split(',').map(s => parseFloat(s.trim()));
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        const zoneId = `${Math.floor(parts[0])}_${Math.floor(parts[1])}`;
+        if (!zoneMap[zoneId]) zoneMap[zoneId] = [];
+        zoneMap[zoneId].push(p);
+      }
+    }
+  });
+
+  document.getElementById('configStats').innerHTML = [
+    { v: version, l: 'Config Version', c: 'var(--accent-alert)' },
+    { v: Object.keys(zoneMap).length, l: 'Active Zones', c: 'var(--accent-online)' },
+    { v: activeProviders.length, l: 'Active Providers', c: 'var(--success)' },
+    { v: providers.length - activeProviders.length, l: 'Inactive', c: 'var(--text-muted)' },
+  ].map(d => `<div class="stat-card"><div class="stat-value" style="color:${d.c}">${d.v}</div><div class="stat-label">${d.l}</div></div>`).join('');
+
+  const zonesHtml = Object.entries(zoneMap).sort((a,b) => b[1].length - a[1].length).map(([zone, provs]) => {
+    const [lat, lng] = zone.split('_');
+    return `<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);">
+      <span style="font-family:var(--font-mono);color:var(--accent-online);">${lat}°N, ${lng}°E</span>
+      <span>${provs.length} provider${provs.length > 1 ? 's' : ''} <span class="text-xs text-muted">(${provs.map(p => p.category?.icon || '').join(' ')})</span></span>
+    </div>`;
+  }).join('');
+  document.getElementById('zoneDistribution').innerHTML = zonesHtml || '<p class="text-muted">No providers with GPS coordinates yet.</p>';
+}
+
+function forceConfigBump() {
+  ConfigPush.bumpVersion({ action: 'manual', reason: 'Admin force bump' });
+  showToast(`Config version bumped to v${ConfigPush.getVersion()}`);
+  renderConfigPush();
+}
+
+function resetConfigVersion() {
+  localStorage.setItem(STORE_KEYS.CONFIG_VERSION, '1');
+  showToast('Config version reset to v1');
+  renderConfigPush();
+}
+
 // ═══ INIT ═══
 initRegForm();
 renderDashboard();
@@ -605,6 +690,7 @@ setInterval(() => {
   if (document.getElementById('secAudit').classList.contains('active')) renderAudit();
   if (document.getElementById('secBlockRegistry').classList.contains('active')) renderBlockRegistry();
   if (document.getElementById('secTransitLog').classList.contains('active')) renderTransitLog();
+  if (document.getElementById('secConfig').classList.contains('active')) renderConfigPush();
 }, 5000);
 </script>
 </body>
