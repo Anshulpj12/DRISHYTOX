@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APARA — Shop Provider</title>
+<meta name="description" content="APARA Shop Provider Dashboard — Manage menu, receive orders from highway drivers">
+<link rel="stylesheet" href="shared.css">
+<style>
+.shop-app { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 80px; position: relative; }
+.screen { display: none; animation: fade-in 0.3s ease; }
+.screen.active { display: block; }
+.header-bar { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border); background:var(--bg-panel); position:sticky; top:0; z-index:50; }
+.header-bar h1 { font-family:var(--font-mono); font-size:1.1rem; color:var(--accent-market); }
+.screen-pad { padding: 1.25rem; }
+.login-container { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:2rem; }
+.login-box { width:100%; max-width:380px; }
+.login-logo { text-align:center; margin-bottom:2rem; }
+.login-logo h1 { font-family:var(--font-mono); font-size:2rem; color:var(--accent-market); }
+.login-logo p { color:var(--text-muted); font-size:0.85rem; margin-top:0.3rem; }
+.order-count-badge { background:var(--danger); color:#fff; font-size:0.65rem; font-weight:800; padding:0.15rem 0.45rem; border-radius:10px; min-width:18px; text-align:center; position:absolute; top:-4px; right:-4px; }
+.shop-id-badge { font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-market); background:rgba(16,185,129,0.1); padding:0.2rem 0.5rem; border-radius:4px; }
+.status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:0.3rem; }
+.status-dot.open { background:var(--success); }
+.status-dot.closed { background:var(--danger); }
+.order-timer { font-family:var(--font-mono); font-size:1.8rem; font-weight:700; color:var(--accent-market); text-align:center; }
+</style>
+</head>
+<body>
+<div class="shop-app" id="app">
+  <!-- Screen: Login -->
+  <div class="screen active" id="screenShopLogin">
+    <div class="login-container">
+      <div class="login-box">
+        <div class="login-logo">
+          <div style="font-size:3rem;margin-bottom:0.5rem;">🏪</div>
+          <h1>APARA Marketplace</h1>
+          <p>Shop Provider — Manage your menu & orders</p>
+        </div>
+        <div style="margin-bottom:1rem;">
+          <label class="label">Shop Registration ID</label>
+          <input class="input" type="text" id="shopLoginId" placeholder="SHOP-FOOD-000001" style="font-family:var(--font-mono);text-align:center;">
+        </div>
+        <div style="margin-bottom:1rem;">
+          <label class="label">Password</label>
+          <input class="input" type="password" id="shopLoginPw" placeholder="••••••••" style="text-align:center;">
+        </div>
+        <button class="btn btn-full btn-lg" style="background:var(--accent-market);color:#fff;" onclick="shopLogin()">Sign In</button>
+        <div class="text-center text-xs text-muted mt-2">Credentials provided by Admin. Contact admin if you don't have login details.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen: Main Dashboard -->
+  <div class="screen" id="screenShopMain">
+    <div class="header-bar">
+      <h1>🏪 APARA Shop</h1>
+      <span id="shopIdBadge" class="shop-id-badge">---</span>
+    </div>
+
+    <!-- Tab: Menu Manager -->
+    <div class="screen active" id="tabMenu">
+      <div class="screen-pad">
+        <div class="flex-between mb-2">
+          <h3 style="font-size:1rem;">📋 My Menu</h3>
+          <button class="btn btn-sm" style="background:var(--accent-market);color:#fff;" onclick="showAddItemForm()">+ Add Item</button>
+        </div>
+
+        <!-- Add Item Form (hidden by default) -->
+        <div id="addItemForm" class="add-item-form hidden">
+          <h4 style="margin-bottom:0.75rem;font-size:0.85rem;">Add New Item</h4>
+          <div class="form-row">
+            <input class="input" id="newItemName" placeholder="Item name (e.g. Butter Chicken)" style="font-size:0.85rem;">
+          </div>
+          <div class="form-row">
+            <input class="input" id="newItemPrice" type="number" placeholder="Price (₹)" style="font-size:0.85rem;width:50%;">
+            <select class="select" id="newItemCat" style="font-size:0.85rem;width:50%;">
+              <option value="FOOD">🍛 Food</option>
+              <option value="DRNK">🧃 Drink</option>
+              <option value="SNCK">🍿 Snack</option>
+              <option value="SRVS">🔧 Service</option>
+              <option value="OTHR">📦 Other</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:0.5rem;">
+            <button class="btn btn-sm btn-full" style="background:var(--accent-market);color:#fff;" onclick="addMenuItem()">Add Item</button>
+            <button class="btn btn-sm btn-secondary btn-full" onclick="hideAddItemForm()">Cancel</button>
+          </div>
+        </div>
+
+        <div id="menuList"></div>
+        <div id="emptyMenu" class="text-center text-muted hidden" style="padding:2rem;">
+          <div style="font-size:2rem;margin-bottom:0.5rem;">📋</div>
+          <p>No items in your menu yet. Add your first item!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Incoming Orders -->
+    <div class="screen" id="tabOrders">
+      <div class="screen-pad">
+        <div class="flex-between mb-2">
+          <h3 style="font-size:1rem;">📥 Incoming Orders</h3>
+          <span class="badge badge-active" id="activeOrderCount">0 active</span>
+        </div>
+        <div id="ordersList"></div>
+        <div id="emptyOrders" class="text-center text-muted" style="padding:2rem;">
+          <div style="font-size:2rem;margin-bottom:0.5rem;">📥</div>
+          <p>No incoming orders. Waiting for drivers...</p>
+        </div>
+
+        <!-- Order Detail View -->
+        <div id="orderDetailView" class="hidden">
+          <button class="btn btn-sm btn-secondary mb-2" onclick="closeOrderDetail()">← Back to Orders</button>
+          <div id="orderDetailContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Lookup Order Code -->
+    <div class="screen" id="tabLookup">
+      <div class="screen-pad">
+        <h3 style="font-size:1rem;margin-bottom:1rem;">🔍 Lookup Order Code</h3>
+        <div class="card">
+          <label class="label">Paste Order Code from SMS</label>
+          <input class="input" id="lookupInput" placeholder="NH48-B32|BG2TH1|14:23|conf:87" style="font-family:var(--font-mono);font-size:0.85rem;">
+          <button class="btn btn-full mt-2" style="background:var(--accent-market);color:#fff;" onclick="lookupOrderCode()">Decode Order</button>
+        </div>
+        <div id="lookupResult" class="hidden mt-2"></div>
+      </div>
+    </div>
+
+    <!-- Tab: Shop Profile -->
+    <div class="screen" id="tabProfile">
+      <div class="screen-pad">
+        <div class="card text-center mb-2">
+          <div style="font-size:3rem;" id="profileIcon">🏪</div>
+          <h3 id="profileName" style="margin:0.5rem 0;">---</h3>
+          <div class="text-sm text-muted" id="profileCat">---</div>
+          <div style="margin-top:0.5rem;">
+            <span id="profileStatusBadge" class="badge badge-active">Active</span>
+          </div>
+        </div>
+        <div class="card mb-2">
+          <div class="setting-row" style="border:none;padding:0.5rem 0;">
+            <div class="setting-info"><h4>Shop ID</h4><p id="profileId" style="font-family:var(--font-mono);">---</p></div>
+          </div>
+          <div class="setting-row" style="padding:0.5rem 0;">
+            <div class="setting-info"><h4>Phone</h4><p id="profilePhone">---</p></div>
+          </div>
+          <div class="setting-row" style="padding:0.5rem 0;">
+            <div class="setting-info"><h4>Location</h4><p id="profileGps" style="font-family:var(--font-mono);font-size:0.8rem;">---</p></div>
+          </div>
+          <div class="setting-row" style="padding:0.5rem 0;">
+            <div class="setting-info"><h4>Operating Hours</h4><p id="profileHours">---</p></div>
+          </div>
+        </div>
+        <div class="card mb-2">
+          <div class="flex-between">
+            <div class="setting-info"><h4>Shop Open</h4><p>Toggle availability for incoming orders</p></div>
+            <label class="toggle-switch"><input type="checkbox" checked id="shopOpenToggle" onchange="toggleShopOpen()"><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+        <div class="card mb-2 text-center">
+          <div class="text-xs text-muted" style="text-transform:uppercase;">STATS</div>
+          <div class="grid-3 mt-1" style="gap:0.5rem;">
+            <div><div style="font-family:var(--font-mono);font-size:1.2rem;font-weight:700;color:var(--accent-market);" id="statTotalOrders">0</div><div class="text-xs text-muted">Total Orders</div></div>
+            <div><div style="font-family:var(--font-mono);font-size:1.2rem;font-weight:700;color:var(--success);" id="statFulfilledOrders">0</div><div class="text-xs text-muted">Fulfilled</div></div>
+            <div><div style="font-family:var(--font-mono);font-size:1.2rem;font-weight:700;color:var(--text-primary);" id="statMenuItems">0</div><div class="text-xs text-muted">Menu Items</div></div>
+          </div>
+        </div>
+        <button class="btn btn-danger btn-full btn-sm mt-2" onclick="shopLogout()">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="mobile-nav">
+      <div class="mobile-nav-item active" onclick="switchShopTab('tabMenu')"><span class="nav-icon">📋</span>Menu</div>
+      <div class="mobile-nav-item" onclick="switchShopTab('tabOrders')" style="position:relative;"><span class="nav-icon">📥</span>Orders<span id="navOrderBadge" class="order-count-badge hidden">0</span></div>
+      <div class="mobile-nav-item" onclick="switchShopTab('tabLookup')"><span class="nav-icon">🔍</span>Lookup</div>
+      <div class="mobile-nav-item" onclick="switchShopTab('tabProfile')"><span class="nav-icon">👤</span>Profile</div>
+    </nav>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+// ═══ STATE ═══
+let shopState = {
+  shopId: null,
+  shopData: null,
+  activeOrderDetail: null,
+};
+
+// ═══ LOGIN ═══
+function shopLogin() {
+  const id = document.getElementById('shopLoginId').value.trim();
+  const pw = document.getElementById('shopLoginPw').value.trim();
+  if (!id || !pw) { showToast('Enter Shop ID and Password'); return; }
+  const shop = ShopRegistry.findShop(id, pw);
+  if (!shop) { showToast('Invalid credentials. Contact Admin.'); return; }
+  shopState.shopId = shop.id;
+  shopState.shopData = shop;
+  localStorage.setItem(STORE_KEYS.LOGGED_SHOP, JSON.stringify({ id: shop.id, pw: pw }));
+  ShopRegistry.updateShop(shop.id, { lastLogin: new Date().toISOString() });
+  enterShopDashboard();
+}
+
+function enterShopDashboard() {
+  document.getElementById('screenShopLogin').classList.remove('active');
+  document.getElementById('screenShopMain').classList.add('active');
+  document.getElementById('shopIdBadge').textContent = shopState.shopId;
+  renderMenu();
+  renderShopProfile();
+  startOrderPolling();
+}
+
+function shopLogout() {
+  localStorage.removeItem(STORE_KEYS.LOGGED_SHOP);
+  shopState.shopId = null;
+  shopState.shopData = null;
+  location.reload();
+}
+
+// Check for existing session
+(function checkShopSession() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEYS.LOGGED_SHOP));
+    if (saved && saved.id) {
+      const shop = ShopRegistry.findShop(saved.id, saved.pw);
+      if (shop) {
+        shopState.shopId = shop.id;
+        shopState.shopData = shop;
+        enterShopDashboard();
+      }
+    }
+  } catch(e) {}
+})();
+
+// ═══ TAB NAV ═══
+function switchShopTab(id) {
+  document.querySelectorAll('#screenShopMain > .screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
+  const map = { tabMenu: 0, tabOrders: 1, tabLookup: 2, tabProfile: 3 };
+  if (map[id] !== undefined) document.querySelectorAll('.mobile-nav-item')[map[id]].classList.add('active');
+  if (id === 'tabMenu') renderMenu();
+  if (id === 'tabOrders') renderOrders();
+  if (id === 'tabProfile') renderShopProfile();
+}
+
+// ═══ MENU MANAGER ═══
+function showAddItemForm() { document.getElementById('addItemForm').classList.remove('hidden'); }
+function hideAddItemForm() {
+  document.getElementById('addItemForm').classList.add('hidden');
+  document.getElementById('newItemName').value = '';
+  document.getElementById('newItemPrice').value = '';
+}
+
+function addMenuItem() {
+  const name = document.getElementById('newItemName').value.trim();
+  const price = parseInt(document.getElementById('newItemPrice').value);
+  const cat = document.getElementById('newItemCat').value;
+  if (!name) { showToast('Enter item name'); return; }
+  if (!price || price <= 0) { showToast('Enter valid price'); return; }
+  const catInfo = ITEM_CATEGORIES.find(c => c.code === cat) || ITEM_CATEGORIES[0];
+  const item = MenuManager.addItem(shopState.shopId, {
+    name, price, category: cat, icon: catInfo.icon,
+  });
+  hideAddItemForm();
+  renderMenu();
+  showToast(`✅ Added: ${name} (${item.code})`);
+}
+
+function removeMenuItem(code) {
+  if (!confirm('Remove this item from your menu?')) return;
+  MenuManager.removeItem(shopState.shopId, code);
+  renderMenu();
+  showToast('Item removed');
+}
+
+function toggleMenuItem(code) {
+  const item = MenuManager.toggleItem(shopState.shopId, code);
+  renderMenu();
+  showToast(item.available ? `✅ ${item.name} is now available` : `❌ ${item.name} marked unavailable`);
+}
+
+function renderMenu() {
+  if (!shopState.shopId) return;
+  const menu = MenuManager.getMenu(shopState.shopId);
+  const list = document.getElementById('menuList');
+  const empty = document.getElementById('emptyMenu');
+
+  if (menu.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  list.innerHTML = menu.map(item => `
+    <div class="menu-editor-item ${item.available ? '' : 'item-off'}">
+      <div class="item-left">
+        <div class="item-icon">${item.icon || '📦'}</div>
+        <div class="item-details">
+          <h4>${item.name}</h4>
+          <span class="item-code-badge">Code: ${item.code}</span>
+        </div>
+      </div>
+      <div class="item-right">
+        <span class="item-price-tag">₹${item.price}</span>
+        <label class="toggle-switch" style="transform:scale(0.8);">
+          <input type="checkbox" ${item.available ? 'checked' : ''} onchange="toggleMenuItem('${item.code}')">
+          <span class="toggle-slider"></span>
+        </label>
+        <button class="btn btn-sm btn-secondary" style="padding:0.3rem 0.5rem;font-size:0.7rem;" onclick="removeMenuItem('${item.code}')">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ═══ INCOMING ORDERS ═══
+let orderPollTimer = null;
+
+function startOrderPolling() {
+  renderOrders();
+  orderPollTimer = setInterval(renderOrders, 3000);
+}
+
+function renderOrders() {
+  if (!shopState.shopId) return;
+  const orders = OrderStore.getActiveByShop(shopState.shopId);
+  const list = document.getElementById('ordersList');
+  const empty = document.getElementById('emptyOrders');
+  const detail = document.getElementById('orderDetailView');
+
+  // Update badge
+  const badge = document.getElementById('navOrderBadge');
+  const countEl = document.getElementById('activeOrderCount');
+  if (orders.length > 0) {
+    badge.textContent = orders.length;
+    badge.classList.remove('hidden');
+    countEl.textContent = `${orders.length} active`;
+  } else {
+    badge.classList.add('hidden');
+    countEl.textContent = '0 active';
+  }
+
+  // Don't overwrite if detail view is open
+  if (!detail.classList.contains('hidden')) return;
+
+  if (orders.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  list.innerHTML = orders.map((order, idx) => {
+    const elapsed = Math.floor((Date.now() - new Date(order.timestamp).getTime()) / 60000);
+    const menu = MenuManager.getMenu(shopState.shopId);
+    const itemsHtml = order.items.map(i => {
+      const mi = menu.find(m => m.code === i.code);
+      return `<span>${mi ? mi.name : i.code} ×${i.qty}</span>`;
+    }).join(' · ');
+    const total = order.items.reduce((s, i) => {
+      const mi = menu.find(m => m.code === i.code);
+      return s + (mi ? mi.price * i.qty : 0);
+    }, 0);
+
+    return `
+      <div class="order-detail-card order-active" onclick="openOrderDetail('${order.id}')" style="cursor:pointer;">
+        <div class="flex-between">
+          <div>
+            <span class="badge badge-food">${elapsed} min ago</span>
+            ${idx === 0 ? '<span class="badge" style="background:rgba(239,68,68,0.2);color:#F87171;margin-left:0.3rem;">NEWEST</span>' : ''}
+          </div>
+          <span class="text-xs text-muted">conf:${order.confidence}%</span>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:0.85rem;color:var(--accent-market);margin:0.5rem 0;">${order.blockCode}</div>
+        <div class="text-sm">${itemsHtml}</div>
+        <div class="text-sm" style="color:var(--accent-market);font-weight:700;margin-top:0.3rem;">Total: ₹${total}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openOrderDetail(orderId) {
+  const order = OrderStore.getAll().find(o => o.id === orderId);
+  if (!order) return;
+  shopState.activeOrderDetail = order;
+
+  document.getElementById('ordersList').classList.add('hidden');
+  document.getElementById('emptyOrders').classList.add('hidden');
+  document.getElementById('orderDetailView').classList.remove('hidden');
+
+  const menu = MenuManager.getMenu(shopState.shopId);
+  const itemsHtml = order.items.map(i => {
+    const mi = menu.find(m => m.code === i.code);
+    const name = mi ? mi.name : i.code;
+    const price = mi ? mi.price : 0;
+    return `<div class="order-item-line"><span>${name} ×${i.qty}</span><span>₹${price * i.qty}</span></div>`;
+  }).join('');
+  const total = order.items.reduce((s, i) => {
+    const mi = menu.find(m => m.code === i.code);
+    return s + (mi ? mi.price * i.qty : 0);
+  }, 0);
+  const elapsed = Math.floor((Date.now() - new Date(order.timestamp).getTime()) / 60000);
+
+  document.getElementById('orderDetailContent').innerHTML = `
+    <div class="order-detail-card order-active">
+      <div class="flex-between mb-1">
+        <span class="badge badge-food">${elapsed} min ago</span>
+        <span class="badge ${order.fulfilled ? 'badge-active' : 'badge-inactive'}">${order.fulfilled ? 'Fulfilled' : 'PENDING'}</span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:1.2rem;color:var(--accent-market);margin:0.75rem 0;text-align:center;">${order.blockCode}</div>
+      <div class="text-xs text-muted text-center">Location: ${order.lat ? order.lat.toFixed(5) + '°, ' + order.lng.toFixed(5) + '°' : 'Unknown'}</div>
+      <div style="margin-top:1rem;background:var(--bg-card);padding:0.75rem;border-radius:var(--radius-sm);">
+        <div class="text-xs text-muted mb-1" style="text-transform:uppercase;">ORDER ITEMS</div>
+        <div class="order-items-list">${itemsHtml}</div>
+        <div class="order-total-line"><span>TOTAL</span><span>₹${total}</span></div>
+      </div>
+      <div style="margin-top:1rem;background:rgba(16,185,129,0.08);padding:1rem;border-radius:var(--radius-sm);text-align:center;">
+        <div class="text-xs text-muted" style="letter-spacing:1px;">PACKET CODE</div>
+        <div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--accent-market);margin:0.3rem 0;word-break:break-all;">${order.packet}</div>
+      </div>
+      ${!order.fulfilled && !order.cancelledByUser ? `
+        <div style="margin-top:1rem;">
+          <button class="btn btn-full" style="background:var(--accent-market);color:#fff;margin-bottom:0.5rem;" onclick="acceptOrder('${order.id}')">✅ Accept & Prepare</button>
+          <div style="margin-top:1rem;text-align:center;">
+            <div class="text-xs text-muted mb-1" style="letter-spacing:1px;">ENTER PICKUP PIN TO FULFILL</div>
+            <input class="input" id="fulfillPin" placeholder="4-digit PIN from driver" style="text-align:center;font-family:var(--font-mono);font-size:1.4rem;letter-spacing:0.3em;max-width:200px;margin:0.5rem auto;display:block;" maxlength="4">
+            <button class="btn btn-success btn-full mt-1" onclick="fulfillOrder('${order.id}')">Mark as Fulfilled</button>
+          </div>
+          <button class="btn btn-secondary btn-full mt-1" onclick="declineOrder('${order.id}')">❌ Decline</button>
+        </div>
+      ` : `
+        <div style="margin-top:1rem;text-align:center;">
+          <div style="font-size:2rem;">✅</div>
+          <div class="text-sm" style="color:var(--success);">Order ${order.fulfilled ? 'Fulfilled' : 'Cancelled'}</div>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function closeOrderDetail() {
+  document.getElementById('orderDetailView').classList.add('hidden');
+  document.getElementById('ordersList').classList.remove('hidden');
+  shopState.activeOrderDetail = null;
+  renderOrders();
+}
+
+function acceptOrder(orderId) {
+  OrderStore.updateOrder(orderId, { acceptedAt: new Date().toISOString(), acceptedByShop: shopState.shopId });
+  showToast('✅ Order accepted! Preparing...');
+  openOrderDetail(orderId);
+}
+
+function fulfillOrder(orderId) {
+  const pinInput = document.getElementById('fulfillPin');
+  const pin = pinInput ? pinInput.value.trim() : '';
+  const order = OrderStore.getAll().find(o => o.id === orderId);
+  if (!order) return;
+  if (pin !== order.pickupPin) {
+    showToast('❌ Wrong PIN. Ask driver for correct 4-digit PIN.');
+    if (pinInput) pinInput.value = '';
+    return;
+  }
+  const elapsed = Math.floor((Date.now() - new Date(order.timestamp).getTime()) / 60000);
+  OrderStore.updateOrder(orderId, { fulfilled: true, fulfilledAt: new Date().toISOString(), fulfillTimeMin: elapsed });
+  showToast(`✅ Order fulfilled in ${elapsed} min!`);
+  closeOrderDetail();
+}
+
+function declineOrder(orderId) {
+  if (!confirm('Decline this order?')) return;
+  OrderStore.updateOrder(orderId, { cancelledByUser: true, declinedByShop: true });
+  showToast('Order declined');
+  closeOrderDetail();
+}
+
+// ═══ LOOKUP ORDER CODE ═══
+function lookupOrderCode() {
+  const input = document.getElementById('lookupInput').value.trim();
+  if (!input) { showToast('Paste an order code'); return; }
+  const result = OrderPacket.decode(input);
+  const resultDiv = document.getElementById('lookupResult');
+
+  if (!result.valid) {
+    resultDiv.innerHTML = `<div class="card" style="border-color:var(--danger);"><div class="text-danger">❌ ${result.error}</div></div>`;
+    resultDiv.classList.remove('hidden');
+    return;
+  }
+
+  const menu = MenuManager.getMenu(shopState.shopId);
+  const itemsHtml = result.items.map(i => {
+    const mi = menu.find(m => m.code === i.code);
+    const name = mi ? mi.name : `Item ${i.code}`;
+    const price = mi ? mi.price : 0;
+    return `<div class="order-item-line"><span>${name} ×${i.qty}</span><span>₹${price * i.qty}</span></div>`;
+  }).join('');
+  const total = result.items.reduce((s, i) => {
+    const mi = menu.find(m => m.code === i.code);
+    return s + (mi ? mi.price * i.qty : 0);
+  }, 0);
+
+  resultDiv.innerHTML = `
+    <div class="card" style="border-color:var(--accent-market);">
+      <div class="text-xs text-muted mb-1">DECODED ORDER</div>
+      <div style="font-family:var(--font-mono);font-size:1rem;color:var(--accent-market);margin:0.5rem 0;">${result.blockCode}</div>
+      <div class="text-xs text-muted">Time: ${result.time} · Confidence: ${result.confidence}%</div>
+      <div style="margin-top:0.75rem;background:var(--bg-card);padding:0.75rem;border-radius:var(--radius-sm);">
+        <div class="order-items-list">${itemsHtml}</div>
+        <div class="order-total-line"><span>TOTAL</span><span>₹${total}</span></div>
+      </div>
+      <button class="btn btn-full mt-2" style="background:var(--accent-market);color:#fff;" onclick="acceptLookupOrder()">✅ Accept & Prepare</button>
+    </div>
+  `;
+  resultDiv.classList.remove('hidden');
+}
+
+function acceptLookupOrder() {
+  showToast('✅ Order accepted from SMS lookup!');
+}
+
+// ═══ SHOP PROFILE ═══
+function renderShopProfile() {
+  if (!shopState.shopData) return;
+  const s = shopState.shopData;
+  const cat = SHOP_CATEGORIES.find(c => c.code === (s.category?.code || s.categoryCode)) || SHOP_CATEGORIES[0];
+  document.getElementById('profileIcon').textContent = cat.icon;
+  document.getElementById('profileName').textContent = s.name;
+  document.getElementById('profileCat').textContent = `${cat.icon} ${cat.label}`;
+  document.getElementById('profileId').textContent = s.id;
+  document.getElementById('profilePhone').textContent = s.phone || '---';
+  document.getElementById('profileGps').textContent = s.gps || '---';
+  document.getElementById('profileHours').textContent = s.hours || '6:00 AM - 10:00 PM';
+  document.getElementById('shopOpenToggle').checked = s.status === 'Active';
+  document.getElementById('profileStatusBadge').className = 'badge ' + (s.status === 'Active' ? 'badge-active' : 'badge-inactive');
+  document.getElementById('profileStatusBadge').textContent = s.status || 'Active';
+
+  // Stats
+  const orders = OrderStore.getByShop(shopState.shopId);
+  document.getElementById('statTotalOrders').textContent = orders.length;
+  document.getElementById('statFulfilledOrders').textContent = orders.filter(o => o.fulfilled).length;
+  document.getElementById('statMenuItems').textContent = MenuManager.getMenu(shopState.shopId).length;
+}
+
+function toggleShopOpen() {
+  const isOpen = document.getElementById('shopOpenToggle').checked;
+  ShopRegistry.updateShop(shopState.shopId, { status: isOpen ? 'Active' : 'Inactive' });
+  shopState.shopData.status = isOpen ? 'Active' : 'Inactive';
+  renderShopProfile();
+  showToast(isOpen ? '✅ Shop is now OPEN' : '❌ Shop is now CLOSED');
+}
+
+// ═══ TOAST ═══
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+</script>
+</body>
+</html>

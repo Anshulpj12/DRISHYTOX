@@ -20,6 +20,13 @@ const STORE_KEYS = {
   BATCH_BUFFER: 'apara_batch_buffer',
   BATCH_META: 'apara_batch_meta',
   CONFIG_VERSION: 'apara_config_version',
+  // ═══ MARKETPLACE KEYS ═══
+  SHOPS: 'apara_shops',
+  MENU_PREFIX: 'apara_menu_',
+  ORDERS: 'apara_orders',
+  ACTIVE_ORDER: 'apara_active_order',
+  LOGGED_SHOP: 'apara_logged_shop',
+  ORDER_BATCH_BUFFER: 'apara_order_batch',
 };
 
 const EMERGENCY_TYPES = [
@@ -1516,6 +1523,335 @@ const ConfigPush = {
   dismissChanges() { this._pendingChanges = null; },
   onChange(fn) { this._listeners.push(fn); },
   _notify(changes) { this._listeners.forEach(fn => fn(changes)); },
+};
+
+// ═══════════ MARKETPLACE — Shop, Menu & Order System ═══════════
+
+const SHOP_CATEGORIES = [
+  { code: 'FOOD', label: 'Restaurant / Dhaba', icon: '🍛' },
+  { code: 'STLL', label: 'Food Stall', icon: '🍢' },
+  { code: 'CAFE', label: 'Café / Tea Stall', icon: '☕' },
+  { code: 'BAKE', label: 'Bakery / Snacks', icon: '🥐' },
+  { code: 'GROC', label: 'General Store', icon: '🛒' },
+  { code: 'FUEL', label: 'Fuel Station', icon: '⛽' },
+  { code: 'MECH', label: 'Mechanic', icon: '🔧' },
+  { code: 'PHAR', label: 'Pharmacy', icon: '💊' },
+];
+
+const ITEM_CATEGORIES = [
+  { code: 'FOOD', label: 'Food', icon: '🍛' },
+  { code: 'DRNK', label: 'Drink', icon: '🧃' },
+  { code: 'SNCK', label: 'Snack', icon: '🍿' },
+  { code: 'SRVS', label: 'Service', icon: '🔧' },
+  { code: 'OTHR', label: 'Other', icon: '📦' },
+];
+
+// ═══ Shop Registry — CRUD for shops/restaurants/stalls ═══
+const ShopRegistry = {
+  getShops() { return Store.get(STORE_KEYS.SHOPS); },
+
+  saveShop(shop) {
+    const list = this.getShops();
+    list.push(shop);
+    Store.set(STORE_KEYS.SHOPS, list);
+    // Bump config version so zones refresh
+    ConfigPush.bumpVersion({ type: 'shop_added', shopId: shop.id });
+  },
+
+  updateShop(id, updates) {
+    const list = this.getShops();
+    const idx = list.findIndex(s => s.id === id);
+    if (idx >= 0) {
+      Object.assign(list[idx], updates);
+      Store.set(STORE_KEYS.SHOPS, list);
+    }
+  },
+
+  deleteShop(id) {
+    const list = this.getShops().filter(s => s.id !== id);
+    Store.set(STORE_KEYS.SHOPS, list);
+    // Also remove menu
+    localStorage.removeItem(STORE_KEYS.MENU_PREFIX + id);
+    ConfigPush.bumpVersion({ type: 'shop_deleted', shopId: id });
+  },
+
+  findShop(id, password) {
+    return this.getShops().find(s => s.id === id && s.password === password);
+  },
+
+  getShopById(id) {
+    return this.getShops().find(s => s.id === id) || null;
+  },
+
+  getShopsByBlock(blockId) {
+    return this.getShops().filter(s => {
+      if (!s.gps) return false;
+      const parts = s.gps.split(',').map(x => parseFloat(x.trim()));
+      if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return false;
+      const shopBlockId = BlockRegistry.getBlockId(parts[0], parts[1]);
+      return shopBlockId === blockId;
+    });
+  },
+
+  getNearbyShops(lat, lng, radiusM) {
+    radiusM = radiusM || 5000; // default 5km
+    return this.getShops()
+      .filter(s => s.status === 'Active' && s.gps)
+      .map(s => {
+        const parts = s.gps.split(',').map(x => parseFloat(x.trim()));
+        if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+        const dist = Utils.haversine(lat, lng, parts[0], parts[1]);
+        if (dist > radiusM) return null;
+        return { ...s, distance: dist, shopLat: parts[0], shopLng: parts[1] };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.distance - b.distance);
+  },
+
+  getShopCount() { return this.getShops().length; },
+
+  generateShopId(categoryCode) {
+    const existing = this.getShops().filter(s => s.id.startsWith(`SHOP-${categoryCode}-`));
+    const num = existing.length + 1;
+    return `SHOP-${categoryCode}-${String(num).padStart(6, '0')}`;
+  },
+
+  generatePassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let pw = '';
+    for (let i = 0; i < 8; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+    return pw;
+  },
+};
+
+// ═══ Menu Manager — Per-shop item management ═══
+const MenuManager = {
+  getMenu(shopId) {
+    try {
+      return JSON.parse(localStorage.getItem(STORE_KEYS.MENU_PREFIX + shopId)) || [];
+    } catch { return []; }
+  },
+
+  saveMenu(shopId, items) {
+    localStorage.setItem(STORE_KEYS.MENU_PREFIX + shopId, JSON.stringify(items));
+  },
+
+  addItem(shopId, item) {
+    const menu = this.getMenu(shopId);
+    if (!item.code) item.code = this.generateItemCode(item.name, menu);
+    item.available = item.available !== false;
+    item.addedAt = new Date().toISOString();
+    menu.push(item);
+    this.saveMenu(shopId, menu);
+    return item;
+  },
+
+  removeItem(shopId, code) {
+    const menu = this.getMenu(shopId).filter(i => i.code !== code);
+    this.saveMenu(shopId, menu);
+  },
+
+  toggleItem(shopId, code) {
+    const menu = this.getMenu(shopId);
+    const item = menu.find(i => i.code === code);
+    if (item) {
+      item.available = !item.available;
+      this.saveMenu(shopId, menu);
+    }
+    return item;
+  },
+
+  updateItem(shopId, code, updates) {
+    const menu = this.getMenu(shopId);
+    const item = menu.find(i => i.code === code);
+    if (item) {
+      Object.assign(item, updates);
+      this.saveMenu(shopId, menu);
+    }
+  },
+
+  getAvailableItems(shopId) {
+    return this.getMenu(shopId).filter(i => i.available);
+  },
+
+  // Generate unique 2-char item code from name
+  generateItemCode(name, existingMenu) {
+    existingMenu = existingMenu || [];
+    const existingCodes = new Set(existingMenu.map(i => i.code));
+    // Try first 2 consonants uppercase
+    const clean = name.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    const consonants = clean.replace(/[AEIOU]/g, '');
+    let code = consonants.length >= 2 ? consonants.slice(0, 2) : clean.slice(0, 2);
+    if (!existingCodes.has(code) && code.length === 2) return code;
+    // Try first letter + last letter
+    code = clean[0] + clean[clean.length - 1];
+    if (!existingCodes.has(code) && code.length === 2) return code;
+    // Generate sequential: A1, A2, ... Z9
+    for (let c = 65; c <= 90; c++) {
+      for (let n = 1; n <= 9; n++) {
+        code = String.fromCharCode(c) + n;
+        if (!existingCodes.has(code)) return code;
+      }
+    }
+    return 'XX';
+  },
+
+  getItemByCode(shopId, code) {
+    return this.getMenu(shopId).find(i => i.code === code) || null;
+  },
+};
+
+// ═══ Order Packet — Build & Decode compressed order codes ═══
+const OrderPacket = {
+  // Build an order packet from cart items
+  // items: [{ code: 'BG', qty: 2 }, { code: 'TH', qty: 1 }]
+  build(blockCode, shopId, items, confidence, lat, lng) {
+    const now = new Date();
+    const time = now.toLocaleTimeString('en-IN', { hour12: false });
+    // Encode items as CODE+QTY pairs: "BG2TH1CD1"
+    const itemStr = items.map(i => `${i.code}${i.qty}`).join('');
+    const packet = `${blockCode}|${itemStr}|${time}|conf:${confidence}`;
+    return {
+      id: `ORD-${Date.now()}`,
+      packet,
+      blockCode,
+      shopId,
+      items: items.map(i => ({ ...i })),
+      confidence,
+      lat, lng,
+      timestamp: now.toISOString(),
+      timeStr: time,
+      itemStr,
+      transmission: NetworkDetector.isOnline()
+        ? TRANSMISSION_METHODS.find(t => t.code === 'Data')
+        : TRANSMISSION_METHODS.find(t => t.code === 'SMS'),
+      fulfilled: false,
+      cancelledByUser: false,
+      fulfilledAt: null,
+      pickupPin: Math.floor(1000 + Math.random() * 9000).toString(),
+    };
+  },
+
+  // Decode a packet string back to structured data
+  decode(packetStr) {
+    if (!packetStr) return { valid: false, error: 'Empty packet' };
+    const parts = packetStr.split('|');
+    if (parts.length < 3) return { valid: false, error: 'Invalid format' };
+
+    const blockCode = parts[0];
+    const itemStr = parts[1];
+    const time = parts[2];
+    const confStr = parts[3] || '';
+    const confidence = parseInt(confStr.replace('conf:', '')) || 0;
+
+    // Parse items: "BG2TH1CD1" → [{code:'BG', qty:2}, ...]
+    const items = [];
+    const regex = /([A-Z][A-Z0-9])(\d)/g;
+    let match;
+    while ((match = regex.exec(itemStr)) !== null) {
+      items.push({ code: match[1], qty: parseInt(match[2]) });
+    }
+
+    return {
+      valid: true,
+      blockCode,
+      items,
+      itemStr,
+      time,
+      confidence,
+    };
+  },
+
+  // Encode to compact 8-char code (like SOS block code but for orders)
+  // Format: LOCATION(5) + ITEM_HASH(2) + CHECKSUM(1)
+  encodeCompact(lat, lng, items) {
+    const grid = BlockRegistry.getGridCell(lat, lng);
+    const relRow = Math.max(0, grid.gridRow - INDIA_ROW_BASE);
+    const relCol = Math.max(0, grid.gridCol - INDIA_COL_BASE);
+    const rowCode = BlockCodeEncoder._toBase36(relRow, 3);
+    const colCode = BlockCodeEncoder._toBase36(relCol, 2);
+    // Item hash: sum of item codes * qty mod 36^2
+    let itemHash = 0;
+    items.forEach(i => {
+      const c1 = BASE36.indexOf(i.code[0].toUpperCase()) || 0;
+      const c2 = BASE36.indexOf(i.code[1].toUpperCase()) || 0;
+      itemHash = (itemHash + (c1 * 36 + c2) * i.qty) % 1296;
+    });
+    const itemCode = BlockCodeEncoder._toBase36(itemHash, 2);
+    const body = rowCode + colCode + itemCode;
+    return body + BlockCodeEncoder._checksum(body);
+  },
+
+  // Decode compact 8-char order code
+  decodeCompact(code) {
+    if (!code || code.length < 8) return { valid: false, error: 'Code must be 8 characters' };
+    code = code.toUpperCase().replace(/[^0-9A-Z]/g, '');
+    if (code.length !== 8) return { valid: false, error: 'Invalid characters' };
+
+    const body = code.substring(0, 7);
+    const checkChar = code[7];
+    if (BlockCodeEncoder._checksum(body) !== checkChar) {
+      return { valid: false, error: 'Invalid checksum — check for typos' };
+    }
+
+    const rowCode = code.substring(0, 3);
+    const colCode = code.substring(3, 5);
+    const relRow = BlockCodeEncoder._fromBase36(rowCode);
+    const relCol = BlockCodeEncoder._fromBase36(colCode);
+    const gridRow = relRow + INDIA_ROW_BASE;
+    const gridCol = relCol + INDIA_COL_BASE;
+    const center = BlockRegistry.getCellCenter(gridRow, gridCol);
+
+    return {
+      valid: true,
+      lat: center.lat,
+      lng: center.lng,
+      gridRow, gridCol,
+      blockId: `BLK-${gridRow}-${gridCol}`,
+      fullCode: code,
+    };
+  },
+};
+
+// ═══ Order Store — CRUD for orders ═══
+const OrderStore = {
+  getAll() { return Store.get(STORE_KEYS.ORDERS); },
+
+  saveOrder(order) {
+    const list = this.getAll();
+    list.unshift(order);
+    Store.set(STORE_KEYS.ORDERS, list);
+  },
+
+  updateOrder(id, updates) {
+    const list = this.getAll();
+    const idx = list.findIndex(o => o.id === id);
+    if (idx >= 0) {
+      Object.assign(list[idx], updates);
+      Store.set(STORE_KEYS.ORDERS, list);
+    }
+  },
+
+  getByShop(shopId) {
+    return this.getAll().filter(o => o.shopId === shopId);
+  },
+
+  getActiveByShop(shopId) {
+    return this.getByShop(shopId).filter(o => !o.fulfilled && !o.cancelledByUser);
+  },
+
+  getStats() {
+    const all = this.getAll();
+    const now = new Date();
+    const today = now.toDateString();
+    return {
+      total: all.length,
+      today: all.filter(o => new Date(o.timestamp).toDateString() === today).length,
+      fulfilled: all.filter(o => o.fulfilled).length,
+      cancelled: all.filter(o => o.cancelledByUser).length,
+      active: all.filter(o => !o.fulfilled && !o.cancelledByUser).length,
+    };
+  },
 };
 
 // Init network detector

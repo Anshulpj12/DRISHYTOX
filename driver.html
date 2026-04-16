@@ -165,6 +165,26 @@
           </div>
         </div>
 
+        <!-- Active Order Banner (shown when order is active) -->
+        <div id="orderBanner" class="order-banner hidden">
+          <h4>🍽️ ACTIVE ORDER</h4>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div class="text-xs text-muted">ORDER CODE</div>
+              <div style="font-family:var(--font-mono);font-size:0.85rem;color:var(--accent-market);word-break:break-all;" id="bannerOrderCode">---</div>
+            </div>
+            <div style="text-align:right;">
+              <div class="text-xs text-muted">PICKUP PIN</div>
+              <div style="font-family:var(--font-mono);font-size:1.8rem;font-weight:700;color:var(--accent-market);letter-spacing:0.2em;" id="bannerOrderPin">----</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
+            <a id="bannerOrderSms" href="#" class="btn btn-sm" style="flex:1;font-size:0.75rem;padding:0.5rem;background:var(--accent-market);color:#fff;text-align:center;text-decoration:none;">📱 SMS</a>
+            <button class="btn btn-secondary btn-sm" style="flex:1;font-size:0.75rem;padding:0.5rem;" onclick="copyOrderCode()">📋 Copy</button>
+            <button class="btn btn-danger btn-sm" style="flex:1;font-size:0.75rem;padding:0.5rem;" onclick="cancelActiveOrder()">❌ Cancel</button>
+          </div>
+        </div>
+
         <div class="gps-hero">
           <div class="gps-coords" id="gpsCoords">Waiting for GPS...</div>
           <div class="block-main online" id="blockCode">---</div>
@@ -265,6 +285,78 @@
       </div>
     </div>
 
+    <!-- Sub-screen: Marketplace -->
+    <div class="screen" id="screenMarketplace">
+      <div class="header-bar"><h1>🍽️ Marketplace</h1><span class="text-xs text-muted" id="mktBlockLabel">📍 ---</span></div>
+      <div class="screen-pad">
+        <!-- Category Filters -->
+        <div class="cat-filter-tabs" id="mktCatTabs">
+          <div class="cat-tab active" onclick="filterShops('ALL')">All</div>
+          <div class="cat-tab" onclick="filterShops('FOOD')">🍛 Food</div>
+          <div class="cat-tab" onclick="filterShops('STLL')">🍢 Stalls</div>
+          <div class="cat-tab" onclick="filterShops('CAFE')">☕ Café</div>
+          <div class="cat-tab" onclick="filterShops('BAKE')">🥐 Bakery</div>
+          <div class="cat-tab" onclick="filterShops('GROC')">🛒 General</div>
+        </div>
+        <!-- Shop List -->
+        <div id="mktShopList"></div>
+        <div id="mktEmpty" class="text-center text-muted" style="padding:2rem;">
+          <div style="font-size:2rem;margin-bottom:0.5rem;">🏪</div>
+          <p>No shops found nearby. Shops registered by admin will appear here.</p>
+        </div>
+
+        <!-- Shop Detail + Menu (hidden by default) -->
+        <div id="mktShopDetail" class="hidden">
+          <button class="btn btn-sm btn-secondary mb-2" onclick="closeMktShopDetail()">← Back to Shops</button>
+          <div id="mktShopDetailContent"></div>
+          <div id="mktMenuItems"></div>
+        </div>
+
+        <!-- Cart Bar (shown when items in cart) -->
+        <div id="mktCartBar" class="cart-bar hidden" onclick="openMktCart()">
+          <span class="cart-count">🛒 <span id="cartItemCount">0</span> items</span>
+          <span class="cart-total">₹<span id="cartTotalAmount">0</span> →</span>
+        </div>
+
+        <!-- Order Confirm Screen (hidden) -->
+        <div id="mktOrderConfirm" class="hidden">
+          <button class="btn btn-sm btn-secondary mb-2" onclick="closeMktOrderConfirm()">← Back</button>
+          <h3 style="margin-bottom:1rem;">Confirm Order</h3>
+          <div class="card mb-2">
+            <div class="text-xs text-muted mb-1" style="text-transform:uppercase;">Order Summary</div>
+            <div id="mktOrderSummary"></div>
+          </div>
+          <div class="packet-display mb-2" id="mktOrderPacket" style="text-align:center;color:var(--accent-market);"></div>
+          <div class="text-xs text-muted text-center mb-2">Packet size: <span id="mktPacketSize">--</span> bytes · Sending via: <span id="mktTxMethod" class="badge badge-data">Data</span></div>
+          <button class="hold-btn btn-order" id="orderHoldBtn" onmousedown="startOrderHold()" onmouseup="cancelOrderHold()" ontouchstart="startOrderHold()" ontouchend="cancelOrderHold()">
+            <span class="fill" id="orderHoldFill"></span>
+            HOLD 2 SECONDS TO PLACE ORDER
+          </button>
+        </div>
+
+        <!-- Order Confirmed (hidden) -->
+        <div id="mktOrderDone" class="hidden">
+          <div class="provider-confirm" style="border-color:var(--accent-market);">
+            <div class="check" style="color:var(--accent-market);">✅</div>
+            <h3 style="color:var(--accent-market);" id="mktConfirmShopName">---</h3>
+            <div class="text-sm text-muted" id="mktConfirmShopCat">---</div>
+            <div style="margin-top:1rem;background:rgba(255,255,255,0.05);padding:1rem;border-radius:var(--radius-sm);">
+              <div class="text-xs text-muted mb-1" style="letter-spacing:1px;">PICKUP PIN (GIVE TO SHOP)</div>
+              <div style="font-family:var(--font-mono);font-size:2.5rem;font-weight:700;letter-spacing:0.3em;color:var(--accent-market);" id="mktPickupPin">----</div>
+            </div>
+            <div style="margin-top:1rem;background:rgba(16,185,129,0.08);padding:1rem;border-radius:var(--radius-sm);border:1px solid rgba(16,185,129,0.2);">
+              <div class="text-xs text-muted mb-1" style="letter-spacing:1px;">ORDER CODE (SEND TO SHOP)</div>
+              <div style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--accent-market);word-break:break-all;" id="mktOrderCodeDisplay">---</div>
+            </div>
+          </div>
+          <a id="mktSmsLink" href="#" class="btn btn-full mt-2" style="display:block;text-align:center;text-decoration:none;background:var(--accent-market);color:#fff;">📱 Send Order via SMS</a>
+          <button class="btn btn-secondary btn-full mt-1" onclick="copyOrderCode()">📋 Copy Order Code</button>
+          <button class="btn btn-danger btn-full mt-1" onclick="cancelActiveOrder()">❌ Cancel Order</button>
+          <button class="btn btn-secondary btn-full mt-1" onclick="closeMktOrderDone()">Back to Home</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Sub-screen: V2V Relay -->
     <div class="screen" id="screenV2V">
       <div class="header-bar"><h1>📡 V2V Relay</h1></div>
@@ -347,6 +439,7 @@
     <!-- Bottom Nav -->
     <nav class="mobile-nav">
       <div class="mobile-nav-item active" onclick="switchScreen('screenHome')"><span class="nav-icon">🏠</span>Home</div>
+      <div class="mobile-nav-item" onclick="switchScreen('screenMarketplace')"><span class="nav-icon">🍽️</span>Market</div>
       <div class="mobile-nav-item" onclick="switchScreen('screenHistory')"><span class="nav-icon">📊</span>History</div>
       <div class="mobile-nav-item" onclick="switchScreen('screenV2V')"><span class="nav-icon">📡</span>V2V</div>
       <div class="mobile-nav-item" onclick="switchScreen('screenSettings')"><span class="nav-icon">⚙️</span>Settings</div>
@@ -435,13 +528,15 @@ function switchScreen(id) {
   document.querySelectorAll('#screenMainApp > .screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
-  const map = { screenHome: 0, screenHistory: 1, screenV2V: 2, screenSettings: 3 };
+  const map = { screenHome: 0, screenMarketplace: 1, screenHistory: 2, screenV2V: 3, screenSettings: 4 };
   if (map[id] !== undefined) document.querySelectorAll('.mobile-nav-item')[map[id]].classList.add('active');
   if (id === 'screenHistory') renderCrossings();
   if (id === 'screenV2V') renderRelays();
   if (id === 'screenSettings') renderSettings();
+  if (id === 'screenMarketplace') refreshMarketplace();
   if (id === 'screenHome') {
-    updateSOSBanner(); // Always update SOS banner when coming to home
+    updateSOSBanner();
+    updateOrderBanner();
     if (state.map) setTimeout(() => state.map.invalidateSize(), 100);
   }
 }
@@ -1196,6 +1291,7 @@ function init() {
   document.getElementById('crossingCount').textContent = BlockRegistry.getBlockCount();
   document.getElementById('relaysLifetime').textContent = Store.getV2VRelays().length;
   updateSOSBanner();
+  updateOrderBanner();
 
   // Init config push for returning sessions
   if (state.driverId) {
@@ -1210,6 +1306,346 @@ function init() {
     navigator.permissions.query({ name: 'geolocation' }).then(result => {
       if (result.state === 'granted' && state.driverId) requestGPS();
     });
+  }
+}
+
+// ═══ MARKETPLACE ═══
+let mktState = {
+  cart: [],          // [{ code, name, price, qty, shopId }]
+  selectedShopId: null,
+  selectedShop: null,
+  filterCat: 'ALL',
+  activeOrder: null,
+  orderHoldTimer: null,
+  orderHoldStarted: false,
+};
+
+function refreshMarketplace() {
+  // Update block label
+  const blockLabel = document.getElementById('mktBlockLabel');
+  if (state.currentBlockId) blockLabel.textContent = '📍 ' + state.currentBlockId;
+  loadNearbyShops();
+}
+
+function loadNearbyShops() {
+  const pos = state.lastKnownPos;
+  let shops = [];
+  if (pos) {
+    shops = ShopRegistry.getNearbyShops(pos.lat, pos.lng, 10000); // 10km radius
+  } else {
+    shops = ShopRegistry.getShops().filter(s => s.status === 'Active');
+  }
+
+  if (mktState.filterCat !== 'ALL') {
+    shops = shops.filter(s => {
+      const catCode = s.category?.code || s.categoryCode || '';
+      return catCode === mktState.filterCat;
+    });
+  }
+
+  const list = document.getElementById('mktShopList');
+  const empty = document.getElementById('mktEmpty');
+  const detail = document.getElementById('mktShopDetail');
+  const confirmDiv = document.getElementById('mktOrderConfirm');
+  const doneDiv = document.getElementById('mktOrderDone');
+
+  // Don't render if detail/confirm/done is open
+  if (!detail.classList.contains('hidden') || !confirmDiv.classList.contains('hidden') || !doneDiv.classList.contains('hidden')) return;
+
+  if (shops.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  list.innerHTML = shops.map(shop => {
+    const cat = SHOP_CATEGORIES.find(c => c.code === (shop.category?.code || shop.categoryCode)) || SHOP_CATEGORIES[0];
+    const distStr = shop.distance ? (shop.distance / 1000).toFixed(1) + ' km' : '---';
+    const menu = MenuManager.getAvailableItems(shop.id);
+    const itemPills = menu.slice(0, 5).map(i => `<span class="item-pill">✅ ${i.name}</span>`).join('');
+    return `
+      <div class="shop-card" onclick="openMktShopDetail('${shop.id}')">
+        <div class="shop-header">
+          <div class="shop-name">${cat.icon} ${shop.name}</div>
+          <div class="shop-dist">${distStr}</div>
+        </div>
+        <div class="shop-meta">${cat.label} · ${shop.hours || 'Open'} · ${menu.length} items available</div>
+        <div class="shop-items">${itemPills || '<span class="text-xs text-muted">No items listed</span>'}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterShops(cat) {
+  mktState.filterCat = cat;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  loadNearbyShops();
+}
+
+function openMktShopDetail(shopId) {
+  const shop = ShopRegistry.getShopById(shopId);
+  if (!shop) return;
+  mktState.selectedShopId = shopId;
+  mktState.selectedShop = shop;
+  mktState.cart = [];
+
+  document.getElementById('mktShopList').classList.add('hidden');
+  document.getElementById('mktEmpty').classList.add('hidden');
+  document.getElementById('mktShopDetail').classList.remove('hidden');
+
+  const cat = SHOP_CATEGORIES.find(c => c.code === (shop.category?.code || shop.categoryCode)) || SHOP_CATEGORIES[0];
+  const pos = state.lastKnownPos;
+  let distStr = '---';
+  if (pos && shop.gps) {
+    const parts = shop.gps.split(',').map(x => parseFloat(x.trim()));
+    if (parts.length === 2) distStr = (Utils.haversine(pos.lat, pos.lng, parts[0], parts[1]) / 1000).toFixed(1) + ' km';
+  }
+
+  document.getElementById('mktShopDetailContent').innerHTML = `
+    <div class="card mb-2">
+      <div class="flex-between">
+        <div>
+          <div style="font-size:1.2rem;font-weight:700;">${cat.icon} ${shop.name}</div>
+          <div class="text-sm text-muted">${cat.label} · ${shop.hours || 'Open'}</div>
+        </div>
+        <div class="text-right">
+          <div style="font-family:var(--font-mono);font-size:1rem;color:var(--accent-market);">${distStr}</div>
+          <div class="text-xs text-muted">${shop.phone || ''}</div>
+        </div>
+      </div>
+    </div>
+    <h4 style="font-size:0.9rem;margin-bottom:0.5rem;">Menu</h4>
+  `;
+
+  renderMktMenu(shopId);
+}
+
+function renderMktMenu(shopId) {
+  const items = MenuManager.getAvailableItems(shopId);
+  const container = document.getElementById('mktMenuItems');
+  if (items.length === 0) {
+    container.innerHTML = '<div class="text-center text-muted" style="padding:1rem;">No items available right now.</div>';
+    return;
+  }
+
+  container.innerHTML = items.map(item => {
+    const cartItem = mktState.cart.find(c => c.code === item.code);
+    const qty = cartItem ? cartItem.qty : 0;
+    return `
+      <div class="menu-item-row">
+        <div class="menu-item-info">
+          <div class="menu-item-name">${item.icon || '📦'} ${item.name}</div>
+          <div class="menu-item-code">${item.code}</div>
+        </div>
+        <div class="menu-item-price">₹${item.price}</div>
+        <div class="menu-item-actions">
+          ${qty > 0 ? `
+            <div class="qty-selector">
+              <button class="qty-btn" onclick="mktChangeQty('${item.code}', -1)">−</button>
+              <span class="qty-val">${qty}</span>
+              <button class="qty-btn" onclick="mktChangeQty('${item.code}', 1)">+</button>
+            </div>
+          ` : `
+            <button class="btn btn-sm" style="background:var(--accent-market);color:#fff;font-size:0.75rem;" onclick="mktAddToCart('${item.code}')">+ Add</button>
+          `}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateCartBar();
+}
+
+function mktAddToCart(itemCode) {
+  const item = MenuManager.getItemByCode(mktState.selectedShopId, itemCode);
+  if (!item) return;
+  const existing = mktState.cart.find(c => c.code === itemCode);
+  if (existing) {
+    existing.qty++;
+  } else {
+    mktState.cart.push({ code: item.code, name: item.name, price: item.price, qty: 1, shopId: mktState.selectedShopId });
+  }
+  renderMktMenu(mktState.selectedShopId);
+}
+
+function mktChangeQty(itemCode, delta) {
+  const idx = mktState.cart.findIndex(c => c.code === itemCode);
+  if (idx < 0) return;
+  mktState.cart[idx].qty += delta;
+  if (mktState.cart[idx].qty <= 0) mktState.cart.splice(idx, 1);
+  renderMktMenu(mktState.selectedShopId);
+}
+
+function updateCartBar() {
+  const bar = document.getElementById('mktCartBar');
+  if (mktState.cart.length === 0) {
+    bar.classList.add('hidden');
+    return;
+  }
+  bar.classList.remove('hidden');
+  const totalItems = mktState.cart.reduce((s, i) => s + i.qty, 0);
+  const totalPrice = mktState.cart.reduce((s, i) => s + i.price * i.qty, 0);
+  document.getElementById('cartItemCount').textContent = totalItems;
+  document.getElementById('cartTotalAmount').textContent = totalPrice;
+}
+
+function closeMktShopDetail() {
+  document.getElementById('mktShopDetail').classList.add('hidden');
+  document.getElementById('mktCartBar').classList.add('hidden');
+  document.getElementById('mktShopList').classList.remove('hidden');
+  mktState.cart = [];
+  mktState.selectedShopId = null;
+  loadNearbyShops();
+}
+
+function openMktCart() {
+  if (mktState.cart.length === 0) return;
+
+  document.getElementById('mktShopDetail').classList.add('hidden');
+  document.getElementById('mktShopList').classList.add('hidden');
+  document.getElementById('mktCartBar').classList.add('hidden');
+  document.getElementById('mktEmpty').classList.add('hidden');
+  document.getElementById('mktOrderConfirm').classList.remove('hidden');
+
+  const itemsHtml = mktState.cart.map(i =>
+    `<div class="order-item-line"><span>${i.name} ×${i.qty}</span><span>₹${i.price * i.qty}</span></div>`
+  ).join('');
+  const total = mktState.cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  document.getElementById('mktOrderSummary').innerHTML = `
+    <div class="order-items-list">${itemsHtml}</div>
+    <div class="order-total-line"><span>TOTAL</span><span>₹${total}</span></div>
+  `;
+
+  // Build packet preview
+  const pos = state.lastKnownPos || { lat: 20.5937, lng: 78.9629 };
+  const block = state.currentBlock || BlockResolver.resolve(pos.lat, pos.lng);
+  const blockCode = state.currentBlockId || block.blockCode;
+  const conf = block.confidence || 70;
+  const orderItems = mktState.cart.map(i => ({ code: i.code, qty: i.qty }));
+  const packet = OrderPacket.build(blockCode, mktState.selectedShopId, orderItems, conf, pos.lat, pos.lng);
+
+  document.getElementById('mktOrderPacket').textContent = packet.packet;
+  document.getElementById('mktPacketSize').textContent = packet.packet.length;
+  const txEl = document.getElementById('mktTxMethod');
+  txEl.textContent = packet.transmission.code;
+  txEl.className = 'badge ' + packet.transmission.badge;
+
+  mktState.pendingOrder = packet;
+}
+
+function closeMktOrderConfirm() {
+  document.getElementById('mktOrderConfirm').classList.add('hidden');
+  document.getElementById('mktShopDetail').classList.remove('hidden');
+  document.getElementById('mktCartBar').classList.remove('hidden');
+}
+
+function startOrderHold() {
+  mktState.orderHoldStarted = true;
+  document.getElementById('orderHoldFill').style.width = '100%';
+  mktState.orderHoldTimer = setTimeout(() => { if (!mktState.orderHoldStarted) return; placeOrder(); }, 2000);
+}
+
+function cancelOrderHold() {
+  mktState.orderHoldStarted = false;
+  clearTimeout(mktState.orderHoldTimer);
+  document.getElementById('orderHoldFill').style.width = '0';
+  document.getElementById('orderHoldFill').style.transition = 'none';
+  setTimeout(() => { document.getElementById('orderHoldFill').style.transition = 'width 2s linear'; }, 50);
+}
+
+function placeOrder() {
+  if (!mktState.pendingOrder) return;
+  const order = mktState.pendingOrder;
+  OrderStore.saveOrder(order);
+
+  // Persist active order
+  mktState.activeOrder = order;
+  localStorage.setItem(STORE_KEYS.ACTIVE_ORDER, JSON.stringify(order));
+
+  // Show confirmation
+  document.getElementById('mktOrderConfirm').classList.add('hidden');
+  document.getElementById('mktOrderDone').classList.remove('hidden');
+
+  const shop = mktState.selectedShop || ShopRegistry.getShopById(order.shopId);
+  const cat = shop ? (SHOP_CATEGORIES.find(c => c.code === (shop.category?.code || shop.categoryCode)) || SHOP_CATEGORIES[0]) : SHOP_CATEGORIES[0];
+
+  document.getElementById('mktConfirmShopName').textContent = shop ? shop.name : 'Shop';
+  document.getElementById('mktConfirmShopCat').textContent = cat ? `${cat.icon} ${cat.label}` : '';
+  document.getElementById('mktPickupPin').textContent = order.pickupPin;
+  document.getElementById('mktOrderCodeDisplay').textContent = order.packet;
+
+  // SMS link
+  const shopPhone = shop ? (shop.phone || '112') : '112';
+  const smsBody = encodeURIComponent(`ORDER ${order.packet} PIN:${order.pickupPin}`);
+  document.getElementById('mktSmsLink').href = `sms:${shopPhone}?body=${smsBody}`;
+
+  updateOrderBanner();
+  showToast('✅ Order placed successfully!');
+}
+
+function closeMktOrderDone() {
+  document.getElementById('mktOrderDone').classList.add('hidden');
+  mktState.cart = [];
+  mktState.pendingOrder = null;
+  switchScreen('screenHome');
+}
+
+// ═══ ORDER BANNER (persistent on home screen) ═══
+function updateOrderBanner() {
+  const banner = document.getElementById('orderBanner');
+  if (!mktState.activeOrder) {
+    const saved = localStorage.getItem(STORE_KEYS.ACTIVE_ORDER);
+    if (saved) {
+      try { mktState.activeOrder = JSON.parse(saved); } catch(e) {}
+    }
+  }
+  // Check if fulfilled
+  if (mktState.activeOrder) {
+    const order = OrderStore.getAll().find(o => o.id === mktState.activeOrder.id);
+    if (order && (order.fulfilled || order.cancelledByUser)) {
+      mktState.activeOrder = null;
+      localStorage.removeItem(STORE_KEYS.ACTIVE_ORDER);
+    }
+  }
+  if (mktState.activeOrder) {
+    banner.classList.remove('hidden');
+    document.getElementById('bannerOrderCode').textContent = mktState.activeOrder.packet;
+    document.getElementById('bannerOrderPin').textContent = mktState.activeOrder.pickupPin;
+    const shop = ShopRegistry.getShopById(mktState.activeOrder.shopId);
+    const shopPhone = shop ? (shop.phone || '112') : '112';
+    const smsBody = encodeURIComponent(`ORDER ${mktState.activeOrder.packet} PIN:${mktState.activeOrder.pickupPin}`);
+    document.getElementById('bannerOrderSms').href = `sms:${shopPhone}?body=${smsBody}`;
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+function cancelActiveOrder() {
+  if (mktState.activeOrder) {
+    OrderStore.updateOrder(mktState.activeOrder.id, { cancelledByUser: true });
+    showToast('Order cancelled');
+  }
+  mktState.activeOrder = null;
+  mktState.pendingOrder = null;
+  localStorage.removeItem(STORE_KEYS.ACTIVE_ORDER);
+  updateOrderBanner();
+  // If on marketplace, go back
+  document.getElementById('mktOrderDone').classList.add('hidden');
+  document.getElementById('mktOrderConfirm').classList.add('hidden');
+}
+
+function copyOrderCode() {
+  const code = mktState.activeOrder ? mktState.activeOrder.packet : (mktState.pendingOrder ? mktState.pendingOrder.packet : '');
+  if (!code) return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(() => showToast('Order code copied!'));
+  } else {
+    const ta = document.createElement('textarea'); ta.value = code;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta); showToast('Order code copied!');
   }
 }
 

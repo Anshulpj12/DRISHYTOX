@@ -53,12 +53,15 @@
     </div>
     <div class="nav-item active" onclick="showSection('secDashboard',this)">📊 Dashboard</div>
     <div class="nav-item" onclick="showSection('secRegister',this)">➕ Register Provider</div>
+    <div class="nav-item" onclick="showSection('secRegisterShop',this)">🏪 Register Shop</div>
     <div class="nav-item" onclick="showSection('secProviders',this)">👥 Provider Table</div>
+    <div class="nav-item" onclick="showSection('secShops',this)">🏪 Shop Table</div>
     <div class="nav-item" onclick="showSection('secDrivers',this)">🚗 Drivers</div>
     <div class="nav-item" onclick="showSection('secBlockRegistry',this)">📦 Block Registry</div>
     <div class="nav-item" onclick="showSection('secTransitLog',this)">🕐 Transit Log</div>
     <div class="nav-item" onclick="showSection('secBlockMap',this)">🗺️ Block Map</div>
     <div class="nav-item" onclick="showSection('secAudit',this)">📋 SOS Audit Trail</div>
+    <div class="nav-item" onclick="showSection('secOrderAudit',this)">🍽️ Order Audit</div>
     <div class="nav-item" onclick="showSection('secV2V',this)">📡 V2V Relay Log</div>
     <div class="nav-item" onclick="showSection('secConfig',this)">🔄 Config Push</div>
   </nav>
@@ -198,6 +201,53 @@
         <button class="btn btn-secondary btn-sm" onclick="resetConfigVersion()">♻️ Reset Version</button>
       </div>
     </div>
+
+    <!-- Register Shop -->
+    <div class="section" id="secRegisterShop">
+      <div class="page-header"><h2>🏪 Register Shop / Restaurant / Stall</h2><p>Add new shops — credentials are generated for shop provider login</p></div>
+      <div class="card" style="max-width:600px;">
+        <div style="margin-bottom:1rem;"><label class="label">Shop Name *</label><input class="input" id="regShopName" placeholder="e.g., Sharma Dhaba"></div>
+        <div style="margin-bottom:1rem;"><label class="label">Category *</label><select class="select" id="regShopCat"><option value="">Select category...</option></select></div>
+        <div style="margin-bottom:1rem;"><label class="label">Owner Name</label><input class="input" id="regShopOwner" placeholder="e.g., Rajesh Sharma"></div>
+        <div style="margin-bottom:1rem;"><label class="label">Phone *</label><input class="input" id="regShopPhone" placeholder="+91 9876543210"></div>
+        <div style="margin-bottom:1rem;">
+          <label class="label">GPS Coordinates * <span style="color:var(--accent-market);font-size:0.75rem;">(Required for driver discovery)</span></label>
+          <input class="input" id="regShopGPS" placeholder="28.6139, 77.2090" required>
+          <div class="text-xs text-muted mt-1">Enter latitude, longitude. Required so drivers can find your shop.</div>
+        </div>
+        <div style="margin-bottom:1rem;"><label class="label">Operating Hours</label><input class="input" id="regShopHours" placeholder="6:00 AM - 10:00 PM"></div>
+        <div style="margin-bottom:1rem;"><label class="label">Highway / Corridor (optional)</label><select class="select" id="regShopCorridor"><option value="">All corridors</option></select></div>
+        <button class="btn btn-full btn-lg" style="background:var(--accent-market);color:#fff;" onclick="registerShop()">Register Shop</button>
+      </div>
+      <div id="shopCredResult" class="hidden"></div>
+    </div>
+
+    <!-- Shop Management Table -->
+    <div class="section" id="secShops">
+      <div class="page-header"><h2>🏪 Shop Management</h2><p>View, manage, and remove registered shops</p></div>
+      <div class="flex-between mb-2" style="flex-wrap:wrap;gap:0.75rem;">
+        <div class="search-box" style="width:300px;"><span class="search-icon">🔍</span><input class="input" placeholder="Search shop name, ID..." id="shopSearch" oninput="renderShopTable()"></div>
+        <button class="btn btn-secondary btn-sm" onclick="exportShopsCSV()">📥 Export CSV</button>
+      </div>
+      <div class="table-wrap"><table id="shopTable"></table></div>
+      <div id="emptyShops" class="empty-state hidden"><div class="icon">🏪</div><p>No shops registered yet. Register shops from the sidebar.</p></div>
+    </div>
+
+    <!-- Order Audit Trail -->
+    <div class="section" id="secOrderAudit">
+      <div class="page-header"><h2>🍽️ Order Audit Trail</h2><p>Complete history of all marketplace orders</p></div>
+      <div class="flex-between mb-2" style="flex-wrap:wrap;gap:0.75rem;">
+        <div class="flex-row gap-1" style="flex-wrap:wrap;">
+          <select class="select" style="width:auto;padding:0.4rem 2rem 0.4rem 0.6rem;font-size:0.8rem;" id="orderAuditStatus" onchange="renderOrderAudit()">
+            <option value="">All Status</option><option value="active">Active</option><option value="fulfilled">Fulfilled</option><option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportOrderAudit()">📥 Export CSV</button>
+      </div>
+      <div class="stats-grid" id="orderAuditStats"></div>
+      <div class="table-wrap"><table id="orderAuditTable"></table></div>
+      <div id="emptyOrderAudit" class="empty-state hidden"><div class="icon">🍽️</div><p>No orders recorded yet.</p></div>
+    </div>
   </div>
 </div>
 
@@ -237,6 +287,9 @@ function showSection(id, el) {
   if (id === 'secAudit') renderAudit();
   if (id === 'secV2V') renderV2V();
   if (id === 'secConfig') renderConfigPush();
+  if (id === 'secShops') renderShopTable();
+  if (id === 'secOrderAudit') renderOrderAudit();
+  if (id === 'secRegisterShop') initShopRegForm();
 }
 
 // ═══ DASHBOARD ═══
@@ -250,8 +303,10 @@ function renderDashboard() {
     { v: stats.totalProviders, l: 'Total Providers', c: 'var(--accent-online)' },
     { v: stats.activeProviders, l: 'Active Providers', c: 'var(--success)' },
     { v: driverCount, l: 'Registered Drivers', c: 'var(--accent-v2v)' },
+    { v: ShopRegistry.getShopCount(), l: 'Registered Shops', c: 'var(--accent-market, #10B981)' },
     { v: blockCount, l: 'Blocks Explored', c: 'var(--accent-online)' },
     { v: transitCount, l: 'Transit Records', c: 'var(--accent-offline)' },
+    { v: OrderStore.getStats().total, l: 'Total Orders', c: 'var(--accent-market, #10B981)' },
     { v: stats.totalSOS.today, l: 'SOS Today', c: 'var(--accent-alert)' },
     { v: stats.totalSOS.week, l: 'SOS This Week', c: 'var(--accent-alert)' },
     { v: stats.avgResponseMin ? stats.avgResponseMin + ' min' : '—', l: 'Avg Response', c: 'var(--accent-offline)' },
@@ -685,12 +740,196 @@ function resetConfigVersion() {
 initRegForm();
 renderDashboard();
 
+// ═══ SHOP REGISTRATION ═══
+let shopRegFormInitialized = false;
+function initShopRegForm() {
+  if (shopRegFormInitialized) return;
+  shopRegFormInitialized = true;
+  const catSel = document.getElementById('regShopCat');
+  SHOP_CATEGORIES.forEach(c => { const o = document.createElement('option'); o.value = c.code; o.textContent = `${c.icon} ${c.label}`; catSel.appendChild(o); });
+  const corrSel = document.getElementById('regShopCorridor');
+  Store.getCorridors().forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; corrSel.appendChild(o); });
+}
+
+function registerShop() {
+  initShopRegForm();
+  const name = document.getElementById('regShopName').value.trim();
+  const catCode = document.getElementById('regShopCat').value;
+  const owner = document.getElementById('regShopOwner').value.trim();
+  const phone = document.getElementById('regShopPhone').value.trim();
+  const gps = document.getElementById('regShopGPS').value.trim();
+  const hours = document.getElementById('regShopHours').value.trim();
+  const corridorId = document.getElementById('regShopCorridor').value;
+
+  if (!name || !catCode || !phone) { showToast('Fill in Name, Category, and Phone'); return; }
+  if (!gps) { showToast('⚠️ GPS coordinates are required!'); return; }
+  const gpsParts = gps.split(',').map(s => parseFloat(s.trim()));
+  if (gpsParts.length !== 2 || isNaN(gpsParts[0]) || isNaN(gpsParts[1])) { showToast('Invalid GPS format'); return; }
+
+  const category = SHOP_CATEGORIES.find(c => c.code === catCode);
+  const id = ShopRegistry.generateShopId(catCode);
+  const password = ShopRegistry.generatePassword();
+
+  const shop = {
+    id, name, category, categoryCode: catCode, owner, phone, gps, hours,
+    password, corridorId: corridorId || null,
+    status: 'Active', registeredAt: new Date().toISOString(), lastLogin: null,
+  };
+
+  ShopRegistry.saveShop(shop);
+
+  const res = document.getElementById('shopCredResult');
+  res.classList.remove('hidden');
+  res.innerHTML = `<div class="cred-card" style="border-color:var(--accent-market, #10B981);">
+    <div style="font-size:2rem;margin-bottom:0.5rem;">🏪</div>
+    <h3 style="color:var(--accent-market, #10B981);">Shop Registered!</h3>
+    <p class="text-sm text-muted mb-2">Share these credentials with the shop owner. They use shop_provider.html to login.</p>
+    <div class="cred-field"><span class="text-xs text-muted">Shop ID</span><code style="color:var(--accent-market, #10B981);">${id}</code><button class="copy-btn" onclick="copyText('${id}')">Copy</button></div>
+    <div class="cred-field"><span class="text-xs text-muted">Password</span><code style="color:var(--accent-market, #10B981);">${password}</code><button class="copy-btn" onclick="copyText('${password}')">Copy</button></div>
+    <div class="text-xs text-muted" style="margin-top:0.5rem;">📍 Location: ${gps}</div>
+  </div>`;
+  showToast('Shop registered successfully!');
+  document.getElementById('regShopName').value = '';
+  document.getElementById('regShopCat').value = '';
+  document.getElementById('regShopOwner').value = '';
+  document.getElementById('regShopPhone').value = '';
+  document.getElementById('regShopGPS').value = '';
+  document.getElementById('regShopHours').value = '';
+}
+
+// ═══ SHOP TABLE ═══
+function renderShopTable() {
+  const search = (document.getElementById('shopSearch')?.value || '').toLowerCase();
+  const allShops = ShopRegistry.getShops();
+  const filtered = allShops.filter(s => !search || s.name.toLowerCase().includes(search) || s.id.toLowerCase().includes(search));
+
+  const emptyEl = document.getElementById('emptyShops');
+  if (allShops.length === 0) { emptyEl.classList.remove('hidden'); document.getElementById('shopTable').innerHTML = ''; return; }
+  emptyEl.classList.add('hidden');
+
+  document.getElementById('shopTable').innerHTML = `
+    <thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Phone</th><th>GPS</th><th>Items</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>${filtered.map(s => {
+      const cat = SHOP_CATEGORIES.find(c => c.code === (s.category?.code || s.categoryCode)) || SHOP_CATEGORIES[0];
+      const menuCount = MenuManager.getMenu(s.id).length;
+      return `<tr>
+        <td><code style="font-size:0.75rem;color:var(--accent-market, #10B981);">${s.id}</code></td>
+        <td>${s.name}</td>
+        <td>${cat.icon} ${cat.label}</td>
+        <td class="text-sm">${s.phone}</td>
+        <td class="text-xs" style="font-family:var(--font-mono);">${s.gps || '<span style="color:var(--accent-alert);">Missing!</span>'}</td>
+        <td class="text-center">${menuCount}</td>
+        <td><span class="badge ${s.status==='Active'?'badge-active':'badge-inactive'}">${s.status}</span></td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm ${s.status==='Active'?'btn-secondary':'btn-success'}" onclick="toggleShop('${s.id}')" style="margin-right:0.25rem;">${s.status==='Active'?'Deactivate':'Activate'}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteShop('${s.id}')">🗑️</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>`;
+}
+
+function toggleShop(id) {
+  const shop = ShopRegistry.getShopById(id);
+  if (shop) {
+    const newStatus = shop.status === 'Active' ? 'Inactive' : 'Active';
+    ShopRegistry.updateShop(id, { status: newStatus });
+    renderShopTable();
+    showToast(`Shop ${newStatus}`);
+  }
+}
+
+function deleteShop(id) {
+  if (!confirm('Delete this shop? This cannot be undone.')) return;
+  const shop = ShopRegistry.getShopById(id);
+  ShopRegistry.deleteShop(id);
+  renderShopTable();
+  showToast(`Shop deleted: ${shop ? shop.name : id}`);
+}
+
+function exportShopsCSV() {
+  const shops = ShopRegistry.getShops();
+  if (shops.length === 0) { showToast('No shops to export'); return; }
+  const csv = 'ID,Name,Category,Owner,Phone,GPS,Hours,Status\n' + shops.map(s =>
+    `${s.id},"${s.name}",${s.category?.label||s.categoryCode||''},"${s.owner||''}",${s.phone},"${s.gps||''}","${s.hours||''}",${s.status}`
+  ).join('\n');
+  downloadFile(csv, 'shops.csv', 'text/csv');
+}
+
+// ═══ ORDER AUDIT ═══
+function renderOrderAudit() {
+  const statusFilter = document.getElementById('orderAuditStatus').value;
+  let orders = OrderStore.getAll();
+  if (statusFilter === 'active') orders = orders.filter(o => !o.fulfilled && !o.cancelledByUser);
+  if (statusFilter === 'fulfilled') orders = orders.filter(o => o.fulfilled);
+  if (statusFilter === 'cancelled') orders = orders.filter(o => o.cancelledByUser);
+
+  const stats = OrderStore.getStats();
+  document.getElementById('orderAuditStats').innerHTML = [
+    { v: stats.total, l: 'Total Orders', c: 'var(--accent-market, #10B981)' },
+    { v: stats.today, l: 'Today', c: 'var(--accent-online)' },
+    { v: stats.fulfilled, l: 'Fulfilled', c: 'var(--success)' },
+    { v: stats.cancelled, l: 'Cancelled', c: 'var(--danger)' },
+    { v: stats.active, l: 'Active', c: 'var(--accent-alert)' },
+  ].map(d => `<div class="stat-card"><div class="stat-value" style="color:${d.c}">${d.v}</div><div class="stat-label">${d.l}</div></div>`).join('');
+
+  const emptyEl = document.getElementById('emptyOrderAudit');
+  if (OrderStore.getAll().length === 0) {
+    emptyEl.classList.remove('hidden');
+    document.getElementById('orderAuditTable').innerHTML = '';
+    return;
+  }
+  emptyEl.classList.add('hidden');
+
+  document.getElementById('orderAuditTable').innerHTML = `
+    <thead><tr><th>Time</th><th>Block</th><th>Shop</th><th>Items</th><th>Total</th><th>Status</th><th>PIN</th></tr></thead>
+    <tbody>${orders.slice(0, 50).map(o => {
+      const shop = ShopRegistry.getShopById(o.shopId);
+      const shopName = shop ? shop.name : o.shopId;
+      const menu = shop ? MenuManager.getMenu(shop.id) : [];
+      const itemNames = (o.items||[]).map(i => {
+        const mi = menu.find(m => m.code === i.code);
+        return `${mi ? mi.name : i.code} ×${i.qty}`;
+      }).join(', ');
+      const total = (o.items||[]).reduce((s, i) => {
+        const mi = menu.find(m => m.code === i.code);
+        return s + (mi ? mi.price * i.qty : 0);
+      }, 0);
+      let statusBadge = '<span class="badge badge-inactive">Active</span>';
+      if (o.cancelledByUser) statusBadge = '<span class="badge" style="background:rgba(239,68,68,0.15);color:#F87171;">Cancelled</span>';
+      else if (o.fulfilled) statusBadge = '<span class="badge badge-active">Fulfilled</span>';
+      return `<tr>
+        <td class="text-xs" style="font-family:var(--font-mono);">${new Date(o.timestamp).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'})}</td>
+        <td style="font-family:var(--font-mono);color:var(--accent-market, #10B981);font-size:0.8rem;">${o.blockCode}</td>
+        <td class="text-sm">${shopName}</td>
+        <td class="text-xs">${itemNames}</td>
+        <td style="font-family:var(--font-mono);color:var(--accent-market, #10B981);font-weight:700;">₹${total}</td>
+        <td>${statusBadge}</td>
+        <td style="font-family:var(--font-mono);">${o.pickupPin || '—'}</td>
+      </tr>`;
+    }).join('')}</tbody>`;
+}
+
+function exportOrderAudit() {
+  const orders = OrderStore.getAll();
+  if (orders.length === 0) { showToast('No orders to export'); return; }
+  const csv = 'ID,Time,Block,Shop,Packet,Status,PIN\n' + orders.map(o =>
+    `${o.id},${o.timestamp},${o.blockCode},${o.shopId},"${o.packet}",${o.fulfilled?'Fulfilled':(o.cancelledByUser?'Cancelled':'Active')},${o.pickupPin||''}`
+  ).join('\n');
+  downloadFile(csv, 'order_audit.csv', 'text/csv');
+}
+
+// ═══ INIT ═══
+initRegForm();
+renderDashboard();
+
 setInterval(() => {
   if (document.getElementById('secDashboard').classList.contains('active')) renderDashboard();
   if (document.getElementById('secAudit').classList.contains('active')) renderAudit();
   if (document.getElementById('secBlockRegistry').classList.contains('active')) renderBlockRegistry();
   if (document.getElementById('secTransitLog').classList.contains('active')) renderTransitLog();
   if (document.getElementById('secConfig').classList.contains('active')) renderConfigPush();
+  if (document.getElementById('secShops').classList.contains('active')) renderShopTable();
+  if (document.getElementById('secOrderAudit').classList.contains('active')) renderOrderAudit();
 }, 5000);
 </script>
 </body>
