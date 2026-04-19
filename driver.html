@@ -125,12 +125,11 @@
 
     <!-- Sub-screen: Home / GPS -->
     <div class="screen active" id="screenHome">
-      <!-- GPS Permission Request -->
-      <div class="gps-permission" id="gpsPermission">
-        <div class="gps-icon">📍</div>
-        <h3>Enable Location</h3>
-        <p class="text-muted text-sm mt-1">APARA needs your GPS location to track your position and provide emergency assistance.</p>
-        <button class="btn btn-primary btn-lg mt-2" onclick="requestGPS()">Enable GPS Tracking</button>
+      <!-- Location Permission Banner — always shows if GPS not active -->
+      <div id="locationBanner" class="config-banner" style="margin:0.75rem 1.25rem;border-color:var(--accent-alert);background:linear-gradient(135deg, rgba(249,115,22,0.1), rgba(239,68,68,0.08));">
+        <h4 style="color:var(--accent-alert);">📍 Location Access Required</h4>
+        <p class="text-xs text-muted">APARA needs your GPS location for emergency services, navigation, and marketplace.</p>
+        <button class="btn btn-primary btn-sm mt-1" onclick="requestGPS()" style="width:100%;">Enable Location</button>
       </div>
 
       <!-- GPS Active Display -->
@@ -206,7 +205,10 @@
         <!-- Zone Status Indicator -->
         <div class="zone-status" id="zoneStatus">
           <span class="zone-label">📡 Zone: <span id="zoneIdDisplay">---</span></span>
-          <span class="zone-detail"><span id="zoneCachedProviders">0</span> providers cached</span>
+          <span class="zone-detail"><span id="zoneCachedProviders">0</span> providers · <span id="zoneCachedShops">0</span> shops</span>
+        </div>
+        <div style="text-align:center;font-size:0.65rem;color:var(--text-muted);margin-top:0.15rem;">
+          📦 Data loaded: 100km zone · 🏪 Shops/SOS visible: <span style="color:var(--accent-market);">10km radius</span>
         </div>
         <div class="buffer-indicator" id="bufferIndicator">📦 Batch: 0 records — syncs in 15 days</div>
         <div class="info-grid">
@@ -218,9 +220,11 @@
         <div id="statusStrip" class="status-strip online-strip" style="margin-top:1rem;">
           🟢 GPS lock active — tracking your position
         </div>
-        <div class="sos-float">
-          <button class="btn-sos" id="sosBtn" onclick="openSOS()">🚨 SOS EMERGENCY</button>
-        </div>
+      </div>
+
+      <!-- SOS BUTTON — ALWAYS VISIBLE regardless of GPS state -->
+      <div class="sos-float">
+        <button class="btn-sos" id="sosBtn" onclick="openSOS()">🚨 SOS EMERGENCY</button>
       </div>
     </div>
 
@@ -298,6 +302,8 @@
           <div class="cat-tab" onclick="filterShops('BAKE')">🥐 Bakery</div>
           <div class="cat-tab" onclick="filterShops('GROC')">🛒 General</div>
         </div>
+        <!-- Shop Map -->
+        <div id="mktMap" style="height:220px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:0.75rem;"></div>
         <!-- Shop List -->
         <div id="mktShopList"></div>
         <div id="mktEmpty" class="text-center text-muted" style="padding:2rem;">
@@ -493,6 +499,8 @@ function driverLogin() {
   ConfigPush.onChange(onConfigPushUpdate);
   ConfigPush.init();
   showToast(`Welcome! Your ID: ${driver.id}`);
+  // Auto-request GPS on login
+  setTimeout(() => requestGPS(), 500);
 }
 
 function driverLogout() {
@@ -520,6 +528,8 @@ function driverLogout() {
     document.getElementById('driverIdBadge').textContent = savedId;
     document.getElementById('settingsDriverId').textContent = savedId;
     DataBuffer.init();
+    // Auto-request GPS every time user returns to the app
+    setTimeout(() => requestGPS(), 500);
   }
 })();
 
@@ -543,23 +553,35 @@ function switchScreen(id) {
 
 // ═══ GPS ═══
 function requestGPS() {
+  if (state.gpsStarted) return; // Already running
   if (!navigator.geolocation) {
     startFallbackGPS();
     return;
   }
+  showToast('📍 Requesting GPS location...');
   navigator.geolocation.getCurrentPosition(
-    () => { startGPSTracking(); },
-    (err) => {
-      showToast('GPS denied/failed. Starting in fallback test mode.');
-      startFallbackGPS();
+    (position) => {
+      // Pass the initial position directly for best accuracy
+      startGPSTracking(position);
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    (err) => {
+      console.warn('GPS error:', err.code, err.message);
+      if (err.code === 1) {
+        showToast('⚠️ Location permission denied. Please enable in browser settings.');
+        // Show the banner again so user can retry
+        document.getElementById('locationBanner').classList.remove('hidden');
+      } else {
+        showToast('GPS unavailable. Starting in fallback mode.');
+        startFallbackGPS();
+      }
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
 }
 
 function startFallbackGPS() {
   state.gpsStarted = true;
-  document.getElementById('gpsPermission').classList.add('hidden');
+  document.getElementById('locationBanner').classList.add('hidden');
   document.getElementById('gpsActive').classList.remove('hidden');
   initMap();
   state.lastKnownPos = { lat: 20.5937, lng: 78.9629, accuracy: 100, speed: 0, heading: 45, timestamp: Date.now() };
@@ -568,13 +590,27 @@ function startFallbackGPS() {
   startOfflineEstimation();
 }
 
-function startGPSTracking() {
+function startGPSTracking(initialPosition) {
   state.gpsStarted = true;
-  document.getElementById('gpsPermission').classList.add('hidden');
+  document.getElementById('locationBanner').classList.add('hidden');
   document.getElementById('gpsActive').classList.remove('hidden');
   initMap();
+
+  // Use the initial high-accuracy position immediately
+  if (initialPosition && initialPosition.coords) {
+    const c = initialPosition.coords;
+    const firstPos = {
+      lat: c.latitude, lng: c.longitude,
+      accuracy: c.accuracy, speed: c.speed || 0,
+      heading: c.heading || 0, timestamp: Date.now()
+    };
+    state.lastKnownPos = firstPos;
+    GPSTracker.lastOnlinePosition = firstPos;
+    onGPSUpdate(firstPos, true);
+  }
+
   GPSTracker.start();
-  GPSTracker.onChange((pos) => onGPSUpdate(pos, true)); // true = fresh GPS reading from device
+  GPSTracker.onChange((pos) => onGPSUpdate(pos, true));
   NetworkDetector.onChange(onNetworkChange);
   updateNetworkUI();
   // Request wake lock to keep GPS active when screen is off
@@ -605,8 +641,10 @@ function onGPSUpdate(pos, isFreshReading) {
     const zStatus = ZoneManager.getStatus();
     const zoneIdEl = document.getElementById('zoneIdDisplay');
     const zonePEl = document.getElementById('zoneCachedProviders');
+    const zoneSEl = document.getElementById('zoneCachedShops');
     if (zoneIdEl) zoneIdEl.textContent = zStatus.currentZone || '---';
     if (zonePEl) zonePEl.textContent = zStatus.totalProviders;
+    if (zoneSEl) zoneSEl.textContent = zStatus.totalShops || 0;
   }
 
   // ═══ BLOCK TRACKING — ONLY on fresh readings, not UI refreshes ═══
@@ -841,10 +879,15 @@ function updateNetworkUI() {
     let sourceIcon = '⚙️';
     if (estimated && estimated.estimationSource === 'personal') { sourceText = 'Personal History'; sourceIcon = '📊'; }
     else if (estimated && estimated.estimationSource === 'community') { sourceText = 'Community Average'; sourceIcon = '🌐'; }
+    else if (estimated && estimated.estimationSource === 'dead_reckoning_avg') { sourceText = 'Driver+Community Avg'; sourceIcon = '📊'; }
+
+    const driverAvg = GPSTracker.getDriverAvgSpeedKmh();
+    const communityAvg = GPSTracker.getCommunityAvgSpeedKmh();
+
     if (status) { status.className = 'signal-indicator signal-offline'; status.innerHTML = `🟡 OFFLINE — ${sourceIcon} ${sourceText}`; }
     if (strip) {
       strip.className = 'status-strip offline-strip';
-      strip.innerHTML = `🟡 Offline — blocks will be retro-generated when GPS returns`;
+      strip.innerHTML = `🟡 Offline — Est. speed: Driver ${driverAvg} km/h · Community ${communityAvg} km/h`;
     }
     if (netInfo) netInfo.textContent = 'Network: OFFLINE';
   }
@@ -854,8 +897,11 @@ function startOfflineEstimation() {
   const offlineInterval = setInterval(() => {
     if (NetworkDetector.isOnline()) { clearInterval(offlineInterval); return; }
     const estimated = GPSTracker.getEstimatedPosition();
-    if (estimated) onGPSUpdate(estimated, true); // true = fresh estimated reading
-  }, 2000);
+    if (estimated) {
+      onGPSUpdate(estimated, true);
+      updateNetworkUI(); // Refresh speed info in offline strip
+    }
+  }, 5000); // Every 5 seconds — matches GPS refresh rate
 }
 
 // ═══ MAP ═══
@@ -883,7 +929,42 @@ function drawGauge(val) {
 
 // ═══ SOS FLOW (with persistence + cancel) ═══
 function openSOS() {
-  if (!state.lastKnownPos) { showToast('Waiting for GPS location...'); return; }
+  // If GPS not active, request it first
+  if (!state.lastKnownPos) {
+    showToast('📍 Requesting location for SOS...');
+    if (!navigator.geolocation) {
+      showToast('⚠️ GPS not available on this device');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const c = position.coords;
+        state.lastKnownPos = {
+          lat: c.latitude, lng: c.longitude,
+          accuracy: c.accuracy, speed: c.speed || 0,
+          heading: c.heading || 0, timestamp: Date.now()
+        };
+        // Now start tracking in background if not already
+        if (!state.gpsStarted) startGPSTracking(position);
+        showToast('✅ Location acquired! Opening SOS...');
+        // Now open SOS
+        launchSOSScreen();
+      },
+      (err) => {
+        if (err.code === 1) {
+          showToast('⚠️ Location permission denied! SOS requires location. Please enable GPS in settings.');
+        } else {
+          showToast('⚠️ Could not get location. Enable GPS and try again.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+    return;
+  }
+  launchSOSScreen();
+}
+
+function launchSOSScreen() {
   state.sosCategory = null;
   switchScreen('screenSOS');
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
@@ -1310,6 +1391,7 @@ function init() {
 }
 
 // ═══ MARKETPLACE ═══
+const MKT_DISPLAY_RADIUS = 10000; // 10km — shops/SOS visible to user
 let mktState = {
   cart: [],          // [{ code, name, price, qty, shopId }]
   selectedShopId: null,
@@ -1318,6 +1400,10 @@ let mktState = {
   activeOrder: null,
   orderHoldTimer: null,
   orderHoldStarted: false,
+  map: null,
+  markers: [],
+  userMarker: null,
+  radiusCircle: null,
 };
 
 function refreshMarketplace() {
@@ -1325,13 +1411,20 @@ function refreshMarketplace() {
   const blockLabel = document.getElementById('mktBlockLabel');
   if (state.currentBlockId) blockLabel.textContent = '📍 ' + state.currentBlockId;
   loadNearbyShops();
+  initMktMap();
 }
 
 function loadNearbyShops() {
   const pos = state.lastKnownPos;
   let shops = [];
   if (pos) {
-    shops = ShopRegistry.getNearbyShops(pos.lat, pos.lng, 10000); // 10km radius
+    // Primary: get shops from ShopRegistry within 10km display radius
+    shops = ShopRegistry.getNearbyShops(pos.lat, pos.lng, MKT_DISPLAY_RADIUS);
+    // Also merge shops from cached zones (loaded at 100km) within 10km
+    const zoneShops = ZoneManager.getShopsInRadius(pos.lat, pos.lng, MKT_DISPLAY_RADIUS);
+    zoneShops.forEach(zs => {
+      if (!shops.find(s => s.id === zs.id)) shops.push(zs);
+    });
   } else {
     shops = ShopRegistry.getShops().filter(s => s.status === 'Active');
   }
@@ -1382,6 +1475,7 @@ function filterShops(cat) {
   document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
   event.target.classList.add('active');
   loadNearbyShops();
+  renderMktMapMarkers(); // Update map markers for selected category
 }
 
 function openMktShopDetail(shopId) {
@@ -1591,6 +1685,118 @@ function closeMktOrderDone() {
   mktState.cart = [];
   mktState.pendingOrder = null;
   switchScreen('screenHome');
+}
+
+// ═══ MARKETPLACE MAP ═══
+const MKT_CAT_COLORS = {
+  FOOD: '#EF4444', STLL: '#F97316', CAFE: '#8B5CF6', BAKE: '#EC4899',
+  GROC: '#10B981', FUEL: '#3B82F6', MECH: '#6B7280', PHRM: '#14B8A6', ALL: '#22D3EE'
+};
+
+function initMktMap() {
+  const mapDiv = document.getElementById('mktMap');
+  if (!mapDiv) return;
+  const pos = state.lastKnownPos || { lat: 20.5937, lng: 78.9629 };
+
+  if (!mktState.map) {
+    mktState.map = L.map('mktMap', { zoomControl: false, attributionControl: false }).setView([pos.lat, pos.lng], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(mktState.map);
+
+    // User position marker (blue)
+    mktState.userMarker = L.circleMarker([pos.lat, pos.lng], {
+      radius: 8, fillColor: '#3B82F6', color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9
+    }).addTo(mktState.map).bindPopup('📍 You are here');
+
+    // 10km radius circle — shows the visible zone to user
+    mktState.radiusCircle = L.circle([pos.lat, pos.lng], {
+      radius: MKT_DISPLAY_RADIUS,
+      color: '#10B981', fillColor: '#10B981', fillOpacity: 0.04,
+      weight: 1.5, dashArray: '6,4'
+    }).addTo(mktState.map);
+  } else {
+    mktState.map.setView([pos.lat, pos.lng], mktState.map.getZoom());
+    if (mktState.userMarker) mktState.userMarker.setLatLng([pos.lat, pos.lng]);
+    if (mktState.radiusCircle) mktState.radiusCircle.setLatLng([pos.lat, pos.lng]);
+  }
+
+  // Update block label with zone info
+  const blockLabel = document.getElementById('mktBlockLabel');
+  const zoneStatus = ZoneManager.getStatus();
+  if (blockLabel) {
+    blockLabel.innerHTML = `📍 ${state.currentBlockId || '---'} · <span style="color:var(--accent-market);">10km radius</span> · ${zoneStatus.totalShops || 0} shops cached`;
+  }
+
+  // Resize fix
+  setTimeout(() => mktState.map.invalidateSize(), 200);
+
+  renderMktMapMarkers();
+}
+
+function renderMktMapMarkers() {
+  if (!mktState.map) return;
+
+  // Clear old markers
+  mktState.markers.forEach(m => mktState.map.removeLayer(m));
+  mktState.markers = [];
+
+  // Get shops within 10km display radius (same as list)
+  const pos = state.lastKnownPos;
+  let shops = [];
+  if (pos) {
+    shops = ShopRegistry.getNearbyShops(pos.lat, pos.lng, MKT_DISPLAY_RADIUS);
+    // Merge from zone cache
+    const zoneShops = ZoneManager.getShopsInRadius(pos.lat, pos.lng, MKT_DISPLAY_RADIUS);
+    zoneShops.forEach(zs => {
+      if (!shops.find(s => s.id === zs.id)) shops.push(zs);
+    });
+  } else {
+    shops = ShopRegistry.getShops().filter(s => s.status === 'Active');
+  }
+
+  if (mktState.filterCat !== 'ALL') {
+    shops = shops.filter(s => {
+      const catCode = s.category?.code || s.categoryCode || '';
+      return catCode === mktState.filterCat;
+    });
+  }
+
+  shops.forEach(shop => {
+    // Support both direct lat/lng and gps string
+    let lat, lng;
+    if (shop.lat != null && shop.lng != null) {
+      lat = shop.lat; lng = shop.lng;
+    } else if (shop.gps) {
+      const parts = shop.gps.split(',').map(x => parseFloat(x.trim()));
+      if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return;
+      lat = parts[0]; lng = parts[1];
+    } else return;
+
+    const catCode = shop.category?.code || shop.categoryCode || 'ALL';
+    const cat = SHOP_CATEGORIES.find(c => c.code === catCode) || SHOP_CATEGORIES[0];
+    const color = MKT_CAT_COLORS[catCode] || '#22D3EE';
+    const menu = MenuManager.getAvailableItems(shop.id);
+    const distStr = shop.distance ? (shop.distance / 1000).toFixed(1) + ' km' : '';
+
+    const marker = L.circleMarker([lat, lng], {
+      radius: 10, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
+    }).addTo(mktState.map);
+
+    marker.bindPopup(`
+      <div style="font-family:system-ui;min-width:150px;">
+        <strong>${cat.icon} ${shop.name}</strong><br>
+        <span style="color:#888;font-size:0.8em;">${cat.label} ${distStr ? '· ' + distStr : ''}</span><br>
+        <span style="font-size:0.85em;">${menu.length} items available</span><br>
+        <a href="#" onclick="openMktShopDetail('${shop.id}');return false;" style="color:${color};font-weight:700;font-size:0.85em;">View Menu →</a>
+      </div>
+    `);
+
+    mktState.markers.push(marker);
+  });
+
+  // Fit to 10km radius circle
+  if (mktState.radiusCircle) {
+    mktState.map.fitBounds(mktState.radiusCircle.getBounds());
+  }
 }
 
 // ═══ ORDER BANNER (persistent on home screen) ═══

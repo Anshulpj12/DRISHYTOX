@@ -221,34 +221,103 @@ const GPSTracker = {
   lastOnlinePosition: null,
   positionHistory: [],
   _listeners: [],
-  _smoothingWindow: 3, // Average last N readings
+  _smoothingWindow: 2,
+  _refreshInterval: null,
+
+  // ═══ SPEED FROM POSITION CHANGES (not coords.speed) ═══
+  _calculatedSpeedMs: 0,       // Reliable speed in m/s from position delta
+  _driverSpeedHistory: [],     // Recent speed samples for driver average
+  _driverAvgSpeedKmh: 0,      // Rolling average
 
   start() {
     if (!navigator.geolocation) { console.warn('Geolocation not available'); return; }
+
+    // Load saved driver average
+    const savedAvg = localStorage.getItem('apara_driver_avg_speed');
+    if (savedAvg) this._driverAvgSpeedKmh = parseFloat(savedAvg) || 0;
+
     this.watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const raw = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-          speed: pos.coords.speed, // m/s, can be null
-          heading: pos.coords.heading,
-          timestamp: pos.timestamp,
-        };
-        this.positionHistory.push({ ...raw });
-        if (this.positionHistory.length > 500) this.positionHistory.shift();
-
-        // Smooth position using last N readings to reduce GPS jitter
-        this.lastPosition = this._getSmoothedPosition(raw);
-
-        if (NetworkDetector.isOnline()) {
-          this.lastOnlinePosition = { ...this.lastPosition };
-        }
-        this._notify();
-      },
+      (pos) => { this._processRawPosition(pos); },
       (err) => { console.warn('GPS error:', err.message); },
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
     );
+
+    // Backup: force a fresh GPS read every 5 seconds if watchPosition is slow
+    this._refreshInterval = setInterval(() => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => { this._processRawPosition(pos); },
+          () => {},
+          { enableHighAccuracy: true, maximumAge: 3000, timeout: 5000 }
+        );
+      }
+    }, 5000);
+  },
+
+  _processRawPosition(pos) {
+    const raw = {
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      accuracy: pos.coords.accuracy,
+      speed: null,  // We calculate our own
+      heading: pos.coords.heading,
+      timestamp: pos.timestamp || Date.now(),
+    };
+
+    // ═══ REJECT LOW ACCURACY READINGS (> 50m) — keep last known good ═══
+    if (raw.accuracy && raw.accuracy > 50 && this.lastPosition) {
+      return; // Skip this noisy reading
+    }
+
+    // ═══ CALCULATE SPEED FROM POSITION DELTA ═══
+    if (this.positionHistory.length >= 1) {
+      const prev = this.positionHistory[this.positionHistory.length - 1];
+      const dist = Utils.haversine(prev.lat, prev.lng, raw.lat, raw.lng);
+      const dt = (raw.timestamp - prev.timestamp) / 1000; // seconds
+
+      if (dt > 0.5 && dt < 30) { // Valid time window (0.5s to 30s)
+        const speedMs = dist / dt;
+
+        // ═══ JITTER FILTER: if moved < 3m in < 3s, speed is 0 (stationary) ═══
+        if (dist < 3 && dt < 3) {
+          this._calculatedSpeedMs = 0;
+        }
+        // ═══ SANITY: cap at 200 km/h (55.5 m/s) — anything above is GPS jump ═══
+        else if (speedMs > 55.5) {
+          this._calculatedSpeedMs = this._calculatedSpeedMs; // Keep previous
+        }
+        else {
+          // Smooth: weighted blend of previous and new speed
+          this._calculatedSpeedMs = this._calculatedSpeedMs * 0.3 + speedMs * 0.7;
+        }
+
+        // Track driver speed history (only when moving)
+        if (this._calculatedSpeedMs > 0.5) {
+          this._driverSpeedHistory.push(this._calculatedSpeedMs * 3.6); // km/h
+          if (this._driverSpeedHistory.length > 100) this._driverSpeedHistory.shift();
+          // Update rolling average
+          this._driverAvgSpeedKmh = this._driverSpeedHistory.reduce((a,b) => a+b, 0) / this._driverSpeedHistory.length;
+          // Save to localStorage periodically
+          if (this._driverSpeedHistory.length % 10 === 0) {
+            localStorage.setItem('apara_driver_avg_speed', this._driverAvgSpeedKmh.toFixed(1));
+          }
+        }
+      }
+    }
+
+    // Set calculated speed on the raw position
+    raw.speed = this._calculatedSpeedMs;
+
+    this.positionHistory.push({ ...raw });
+    if (this.positionHistory.length > 500) this.positionHistory.shift();
+
+    // Smooth position if accuracy is poor
+    this.lastPosition = this._getSmoothedPosition(raw);
+
+    if (NetworkDetector.isOnline()) {
+      this.lastOnlinePosition = { ...this.lastPosition };
+    }
+    this._notify();
   },
 
   stop() {
@@ -256,10 +325,15 @@ const GPSTracker = {
       navigator.geolocation.clearWatch(this.watchId);
       this.watchId = null;
     }
+    if (this._refreshInterval) {
+      clearInterval(this._refreshInterval);
+      this._refreshInterval = null;
+    }
   },
 
-  // Average last N readings to reduce jitter
+  // Smooth position only when accuracy is poor
   _getSmoothedPosition(latest) {
+    if (latest.accuracy && latest.accuracy < 15) return latest;
     const history = this.positionHistory;
     const n = Math.min(this._smoothingWindow, history.length);
     if (n <= 1) return latest;
@@ -267,30 +341,28 @@ const GPSTracker = {
     const avgLat = recent.reduce((s, p) => s + p.lat, 0) / n;
     const avgLng = recent.reduce((s, p) => s + p.lng, 0) / n;
     return {
-      lat: avgLat,
-      lng: avgLng,
-      accuracy: latest.accuracy,
-      speed: latest.speed,
-      heading: latest.heading,
-      timestamp: latest.timestamp,
+      lat: avgLat, lng: avgLng,
+      accuracy: latest.accuracy, speed: latest.speed,
+      heading: latest.heading, timestamp: latest.timestamp,
     };
   },
 
+  // ═══ SPEED: Always use position-calculated speed ═══
   getSpeedKmh() {
-    if (this.lastPosition && this.lastPosition.speed !== null && this.lastPosition.speed >= 0) {
-      return Math.round(this.lastPosition.speed * 3.6);
-    }
-    // Estimate from position history
-    if (this.positionHistory.length >= 2) {
-      const p1 = this.positionHistory[this.positionHistory.length - 2];
-      const p2 = this.positionHistory[this.positionHistory.length - 1];
-      const dist = this._haversine(p1.lat, p1.lng, p2.lat, p2.lng);
-      const dt = (p2.timestamp - p1.timestamp) / 1000;
-      if (dt > 0) return Math.round((dist / dt) * 3.6);
-    }
-    return 0;
+    return Math.round(this._calculatedSpeedMs * 3.6);
   },
 
+  getDriverAvgSpeedKmh() {
+    return Math.round(this._driverAvgSpeedKmh) || 40; // Fallback 40 km/h
+  },
+
+  getCommunityAvgSpeedKmh() {
+    // Community average from DeadZoneHistory or default highway speed
+    const communityData = DeadZoneHistory.getCommunityAvgSpeed();
+    return communityData || 50; // Default 50 km/h for highways
+  },
+
+  // ═══ OFFLINE ESTIMATION using driver/community averages ═══
   getEstimatedPosition() {
     if (!this.lastOnlinePosition) return this.lastPosition;
     const elapsed = (Date.now() - this.lastOnlinePosition.timestamp) / 1000;
@@ -301,24 +373,36 @@ const GPSTracker = {
     );
     if (historyResult) {
       return {
-        lat: historyResult.lat,
-        lng: historyResult.lng,
+        lat: historyResult.lat, lng: historyResult.lng,
         accuracy: historyResult.accuracy,
-        speed: this.lastOnlinePosition.speed,
+        speed: this._calculatedSpeedMs,
         heading: this.lastOnlinePosition.heading,
-        timestamp: Date.now(),
-        estimated: true,
-        estimationSource: historyResult.source, // 'personal' or 'community'
+        timestamp: Date.now(), estimated: true,
+        estimationSource: historyResult.source,
         estimatedBlock: historyResult.block,
         estimatedCorridor: historyResult.corridorId,
         confidence: historyResult.confidence,
       };
     }
 
-    // ═══ FALLBACK: BASIC DEAD RECKONING ═══
-    const speed = this.lastOnlinePosition.speed || 0;
+    // ═══ DEAD RECKONING WITH DRIVER/COMMUNITY AVERAGES ═══
+    // Blend: 60% driver average + 40% community average
+    const driverAvg = this.getDriverAvgSpeedKmh() / 3.6; // m/s
+    const communityAvg = this.getCommunityAvgSpeedKmh() / 3.6; // m/s
+    const lastSpeed = this.lastOnlinePosition.speed || 0;
+
+    // Use weighted average: recent speed > driver avg > community avg
+    let estimatedSpeedMs;
+    if (lastSpeed > 1) {
+      // Blend last known speed with averages (decays over time)
+      const decayFactor = Math.max(0, 1 - elapsed / 300); // Decay over 5 min
+      estimatedSpeedMs = lastSpeed * decayFactor + (driverAvg * 0.6 + communityAvg * 0.4) * (1 - decayFactor);
+    } else {
+      estimatedSpeedMs = driverAvg * 0.6 + communityAvg * 0.4;
+    }
+
     const heading = this.lastOnlinePosition.heading || 0;
-    const dist = speed * elapsed;
+    const dist = estimatedSpeedMs * elapsed;
     const headingRad = (heading * Math.PI) / 180;
     const R = 6371000;
     const lat1 = (this.lastOnlinePosition.lat * Math.PI) / 180;
@@ -329,12 +413,11 @@ const GPSTracker = {
       lat: (lat2 * 180) / Math.PI,
       lng: (lng2 * 180) / Math.PI,
       accuracy: this.lastOnlinePosition.accuracy + dist * 0.1,
-      speed: this.lastOnlinePosition.speed,
-      heading: this.lastOnlinePosition.heading,
-      timestamp: Date.now(),
-      estimated: true,
-      estimationSource: 'dead_reckoning',
-      confidence: Math.max(40, 65 - Math.floor(elapsed / 60) * 5),
+      speed: estimatedSpeedMs,
+      heading: heading,
+      timestamp: Date.now(), estimated: true,
+      estimationSource: 'dead_reckoning_avg',
+      confidence: Math.max(35, 65 - Math.floor(elapsed / 60) * 5),
     };
   },
 
@@ -715,6 +798,33 @@ const DeadZoneHistory = {
 
     Store.saveZoneHistory(history);
     console.log('[DeadZone] Demo history seeded: 3 trips, 7 blocks profiled for NH48-GHT');
+  },
+
+  // ─── Get community average speed from all corridor traversals ───
+  getCommunityAvgSpeed() {
+    const history = Store.getZoneHistory();
+    let totalSpeed = 0;
+    let count = 0;
+    Object.values(history).forEach(corridorData => {
+      if (corridorData.blockProfiles) {
+        Object.values(corridorData.blockProfiles).forEach(profile => {
+          if (profile.avgSpeedMps > 0) {
+            totalSpeed += profile.avgSpeedMps * 3.6; // Convert to km/h
+            count++;
+          }
+        });
+      }
+      // Also from traversals
+      if (corridorData.traversals) {
+        corridorData.traversals.forEach(t => {
+          if (t.entrySpeed && t.entrySpeed > 0) {
+            totalSpeed += t.entrySpeed * 3.6;
+            count++;
+          }
+        });
+      }
+    });
+    return count > 0 ? Math.round(totalSpeed / count) : null; // null = no data, use default
   },
 };
 
@@ -1247,7 +1357,7 @@ const ZoneManager = {
     return c;
   },
 
-  // Load zone — filter providers by distance, store permanently
+  // Load zone — filter providers AND shops by distance, store permanently
   loadZone(zoneId, allProviders) {
     if (this.isZoneCached(zoneId)) return this.getZoneData(zoneId);
     const center = this.getZoneCenter(zoneId);
@@ -1262,17 +1372,30 @@ const ZoneManager = {
       return { id: p.id, name: p.name, cat: p.category?.code || '', catIcon: p.category?.icon || '', catLabel: p.category?.label || '', phone: p.phone, lat: pts[0], lng: pts[1], status: p.status };
     });
 
+    // Also cache shops in this zone
+    const allShops = typeof ShopRegistry !== 'undefined' ? ShopRegistry.getShops() : [];
+    const zoneShops = allShops.filter(s => {
+      if (s.status !== 'Active' || !s.gps) return false;
+      const pts = s.gps.split(',').map(x => parseFloat(x.trim()));
+      if (pts.length !== 2 || isNaN(pts[0]) || isNaN(pts[1])) return false;
+      return Utils.haversine(center.lat, center.lng, pts[0], pts[1]) <= radiusM;
+    }).map(s => {
+      const pts = s.gps.split(',').map(x => parseFloat(x.trim()));
+      return { id: s.id, name: s.name, catCode: s.category?.code || s.categoryCode || '', phone: s.phone, lat: pts[0], lng: pts[1], gps: s.gps, hours: s.hours, owner: s.owner };
+    });
+
     const zoneData = {
       zoneId, centerLat: center.lat, centerLng: center.lng,
       loadedAt: new Date().toISOString(),
       configVersion: parseInt(localStorage.getItem(STORE_KEYS.CONFIG_VERSION) || '1'),
       providerCount: provs.length, providers: provs,
+      shopCount: zoneShops.length, shops: zoneShops,
     };
     localStorage.setItem(STORE_KEYS.ZONE_PREFIX + zoneId, JSON.stringify(zoneData));
     const idx = this._getIndex();
     if (!idx.zones.includes(zoneId)) { idx.zones.push(zoneId); idx.lastUpdated = new Date().toISOString(); this._saveIndex(idx); }
-    console.log(`[ZoneManager] Zone ${zoneId} cached permanently: ${provs.length} providers`);
-    this._notify({ type: 'zone_loaded', zoneId, providerCount: provs.length });
+    console.log(`[ZoneManager] Zone ${zoneId} cached: ${provs.length} providers, ${zoneShops.length} shops`);
+    this._notify({ type: 'zone_loaded', zoneId, providerCount: provs.length, shopCount: zoneShops.length });
     return zoneData;
   },
 
@@ -1340,7 +1463,29 @@ const ZoneManager = {
 
   getStatus() {
     const zones = this.getCachedZoneIds();
-    return { zoneCount: zones.length, totalProviders: this.getTotalCachedProviders(), currentZone: this._currentZoneId, estimatedSizeKB: Math.round(zones.length * 9) };
+    let totalShops = 0;
+    zones.forEach(zId => {
+      const d = this.getZoneData(zId);
+      if (d && d.shops) totalShops += d.shops.length;
+    });
+    return { zoneCount: zones.length, totalProviders: this.getTotalCachedProviders(), totalShops, currentZone: this._currentZoneId, estimatedSizeKB: Math.round(zones.length * 12) };
+  },
+
+  // Get shops within a specific radius from all cached zones
+  getShopsInRadius(lat, lng, radiusM) {
+    const results = [];
+    this.getCachedZoneIds().forEach(zId => {
+      const zone = this.getZoneData(zId);
+      if (!zone || !zone.shops) return;
+      zone.shops.forEach(s => {
+        const dist = Utils.haversine(lat, lng, s.lat, s.lng);
+        if (dist <= radiusM) {
+          results.push({ ...s, distance: dist });
+        }
+      });
+    });
+    results.sort((a, b) => a.distance - b.distance);
+    return results;
   },
 
   onChange(fn) { this._listeners.push(fn); },
