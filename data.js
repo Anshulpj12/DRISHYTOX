@@ -87,15 +87,30 @@ const Store = {
     const list = this.getProviders();
     list.push(provider);
     this.set(STORE_KEYS.PROVIDERS, list);
+    // Firebase sync
+    if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
+      FirebaseSync.pushProvider(provider).catch(e => console.warn('[Store] Firebase pushProvider failed:', e));
+    }
   },
   updateProvider(id, updates) {
     const list = this.getProviders();
     const idx = list.findIndex(p => p.id === id);
-    if (idx >= 0) { Object.assign(list[idx], updates); this.set(STORE_KEYS.PROVIDERS, list); }
+    if (idx >= 0) {
+      Object.assign(list[idx], updates);
+      this.set(STORE_KEYS.PROVIDERS, list);
+      // Firebase sync
+      if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
+        FirebaseSync.updateProvider(id, updates).catch(e => console.warn('[Store] Firebase updateProvider failed:', e));
+      }
+    }
   },
   deleteProvider(id) {
     const list = this.getProviders().filter(p => p.id !== id);
     this.set(STORE_KEYS.PROVIDERS, list);
+    // Firebase sync
+    if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
+      FirebaseSync.deleteProvider(id).catch(e => console.warn('[Store] Firebase deleteProvider failed:', e));
+    }
   },
   findProvider(id, password) {
     return this.getProviders().find(p => p.id === id && p.password === password);
@@ -1051,6 +1066,179 @@ const BlockTransitLog = {
   },
 };
 
+// ═══ Speed Estimator — Community + User + Live Speed for SOS ETA ═══
+// Uses 3 layers of speed data to calculate realistic ETAs:
+//   1. Community average speed per block (downloaded from Firebase zone)
+//   2. User's own speed history per block (local transit log)
+//   3. Current GPS speed (real-time)
+// Stored in localStorage as speed profiles for offline access.
+const SPEED_PROFILE_KEY = 'apara_speed_profiles';
+const COMMUNITY_SPEEDS_KEY = 'apara_community_speeds';
+const DEFAULT_SPEED_KMH = 40; // Fallback: 40 km/h
+
+const SpeedEstimator = {
+
+  // ─── Get community speed profiles (downloaded from Firebase) ───
+  getCommunityProfiles() {
+    try { return JSON.parse(localStorage.getItem(COMMUNITY_SPEEDS_KEY)) || {}; }
+    catch { return {}; }
+  },
+
+  saveCommunityProfiles(profiles) {
+    localStorage.setItem(COMMUNITY_SPEEDS_KEY, JSON.stringify(profiles));
+  },
+
+  // ─── Build community speed profiles from downloaded transit records ───
+  // Called after FirebaseSync.downloadCommunityData() fetches transit records
+  buildCommunityProfiles(transitRecords) {
+    const profiles = this.getCommunityProfiles();
+    const blockSpeeds = {}; // blockId → [speed1, speed2, ...]
+
+    transitRecords.forEach(rec => {
+      const blockId = rec.blockId || rec.b;
+      const speed = rec.speed || rec.s || 0;
+      if (speed > 0 && blockId) {
+        if (!blockSpeeds[blockId]) blockSpeeds[blockId] = [];
+        blockSpeeds[blockId].push(speed);
+      }
+    });
+
+    // Compute averages
+    for (const blockId in blockSpeeds) {
+      const speeds = blockSpeeds[blockId];
+      const avg = speeds.reduce((s, v) => s + v, 0) / speeds.length;
+      const existing = profiles[blockId];
+      if (existing) {
+        // Weighted merge: 70% existing community, 30% new data
+        profiles[blockId] = {
+          avgSpeed: existing.avgSpeed * 0.7 + avg * 0.3,
+          sampleCount: (existing.sampleCount || 0) + speeds.length,
+          lastUpdated: new Date().toISOString(),
+        };
+      } else {
+        profiles[blockId] = {
+          avgSpeed: avg,
+          sampleCount: speeds.length,
+          lastUpdated: new Date().toISOString(),
+        };
+      }
+    }
+
+    this.saveCommunityProfiles(profiles);
+    console.log(`[SpeedEstimator] Built community profiles for ${Object.keys(blockSpeeds).length} blocks`);
+    return profiles;
+  },
+
+  // ─── Get user's own speed profile for a block ───
+  getUserSpeedForBlock(blockId, driverId) {
+    const records = BlockTransitLog.getByBlock(blockId).filter(r =>
+      r.speed > 0 && (driverId ? r.driverId === driverId : true)
+    );
+    if (records.length === 0) return null;
+    return records.reduce((s, r) => s + r.speed, 0) / records.length;
+  },
+
+  // ─── Get user's overall average speed ───
+  getUserOverallSpeed(driverId) {
+    const all = driverId
+      ? BlockTransitLog.getByDriver(driverId).filter(r => r.speed > 0)
+      : BlockTransitLog.getAll().filter(r => r.speed > 0);
+    if (all.length === 0) return null;
+    return all.reduce((s, r) => s + r.speed, 0) / all.length;
+  },
+
+  // ─── Get user's speed when entering a specific block previously ───
+  getUserEntrySpeed(blockId, driverId) {
+    const entries = BlockTransitLog.getByBlock(blockId).filter(r =>
+      r.type === 'entry' && r.speed > 0 && (driverId ? r.driverId === driverId : true)
+    );
+    if (entries.length === 0) return null;
+    // Return most recent entry speed
+    return entries[0].speed;
+  },
+
+  // ═══ MAIN: Estimate speed for a given position ═══
+  // Returns { speed, source, confidence }
+  // Uses layered approach: current GPS > user block avg > community avg > default
+  estimateSpeed(lat, lng, currentGPSSpeed, driverId) {
+    const blockId = BlockRegistry.getBlockId(lat, lng);
+
+    // Layer 1: Current GPS speed (highest confidence)
+    if (currentGPSSpeed && currentGPSSpeed > 2) { // > 2 km/h means actually moving
+      return { speed: currentGPSSpeed, source: 'gps_live', confidence: 95 };
+    }
+
+    // Layer 2: User's own speed at this specific block (previous visits)
+    const userBlockSpeed = this.getUserSpeedForBlock(blockId, driverId);
+    if (userBlockSpeed && userBlockSpeed > 0) {
+      return { speed: userBlockSpeed, source: 'user_block', confidence: 80 };
+    }
+
+    // Layer 3: User's entry speed into this block (dead-reckoning)
+    const userEntrySpeed = this.getUserEntrySpeed(blockId, driverId);
+    if (userEntrySpeed && userEntrySpeed > 0) {
+      return { speed: userEntrySpeed, source: 'user_entry', confidence: 75 };
+    }
+
+    // Layer 4: Community average for this block
+    const communityProfiles = this.getCommunityProfiles();
+    const communitySpeed = communityProfiles[blockId];
+    if (communitySpeed && communitySpeed.avgSpeed > 0) {
+      const conf = Math.min(85, 50 + communitySpeed.sampleCount * 2); // More samples = higher conf
+      return { speed: communitySpeed.avgSpeed, source: 'community', confidence: conf };
+    }
+
+    // Layer 5: User's overall average speed
+    const userOverall = this.getUserOverallSpeed(driverId);
+    if (userOverall && userOverall > 0) {
+      return { speed: userOverall, source: 'user_overall', confidence: 50 };
+    }
+
+    // Layer 6: Default fallback
+    return { speed: DEFAULT_SPEED_KMH, source: 'default', confidence: 20 };
+  },
+
+  // ═══ Calculate ETA from current position to a provider ═══
+  // Returns { etaMinutes, distanceKm, estimatedSpeed, speedSource, confidence }
+  calculateETA(fromLat, fromLng, toLat, toLng, currentGPSSpeed, driverId) {
+    const distanceM = Utils.haversine(fromLat, fromLng, toLat, toLng);
+    const distanceKm = distanceM / 1000;
+
+    // Get speed estimate
+    const speedEst = this.estimateSpeed(fromLat, fromLng, currentGPSSpeed, driverId);
+    const speedKmh = Math.max(5, speedEst.speed); // Min 5 km/h to avoid infinity
+
+    // Calculate ETA
+    const etaHours = distanceKm / speedKmh;
+    const etaMinutes = Math.max(1, Math.round(etaHours * 60));
+
+    return {
+      etaMinutes,
+      distanceKm: Math.round(distanceKm * 10) / 10,
+      estimatedSpeed: Math.round(speedKmh),
+      speedSource: speedEst.source,
+      confidence: speedEst.confidence,
+    };
+  },
+
+  // ═══ Get speed summary for the current position (for UI display) ═══
+  getSpeedSummary(lat, lng, currentGPSSpeed, driverId) {
+    const blockId = BlockRegistry.getBlockId(lat, lng);
+    const communityProfiles = this.getCommunityProfiles();
+    const community = communityProfiles[blockId];
+
+    return {
+      currentGPS: currentGPSSpeed || 0,
+      userBlockAvg: this.getUserSpeedForBlock(blockId, driverId) || 0,
+      userOverallAvg: this.getUserOverallSpeed(driverId) || 0,
+      communityAvg: community?.avgSpeed || 0,
+      communitySamples: community?.sampleCount || 0,
+      blockId,
+    };
+  },
+};
+
+
 // ═══ Driver Registry — Mobile-Based Login ═══
 const DriverRegistry = {
   loginDriver(mobileNumber) {
@@ -1584,6 +1772,13 @@ const TransitBatchSync = {
   sync(driverId) {
     const payload = this.buildPayload(driverId);
     console.log(`[BatchSync] Synced: ${payload.records} transits + ${payload.blocks} blocks (${payload.compressedSizeKB} KB)`);
+    // Firebase sync — upload blocks + transits to Firestore
+    if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
+      const rawPayload = JSON.parse(payload.raw);
+      FirebaseSync.uploadBatchTransit(driverId, rawPayload)
+        .then(ok => { if (ok) console.log('[BatchSync] ✅ Firebase upload complete'); })
+        .catch(e => console.warn('[BatchSync] Firebase upload failed:', e));
+    }
     // Clear buffer
     localStorage.setItem(STORE_KEYS.BATCH_BUFFER, JSON.stringify({ blocks: {}, transits: [], startedAt: new Date().toISOString() }));
     const meta = this._getMeta();
@@ -1626,6 +1821,11 @@ const ConfigPush = {
   bumpVersion(changeInfo) {
     const v = this.incrementVersion();
     console.log(`[ConfigPush] Version bumped to v${v}`, changeInfo || '');
+    // Firebase sync — push version to Firestore so all drivers get the update
+    if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
+      FirebaseSync.pushConfigVersion(v, { action: changeInfo?.type || 'update', detail: JSON.stringify(changeInfo || {}) })
+        .catch(e => console.warn('[ConfigPush] Firebase pushConfigVersion failed:', e));
+    }
     // Immediately check for zone updates
     setTimeout(() => this.checkForUpdates(), 500);
     return v;
@@ -1699,6 +1899,10 @@ const ShopRegistry = {
     const list = this.getShops();
     list.push(shop);
     Store.set(STORE_KEYS.SHOPS, list);
+    // Firebase sync
+    if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
+      FirebaseSync.pushShop(shop).catch(e => console.warn('[ShopRegistry] Firebase pushShop failed:', e));
+    }
     // Bump config version so zones refresh
     ConfigPush.bumpVersion({ type: 'shop_added', shopId: shop.id });
   },
@@ -1717,6 +1921,10 @@ const ShopRegistry = {
     Store.set(STORE_KEYS.SHOPS, list);
     // Also remove menu
     localStorage.removeItem(STORE_KEYS.MENU_PREFIX + id);
+    // Firebase sync
+    if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
+      FirebaseSync.deleteShop(id).catch(e => console.warn('[ShopRegistry] Firebase deleteShop failed:', e));
+    }
     ConfigPush.bumpVersion({ type: 'shop_deleted', shopId: id });
   },
 
@@ -1779,6 +1987,10 @@ const MenuManager = {
 
   saveMenu(shopId, items) {
     localStorage.setItem(STORE_KEYS.MENU_PREFIX + shopId, JSON.stringify(items));
+    // Firebase sync
+    if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
+      FirebaseSync.pushMenu(shopId, items).catch(e => console.warn('[MenuManager] Firebase pushMenu failed:', e));
+    }
   },
 
   addItem(shopId, item) {

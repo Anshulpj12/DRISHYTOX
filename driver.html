@@ -9,86 +9,221 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-.driver-app { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 80px; position: relative; }
-.screen { display: none; animation: fade-in 0.3s ease; }
-.screen.active { display: block; }
-.header-bar { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem; border-bottom:1px solid var(--border); background:var(--bg-panel); position:sticky; top:0; z-index:50; }
-.header-bar h1 { font-family:var(--font-mono); font-size:1.1rem; color:var(--accent-alert); }
-.screen-pad { padding: 1.25rem; }
-.gps-hero { text-align:center; padding:1.5rem 1.25rem 1rem; }
-.gps-coords { font-family:var(--font-mono); font-size:0.85rem; color:var(--text-muted); margin-bottom:0.5rem; }
-.block-main { font-family:var(--font-mono); font-size:3rem; font-weight:700; margin:0.5rem 0; letter-spacing:0.05em; transition: color 0.5s; }
-.block-main.online { color:var(--accent-online); text-shadow:0 0 25px rgba(34,211,238,0.3); }
-.block-main.offline { color:var(--accent-offline); text-shadow:0 0 25px rgba(250,204,21,0.3); }
-.speed-display { font-family:var(--font-mono); font-size:2rem; font-weight:700; color:var(--text-primary); }
-.speed-unit { font-size:0.8rem; color:var(--text-muted); }
-.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; padding:0 1.25rem; margin-top:1rem; }
-.info-box { background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius-sm); padding:0.85rem; text-align:center; }
-.info-box .val { font-family:var(--font-mono); font-size:1.1rem; font-weight:700; }
-.info-box .lbl { font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-top:0.2rem; }
-.status-strip { margin:1rem 1.25rem; padding:0.6rem 1rem; border-radius:var(--radius-sm); font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:0.5rem; }
-.status-strip.online-strip { background:rgba(34,211,238,0.1); color:var(--accent-online); border:1px solid rgba(34,211,238,0.2); }
-.status-strip.offline-strip { background:rgba(250,204,21,0.1); color:var(--accent-offline); border:1px solid rgba(250,204,21,0.2); }
-.status-strip.stopped-strip { background:rgba(239,68,68,0.1); color:#F87171; border:1px solid rgba(239,68,68,0.2); }
-.sos-float { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); width:calc(min(480px, 100%) - 2.5rem); z-index:90; }
-.gauge-container { position:relative; width:140px; height:80px; margin:0 auto; }
-.gauge-container canvas { width:140px; height:80px; }
-.gauge-val { position:absolute; bottom:2px; left:50%; transform:translateX(-50%); font-family:var(--font-mono); font-size:1.5rem; font-weight:700; }
-.crossing-item { background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius-sm); padding:0.85rem; margin-bottom:0.6rem; }
-.crossing-item .route { font-family:var(--font-mono); font-size:0.9rem; font-weight:700; color:var(--accent-online); }
-.crossing-item .meta { font-size:0.75rem; color:var(--text-muted); margin-top:0.3rem; display:flex; gap:1rem; flex-wrap:wrap; }
-.storage-bar { font-size:0.75rem; color:var(--text-muted); padding:0.6rem 0; text-align:center; font-family:var(--font-mono); }
-.sos-categories { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; margin:1rem 0; }
-.sos-cat-btn { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:1rem; text-align:center; cursor:pointer; transition:all 0.2s; }
-.sos-cat-btn:hover { border-color:var(--accent-alert); background:rgba(249,115,22,0.08); }
-.sos-cat-btn.selected { border-color:var(--accent-alert); background:rgba(249,115,22,0.15); }
-.sos-cat-btn .cat-icon { font-size:1.8rem; display:block; margin-bottom:0.3rem; }
-.sos-cat-btn .cat-label { font-size:0.8rem; font-weight:600; }
-.hold-btn { width:100%; padding:1.25rem; border:none; border-radius:var(--radius); font-size:1.1rem; font-weight:800; color:#fff; cursor:pointer; position:relative; overflow:hidden; text-transform:uppercase; letter-spacing:0.08em; }
-.hold-btn .fill { position:absolute; left:0; top:0; height:100%; background:rgba(255,255,255,0.15); width:0; transition:width 2s linear; }
-.provider-confirm { background:var(--bg-panel); border:2px solid var(--success); border-radius:var(--radius); padding:1.25rem; text-align:center; animation:slide-in-top 0.4s ease; }
-.provider-confirm .check { font-size:2.5rem; color:var(--success); }
-.provider-confirm h3 { margin:0.5rem 0; color:var(--success); }
-.setting-row { display:flex; align-items:center; justify-content:space-between; padding:1rem 0; border-bottom:1px solid var(--border); }
-.setting-row .setting-info h4 { font-size:0.9rem; }
-.setting-row .setting-info p { font-size:0.75rem; color:var(--text-muted); }
-#miniMap { height: 200px; border-radius: var(--radius-sm); margin: 1rem 1.25rem; border: 1px solid var(--border); }
-.gps-permission { text-align:center; padding:3rem 1.5rem; }
-.gps-permission .gps-icon { font-size:4rem; margin-bottom:1rem; }
-.net-info { font-family:var(--font-mono); font-size:0.7rem; color:var(--text-muted); text-align:center; margin-top:0.3rem; }
-/* Login screen */
-.login-container { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:2rem; }
-.login-box { width:100%; max-width:380px; }
-.login-logo { text-align:center; margin-bottom:2rem; }
-.login-logo h1 { font-family:var(--font-mono); font-size:2rem; color:var(--accent-alert); }
-.login-logo p { color:var(--text-muted); font-size:0.85rem; margin-top:0.3rem; }
-/* Active SOS Banner */
-.sos-banner { background:linear-gradient(135deg, rgba(239,68,68,0.15), rgba(249,115,22,0.15)); border:2px solid var(--accent-alert); border-radius:var(--radius); padding:1rem; margin:0.75rem 1.25rem; animation:urgent-border 1.5s infinite; cursor:pointer; }
-.sos-banner h4 { color:var(--accent-alert); font-size:0.9rem; margin-bottom:0.5rem; }
-.sos-banner .sos-code-val { font-family:var(--font-mono); font-size:0.85rem; color:var(--accent-online); word-break:break-all; margin:0.3rem 0; }
-.sos-banner .sos-pin-val { font-family:var(--font-mono); font-size:1.8rem; font-weight:700; color:var(--accent-online); letter-spacing:0.2em; }
-.sos-banner .sos-actions { display:flex; gap:0.5rem; margin-top:0.75rem; }
-.sos-banner .sos-actions button, .sos-banner .sos-actions a { flex:1; font-size:0.75rem; padding:0.5rem; }
-/* Buffer indicator */
-.buffer-indicator { font-family:var(--font-mono); font-size:0.65rem; color:var(--text-muted); text-align:center; padding:0.3rem; background:rgba(34,211,238,0.05); border-radius:4px; margin:0.5rem 1.25rem; }
-/* Driver ID badge */
-.driver-id-badge { font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-online); background:rgba(34,211,238,0.1); padding:0.2rem 0.5rem; border-radius:4px; }
-/* Zone status bar */
-.zone-status { font-size:0.7rem; padding:0.5rem 1rem; margin:0.5rem 1.25rem; border-radius:var(--radius-sm); background:rgba(34,211,238,0.06); border:1px solid rgba(34,211,238,0.15); display:flex; align-items:center; justify-content:space-between; gap:0.5rem; }
-.zone-status .zone-label { color:var(--accent-online); font-weight:600; }
-.zone-status .zone-detail { color:var(--text-muted); font-family:var(--font-mono); font-size:0.65rem; }
-/* Config push banner */
-.config-banner { background:linear-gradient(135deg, rgba(34,211,238,0.1), rgba(139,92,246,0.1)); border:1px solid rgba(139,92,246,0.3); border-radius:var(--radius); padding:0.75rem 1rem; margin:0.5rem 1.25rem; animation:fade-in 0.3s; }
-.config-banner h4 { font-size:0.8rem; color:var(--accent-v2v); margin-bottom:0.3rem; }
-.config-banner p { font-size:0.7rem; color:var(--text-muted); }
-.config-banner .config-actions { display:flex; gap:0.5rem; margin-top:0.5rem; }
-/* Batch sync card */
-.batch-sync-card { background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; margin-top:0.75rem; }
-.batch-sync-card h4 { font-size:0.85rem; margin-bottom:0.5rem; color:var(--text-primary); }
-.batch-progress { height:6px; background:var(--bg-deep); border-radius:3px; overflow:hidden; margin:0.5rem 0; }
-.batch-progress .fill { height:100%; border-radius:3px; background:linear-gradient(90deg, var(--accent-online), var(--accent-v2v)); transition:width 0.3s; }
-/* SOS code large display */
-.sos-code-8 { font-family:var(--font-mono); font-size:2.5rem; font-weight:800; letter-spacing:0.15em; color:var(--accent-alert); text-align:center; padding:0.5rem 0; }
+/* ═══ PREMIUM MOBILE APP — Full Redesign ═══ */
+* { -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; }
+
+.driver-app {
+  max-width: 480px; margin: 0 auto; min-height: 100vh;
+  padding-bottom: 72px; position: relative;
+  background: var(--bg-deep);
+  overflow-x: hidden;
+}
+
+/* ─── SCREEN TRANSITIONS ─── */
+.screen { display: none; opacity: 0; transform: translateY(12px); }
+.screen.active {
+  display: block; opacity: 1; transform: translateY(0);
+  animation: screenSlideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes screenSlideIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── HEADER BAR — Frosted glass ─── */
+.header-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  position: sticky; top: 0; z-index: 60;
+}
+.header-bar h1 {
+  font-family: var(--font-mono); font-size: 1rem;
+  background: linear-gradient(135deg, var(--accent-alert), #FBBF24);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; letter-spacing: 0.05em;
+}
+
+/* ─── SCREEN PADDING ─── */
+.screen-pad { padding: 1rem; }
+
+/* ─── BOTTOM NAV — Frosted glass native feel ─── */
+.mobile-nav {
+  position: fixed; bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: min(480px, 100%); height: 64px;
+  display: flex; justify-content: space-around; align-items: center;
+  background: rgba(17, 24, 39, 0.92);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  z-index: 100; padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.mobile-nav-item {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px; font-size: 0.6rem; color: var(--text-muted);
+  cursor: pointer; position: relative;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0.35rem 0.7rem; border-radius: 12px;
+  -webkit-user-select: none; user-select: none;
+}
+.mobile-nav-item .nav-icon { font-size: 1.3rem; transition: transform 0.25s ease; }
+.mobile-nav-item.active {
+  color: var(--accent-alert);
+  background: rgba(249, 115, 22, 0.1);
+}
+.mobile-nav-item.active .nav-icon { transform: scale(1.15) translateY(-1px); }
+.mobile-nav-item:active { transform: scale(0.92); }
+
+/* ─── LOGIN SCREEN ─── */
+.login-container {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 100vh; padding: 2rem;
+  background: radial-gradient(ellipse at 50% 30%, rgba(249,115,22,0.08) 0%, transparent 60%);
+}
+.login-box { width: 100%; max-width: 360px; }
+.login-logo { text-align: center; margin-bottom: 2.5rem; }
+.login-logo h1 {
+  font-family: var(--font-mono); font-size: 2.2rem; letter-spacing: 0.15em;
+  background: linear-gradient(135deg, var(--accent-alert), #FBBF24);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.login-logo p { color: var(--text-muted); font-size: 0.82rem; margin-top: 0.5rem; line-height: 1.5; }
+
+/* ─── GPS HERO SECTION — Dashboard feel ─── */
+.gps-hero { text-align: center; padding: 1.25rem 1rem 0.5rem; }
+.gps-coords {
+  font-family: var(--font-mono); font-size: 0.72rem;
+  color: var(--text-muted); letter-spacing: 0.02em;
+  background: rgba(255,255,255,0.03); display: inline-block;
+  padding: 0.25rem 0.75rem; border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.block-main {
+  font-family: var(--font-mono); font-size: 2.2rem; font-weight: 800;
+  margin: 0.6rem 0 0.3rem; letter-spacing: 0.08em;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.block-main.online { color: var(--accent-online); text-shadow: 0 0 30px rgba(34,211,238,0.25), 0 0 60px rgba(34,211,238,0.1); }
+.block-main.offline { color: var(--accent-offline); text-shadow: 0 0 30px rgba(250,204,21,0.25); }
+.speed-display { font-family: var(--font-mono); font-size: 3.5rem; font-weight: 800; color: var(--text-primary); line-height: 1; letter-spacing: -0.02em; }
+.speed-unit { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.15em; margin-top: 0.1rem; }
+
+/* ─── INFO GRID ─── */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; padding: 0 1rem; margin-top: 0.75rem; }
+.info-box {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 0.75rem; text-align: center; transition: all 0.2s;
+}
+.info-box:active { transform: scale(0.97); background: rgba(255,255,255,0.06); }
+.info-box .val { font-family: var(--font-mono); font-size: 1rem; font-weight: 700; }
+.info-box .lbl { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.2rem; }
+
+/* ─── STATUS STRIPS ─── */
+.status-strip { margin: 0.75rem 1rem; padding: 0.6rem 0.85rem; border-radius: 10px; font-size: 0.72rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; }
+.status-strip.online-strip { background: rgba(34,211,238,0.06); color: var(--accent-online); border: 1px solid rgba(34,211,238,0.12); }
+.status-strip.offline-strip { background: rgba(250,204,21,0.06); color: var(--accent-offline); border: 1px solid rgba(250,204,21,0.12); }
+.status-strip.stopped-strip { background: rgba(239,68,68,0.06); color: #F87171; border: 1px solid rgba(239,68,68,0.12); }
+
+/* ─── GAUGE ─── */
+.gauge-container { position: relative; width: 140px; height: 80px; margin: 0 auto; }
+.gauge-container canvas { width: 140px; height: 80px; }
+.gauge-val { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-family: var(--font-mono); font-size: 1.3rem; font-weight: 800; }
+
+/* ─── SOS BUTTON ─── */
+.sos-float { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%); width: calc(min(480px, 100%) - 2rem); z-index: 90; }
+.btn-sos {
+  width: 100%; padding: 0.9rem; border: none; border-radius: 14px;
+  font-size: 0.85rem; font-weight: 800; color: #fff;
+  background: linear-gradient(135deg, #DC2626, #EF4444);
+  cursor: pointer; letter-spacing: 0.08em;
+  box-shadow: 0 4px 20px rgba(239,68,68,0.35); transition: all 0.2s; text-transform: uppercase;
+}
+.btn-sos:active { transform: scale(0.97); box-shadow: 0 2px 10px rgba(239,68,68,0.3); }
+
+/* ─── SOS CATEGORIES ─── */
+.sos-categories { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0.75rem 0; }
+.sos-cat-btn {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 1rem; text-align: center; cursor: pointer; transition: all 0.25s;
+}
+.sos-cat-btn:active { transform: scale(0.96); }
+.sos-cat-btn.selected { border-color: var(--accent-alert); background: rgba(249,115,22,0.1); box-shadow: 0 0 16px rgba(249,115,22,0.12); }
+.sos-cat-btn .cat-icon { font-size: 1.6rem; display: block; margin-bottom: 0.3rem; }
+.sos-cat-btn .cat-label { font-size: 0.72rem; font-weight: 600; }
+
+/* ─── HOLD BUTTON ─── */
+.hold-btn { width: 100%; padding: 1.1rem; border: none; border-radius: 14px; font-size: 0.85rem; font-weight: 800; color: #fff; cursor: pointer; position: relative; overflow: hidden; text-transform: uppercase; letter-spacing: 0.06em; }
+.hold-btn .fill { position: absolute; left: 0; top: 0; height: 100%; background: rgba(255,255,255,0.15); width: 0; transition: width 2s linear; }
+
+/* ─── PROVIDER CONFIRM ─── */
+.provider-confirm { background: rgba(255,255,255,0.03); border: 1px solid rgba(34,197,94,0.3); border-radius: 16px; padding: 1.5rem; text-align: center; animation: cardPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.provider-confirm .check { font-size: 2.5rem; }
+.provider-confirm h3 { margin: 0.5rem 0; }
+@keyframes cardPop { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+/* ─── BANNERS ─── */
+.sos-banner { background: rgba(239,68,68,0.06); border: 1px solid rgba(249,115,22,0.3); border-radius: 14px; padding: 1rem; margin: 0.5rem 1rem; animation: sosGlow 2s infinite; cursor: pointer; }
+.sos-banner h4 { color: var(--accent-alert); font-size: 0.78rem; margin-bottom: 0.5rem; }
+.sos-banner .sos-code-val { font-family: var(--font-mono); font-size: 0.82rem; color: var(--accent-online); word-break: break-all; }
+.sos-banner .sos-pin-val { font-family: var(--font-mono); font-size: 1.6rem; font-weight: 700; color: var(--accent-online); letter-spacing: 0.2em; }
+.sos-banner .sos-actions { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
+.sos-banner .sos-actions button, .sos-banner .sos-actions a { flex: 1; font-size: 0.68rem; padding: 0.45rem; }
+@keyframes sosGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.15); } 50% { box-shadow: 0 0 20px 2px rgba(239,68,68,0.1); } }
+.order-banner { margin: 0.5rem 1rem; padding: 1rem; background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); border-radius: 14px; animation: pulse-market 2.5s infinite; }
+.order-banner h4 { color: var(--accent-market); font-size: 0.78rem; margin-bottom: 0.5rem; }
+
+/* ─── CROSSING HISTORY ─── */
+.crossing-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 0.75rem; margin-bottom: 0.5rem; transition: all 0.2s; }
+.crossing-item:active { transform: scale(0.98); }
+.crossing-item .route { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 700; color: var(--accent-online); }
+.crossing-item .meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.2rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.storage-bar { font-size: 0.68rem; color: var(--text-muted); padding: 0.5rem 0; text-align: center; font-family: var(--font-mono); }
+
+/* ─── SETTINGS ─── */
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.setting-row .setting-info h4 { font-size: 0.82rem; }
+.setting-row .setting-info p { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+/* ─── CONFIG/LOCATION BANNER ─── */
+.config-banner { background: rgba(255,255,255,0.03); border: 1px solid rgba(139,92,246,0.2); border-radius: 14px; padding: 0.85rem 1rem; margin: 0.5rem 1rem; animation: screenSlideIn 0.3s ease; }
+.config-banner h4 { font-size: 0.75rem; margin-bottom: 0.3rem; }
+.config-banner p { font-size: 0.65rem; color: var(--text-muted); line-height: 1.4; }
+.config-banner .config-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+
+/* ─── MISC ─── */
+.gps-permission { text-align: center; padding: 3rem 1.5rem; }
+.gps-permission .gps-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+.net-info { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); text-align: center; margin-top: 0.2rem; }
+.driver-id-badge { font-family: var(--font-mono); font-size: 0.62rem; color: var(--accent-online); background: rgba(34,211,238,0.08); padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid rgba(34,211,238,0.12); }
+.zone-status { font-size: 0.68rem; padding: 0.5rem 0.85rem; margin: 0.5rem 1rem; border-radius: 10px; background: rgba(34,211,238,0.04); border: 1px solid rgba(34,211,238,0.1); display: flex; align-items: center; justify-content: space-between; }
+.zone-status .zone-label { color: var(--accent-online); font-weight: 600; }
+.zone-status .zone-detail { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.6rem; }
+.buffer-indicator { font-family: var(--font-mono); font-size: 0.58rem; color: var(--text-muted); text-align: center; padding: 0.25rem; margin: 0.25rem 1rem; background: rgba(255,255,255,0.02); border-radius: 6px; }
+#miniMap { height: 180px; border-radius: 14px; margin: 0.75rem 1rem; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
+.batch-sync-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 1rem; margin-top: 0.75rem; }
+.batch-sync-card h4 { font-size: 0.8rem; margin-bottom: 0.5rem; }
+.batch-progress { height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; margin: 0.5rem 0; }
+.batch-progress .fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent-online), var(--accent-v2v)); transition: width 0.4s; }
+.sos-code-8 { font-family: var(--font-mono); font-size: 2.2rem; font-weight: 800; letter-spacing: 0.15em; color: var(--accent-alert); text-align: center; }
+.card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 1rem; }
+
+/* ─── MARKETPLACE MAP ─── */
+#mktMap { height: 200px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 0.75rem; overflow: hidden; background: var(--bg-deep); }
+#mktMap .leaflet-popup-content-wrapper { background: var(--bg-panel); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+#mktMap .leaflet-popup-tip { background: var(--bg-panel); }
+
+/* ─── TOAST ─── */
+.toast { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%) translateY(-120%); background: rgba(17,24,39,0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); color: var(--text-primary); padding: 0.7rem 1.2rem; border-radius: 12px; font-size: 0.78rem; z-index: 9999; transition: transform 0.35s cubic-bezier(0.22,1,0.36,1); box-shadow: 0 8px 32px rgba(0,0,0,0.4); max-width: 90%; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ─── SIGNAL INDICATOR ─── */
+.signal-indicator { font-size: 0.62rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 20px; display: inline-flex; align-items: center; gap: 0.2rem; }
+.signal-indicator.signal-online { background: rgba(34,211,238,0.08); color: var(--accent-online); border: 1px solid rgba(34,211,238,0.12); }
+.signal-indicator.signal-offline { background: rgba(250,204,21,0.08); color: var(--accent-offline); border: 1px solid rgba(250,204,21,0.12); }
 </style>
 </head>
 <body>
@@ -267,24 +402,37 @@
           <button class="btn btn-danger btn-full mt-2" onclick="cancelActiveSOS()">❌ Cancel SOS</button>
         </div>
         <div id="sosStep4" class="hidden">
-          <div class="provider-confirm">
-            <div class="check">✅</div>
-            <h3 id="provName">--</h3>
-            <div class="text-sm text-muted" id="provCat">--</div>
-            <div style="margin-top:1rem;font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--accent-alert);" id="provETA">--</div>
-            <div style="margin-top:1rem;background:rgba(255,255,255,0.05);padding:1rem;border-radius:var(--radius-sm);">
-              <div class="text-xs text-muted mb-1" style="letter-spacing:1px;">RESOLUTION PIN (GIVE TO PROVIDER)</div>
-              <div style="font-family:var(--font-mono);font-size:2.5rem;font-weight:700;letter-spacing:0.3em;color:var(--accent-online);" id="sosPinDisplay">----</div>
+          <div style="text-align:center;margin-bottom:1rem;">
+            <div style="font-size:2rem;">🚨</div>
+            <h3 style="margin:0.5rem 0;color:var(--accent-alert);">SOS Ready — Choose Provider</h3>
+          </div>
+          <div style="background:rgba(249,115,22,0.08);padding:1rem;border-radius:var(--radius-sm);border:1px solid rgba(249,115,22,0.2);text-align:center;margin-bottom:0.75rem;">
+            <div class="text-xs text-muted" style="letter-spacing:1px;">SOS BLOCK CODE</div>
+            <div style="font-family:var(--font-mono);font-size:2rem;font-weight:800;color:var(--accent-alert);letter-spacing:0.15em;margin:0.3rem 0;" id="sosCodeDisplay">--------</div>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
+            <div style="flex:1;background:rgba(255,255,255,0.05);padding:0.75rem;border-radius:var(--radius-sm);text-align:center;">
+              <div class="text-xs text-muted" style="letter-spacing:1px;">PIN</div>
+              <div style="font-family:var(--font-mono);font-size:1.6rem;font-weight:700;color:var(--accent-online);letter-spacing:0.2em;" id="sosPinDisplay">----</div>
             </div>
-            <div style="margin-top:1rem;background:rgba(249,115,22,0.08);padding:1rem;border-radius:var(--radius-sm);border:1px solid rgba(249,115,22,0.2);">
-              <div class="text-xs text-muted mb-1" style="letter-spacing:1px;">SOS CODE (SEND TO PROVIDER)</div>
-              <div style="font-family:var(--font-mono);font-size:1rem;font-weight:700;color:var(--accent-alert);word-break:break-all;" id="sosCodeDisplay">---</div>
+            <div style="flex:1;background:rgba(255,255,255,0.05);padding:0.75rem;border-radius:var(--radius-sm);text-align:center;">
+              <div class="text-xs text-muted" style="letter-spacing:1px;">TYPE</div>
+              <div style="font-size:1.4rem;margin-top:0.2rem;" id="sosTypeIcon">🚗</div>
+              <div class="text-xs text-muted" id="sosTypeLabel">Accident</div>
             </div>
           </div>
-          <a id="smsLink" href="#" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📱 Send SOS Code via SMS</a>
-          <button class="btn btn-secondary btn-full mt-1" onclick="copySOSCode()">📋 Copy SOS Code</button>
-          <button class="btn btn-danger btn-full mt-1" onclick="cancelActiveSOS()">❌ Cancel SOS</button>
-          <button class="btn btn-secondary btn-full mt-1" onclick="closeSOS()">Back to Home</button>
+          <!-- MULTI-PROVIDER LIST -->
+          <div class="text-xs text-muted" style="text-transform:uppercase;margin-bottom:0.5rem;letter-spacing:0.08em;">📍 Nearby Providers (10 km) — Tap to SMS</div>
+          <div id="sosProviderList" style="max-height:240px;overflow-y:auto;"></div>
+          <div id="sosNoProviders" class="hidden" style="text-align:center;padding:1rem;background:rgba(239,68,68,0.06);border-radius:var(--radius-sm);border:1px solid rgba(239,68,68,0.15);margin-bottom:0.5rem;">
+            <div class="text-sm" style="color:#F87171;">No providers found in 10km</div>
+            <a id="sos112Link" href="sms:112?body=SOS" class="btn btn-danger btn-full mt-1" style="text-decoration:none;display:block;text-align:center;">📱 SMS Emergency 112</a>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+            <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="copySOSCode()">📋 Copy Code</button>
+            <button class="btn btn-danger btn-sm" style="flex:1;" onclick="cancelActiveSOS()">❌ Cancel SOS</button>
+          </div>
+          <button class="btn btn-secondary btn-full mt-1 btn-sm" onclick="closeSOS()">Back to Home</button>
         </div>
       </div>
     </div>
@@ -453,6 +601,10 @@
   </div>
 </div>
 
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
 <script src="data.js"></script>
 <script>
 // ═══ STATE ═══
@@ -499,6 +651,32 @@ function driverLogin() {
   ConfigPush.onChange(onConfigPushUpdate);
   ConfigPush.init();
   showToast(`Welcome! Your ID: ${driver.id}`);
+  // ═══ FIREBASE INIT — Download zone data from cloud ═══
+  FirebaseSync.init().then(ready => {
+    if (ready) {
+      showToast('☁️ Cloud sync active');
+      FirebaseSync.pushDriver(driver);
+      // Download zone data after GPS is available
+      setTimeout(() => {
+        if (state.lastKnownPos) {
+          FirebaseSync.initDriverZone(state.lastKnownPos.lat, state.lastKnownPos.lng)
+            .then(r => { if (r) showToast(`☁️ Zone synced: +${r.providersAdded} providers, +${r.shopsAdded} shops`); });
+          FirebaseSync.downloadCommunityData(state.lastKnownPos.lat, state.lastKnownPos.lng)
+            .then(r => { if (r) console.log(`[Firebase] Community merge: +${r.newBlocks} blocks`); });
+        }
+      }, 3000);
+    }
+  });
+  // Start Firebase config polling (every 30 min)
+  setInterval(async () => {
+    const poll = await FirebaseSync.pollConfigVersion();
+    if (poll.changed) {
+      showToast(`☁️ Config update: v${poll.remoteVersion}`);
+      await FirebaseSync.refreshOutdatedZones(poll.remoteVersion);
+      ConfigPush.setVersion(poll.remoteVersion);
+      ConfigPush.checkForUpdates();
+    }
+  }, 30 * 60 * 1000);
   // Auto-request GPS on login
   setTimeout(() => requestGPS(), 500);
 }
@@ -528,6 +706,32 @@ function driverLogout() {
     document.getElementById('driverIdBadge').textContent = savedId;
     document.getElementById('settingsDriverId').textContent = savedId;
     DataBuffer.init();
+    // Firebase init for returning sessions
+    FirebaseSync.init().then(ready => {
+      if (ready) {
+        console.log('[Firebase] Session resumed — cloud sync active');
+        // Start config version polling
+        setInterval(async () => {
+          const poll = await FirebaseSync.pollConfigVersion();
+          if (poll.changed) {
+            showToast(`☁️ Config update: v${poll.remoteVersion}`);
+            await FirebaseSync.refreshOutdatedZones(poll.remoteVersion);
+            ConfigPush.setVersion(poll.remoteVersion);
+            ConfigPush.checkForUpdates();
+          }
+        }, 30 * 60 * 1000);
+        // First check immediately
+        setTimeout(async () => {
+          const poll = await FirebaseSync.pollConfigVersion();
+          if (poll.changed) {
+            showToast(`☁️ Config update: v${poll.remoteVersion}`);
+            await FirebaseSync.refreshOutdatedZones(poll.remoteVersion);
+            ConfigPush.setVersion(poll.remoteVersion);
+            ConfigPush.checkForUpdates();
+          }
+        }, 5000);
+      }
+    });
     // Auto-request GPS every time user returns to the app
     setTimeout(() => requestGPS(), 500);
   }
@@ -1033,66 +1237,160 @@ function sendSOS() {
   const blockCode8 = BlockCodeEncoder.encode(pos.lat, pos.lng, sosTypeCode);
   state.pendingSOS.blockCode8 = blockCode8;
 
-  // ═══ INSTANT LOCAL SEARCH — Zero DB reads ═══
-  const nearestProvider = ZoneManager.searchBySOS(pos.lat, pos.lng, sosTypeCode);
-  state.pendingSOS.nearestProvider = nearestProvider;
+  const conf = state.currentBlock?.confidence || 85;
+  const sosTypeInfo = EMERGENCY_TYPES.find(t => t.code === sosTypeCode) || EMERGENCY_TYPES[0];
 
   // ═══ PERSIST ACTIVE SOS ═══
   state.activeSOS = state.pendingSOS;
   localStorage.setItem('apara_active_sos', JSON.stringify(state.pendingSOS));
 
-  // Skip the 3-second spinner — search is INSTANT (local)
+  // ═══ SHOW STEP 4 ═══
   document.getElementById('sosStep2').classList.add('hidden');
   document.getElementById('sosStep3').classList.add('hidden');
   document.getElementById('sosStep4').classList.remove('hidden');
 
-  if (nearestProvider) {
-    const distKm = (nearestProvider.distance / 1000).toFixed(1);
-    const eta = Math.max(2, Math.round((nearestProvider.distance / 1000) / 40 * 60));
-    document.getElementById('provName').textContent = nearestProvider.name;
-    document.getElementById('provCat').textContent = `${nearestProvider.catIcon} ${nearestProvider.catLabel} · ${distKm} km`;
-    document.getElementById('provETA').textContent = `ETA: ${eta} min`;
-    document.getElementById('sosPinDisplay').textContent = state.pendingSOS.resolutionPin;
-    document.getElementById('sosCodeDisplay').innerHTML = `<div class="sos-code-8">${blockCode8}</div><div class="text-xs text-muted" style="margin-top:0.3rem;">8-character unique location code</div>`;
+  // Fill SOS code + PIN + type
+  document.getElementById('sosCodeDisplay').textContent = blockCode8;
+  document.getElementById('sosPinDisplay').textContent = state.pendingSOS.resolutionPin;
+  document.getElementById('sosTypeIcon').textContent = sosTypeInfo.icon;
+  document.getElementById('sosTypeLabel').textContent = sosTypeInfo.label;
 
-    // Auto-open SMS with 8-char code
-    const provPhone = nearestProvider.phone || '112';
-    const smsBody = encodeURIComponent(`SOS ${blockCode8}`);
-    document.getElementById('smsLink').href = `sms:${provPhone}?body=${smsBody}`;
-    document.getElementById('smsLink').textContent = `📱 Send SOS to ${nearestProvider.name}`;
+  // ═══ BUILD RICH SMS BODY ═══
+  const gpsSpeed = (typeof GPSTracker !== 'undefined' && GPSTracker.getEstimatedPosition)
+    ? GPSTracker.getEstimatedPosition()?.speed || 0 : 0;
+  const speedInfo = SpeedEstimator.estimateSpeed(pos.lat, pos.lng, gpsSpeed, state.driverId);
 
-    Store.updateSOSEvent(state.pendingSOS.id, {
-      providerId: nearestProvider.id, providerName: nearestProvider.name,
-      dispatchedAt: new Date().toISOString(), blockCode8,
-    });
-  } else {
-    // Fallback: search from old-style localStorage providers
-    const fallbackProviders = Store.getProviders().filter(p => p.status === 'Active');
-    let closestProv = fallbackProviders[0];
-    let minDist = Infinity;
-    fallbackProviders.forEach(p => {
-      if (p.gps) {
-        const parts = p.gps.split(',').map(s => parseFloat(s.trim()));
-        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-          const dist = Utils.haversine(pos.lat, pos.lng, parts[0], parts[1]);
-          if (dist < minDist) { minDist = dist; closestProv = p; }
-        }
+  function buildSOSMessage(providerName) {
+    return `APARA SOS ${blockCode8}\n${sosTypeInfo.icon} ${sosTypeInfo.label}\nLoc: ${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}\nSpeed: ${Math.round(speedInfo.speed)}km/h\nConf: ${conf}%\nPIN: ${state.pendingSOS.resolutionPin}\nMaps: https://maps.google.com/?q=${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`;
+  }
+
+  // ═══ FIND TOP 5 PROVIDERS WITHIN 10KM ═══
+  const SOS_SEARCH_RADIUS = 10000; // 10km
+  const sosProviderMap = { 'ACC': ['HOSP','TOW','MECH'], 'MED': ['HOSP','PHAR'], 'TYR': ['PUNC','MECH'], 'FUL': ['FUEL'], 'TOW': ['TOW','MECH'] };
+  const relevantCats = sosProviderMap[sosTypeCode] || [];
+  
+  // Search all cached zones for providers within 10km
+  let allNearby = [];
+  ZoneManager.getCachedZoneIds().forEach(zId => {
+    const zone = ZoneManager.getZoneData(zId);
+    if (!zone || !zone.providers) return;
+    zone.providers.forEach(p => {
+      if (p.status !== 'Active') return;
+      const dist = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
+      if (dist <= SOS_SEARCH_RADIUS) {
+        // Priority: matching category first, then any provider
+        const catMatch = relevantCats.includes(p.cat);
+        allNearby.push({ ...p, distance: dist, catMatch });
       }
     });
-    if (closestProv) {
-      document.getElementById('provName').textContent = closestProv.name;
-      document.getElementById('provCat').textContent = `${closestProv.category?.icon || ''} ${closestProv.category?.label || ''}`;
-      const eta = minDist !== Infinity ? Math.max(2, Math.round((minDist / 1000) / 40 * 60)) : '—';
-      document.getElementById('provETA').textContent = `ETA: ${eta} min`;
-    } else {
-      document.getElementById('provName').textContent = 'No providers in cache';
-      document.getElementById('provCat').textContent = 'Register providers in Admin Panel';
-      document.getElementById('provETA').textContent = 'Searching...';
+  });
+
+  // Also search shops that might be relevant (fuel, mechanic, pharmacy)
+  ZoneManager.getCachedZoneIds().forEach(zId => {
+    const zone = ZoneManager.getZoneData(zId);
+    if (!zone || !zone.shops) return;
+    zone.shops.forEach(s => {
+      const shopCatMap = { 'FUEL': 'FUEL', 'MECH': 'MECH', 'PHAR': 'PHAR' };
+      if (!shopCatMap[s.catCode]) return;
+      const dist = Utils.haversine(pos.lat, pos.lng, s.lat, s.lng);
+      if (dist <= SOS_SEARCH_RADIUS) {
+        const catMatch = relevantCats.includes(s.catCode);
+        allNearby.push({ name: s.name, phone: s.phone, cat: s.catCode, catIcon: SHOP_CATEGORIES.find(c => c.code === s.catCode)?.icon || '🏪', catLabel: SHOP_CATEGORIES.find(c => c.code === s.catCode)?.label || 'Shop', lat: s.lat, lng: s.lng, distance: dist, catMatch, isShop: true });
+      }
+    });
+  });
+
+  // Sort: category matches first, then by distance
+  allNearby.sort((a, b) => {
+    if (a.catMatch && !b.catMatch) return -1;
+    if (!a.catMatch && b.catMatch) return 1;
+    return a.distance - b.distance;
+  });
+
+  // Take top 5
+  const top5 = allNearby.slice(0, 5);
+
+  // ═══ RENDER PROVIDER LIST ═══
+  const listEl = document.getElementById('sosProviderList');
+  const noProvEl = document.getElementById('sosNoProviders');
+
+  if (top5.length > 0) {
+    noProvEl.classList.add('hidden');
+    // Get current GPS speed for ETA calculation
+    const currentSpeed = (typeof GPSTracker !== 'undefined' && GPSTracker.getEstimatedPosition)
+      ? GPSTracker.getEstimatedPosition()?.speed || 0 : 0;
+
+    listEl.innerHTML = top5.map((p, i) => {
+      // ═══ SMART ETA using SpeedEstimator (community + user + GPS) ═══
+      const etaResult = SpeedEstimator.calculateETA(
+        pos.lat, pos.lng, p.lat, p.lng, currentSpeed, state.driverId
+      );
+      const distKm = etaResult.distanceKm;
+      const eta = etaResult.etaMinutes;
+      const speedSrc = etaResult.speedSource;
+      const speedConf = etaResult.confidence;
+      const speedKmh = etaResult.estimatedSpeed;
+
+      // Speed source badge colors
+      const srcColors = {
+        'gps_live': { bg: 'rgba(34,197,94,0.15)', fg: '#22C55E', label: 'LIVE' },
+        'user_block': { bg: 'rgba(59,130,246,0.15)', fg: '#3B82F6', label: 'YOUR' },
+        'user_entry': { bg: 'rgba(59,130,246,0.12)', fg: '#60A5FA', label: 'HIST' },
+        'community': { bg: 'rgba(168,85,247,0.15)', fg: '#A855F7', label: 'COMM' },
+        'user_overall': { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24', label: 'AVG' },
+        'default': { bg: 'rgba(107,114,128,0.15)', fg: '#6B7280', label: 'EST' },
+      };
+      const srcStyle = srcColors[speedSrc] || srcColors['default'];
+
+      const smsBody = encodeURIComponent(buildSOSMessage(p.name));
+      const smsHref = `sms:${p.phone || '112'}?body=${smsBody}`;
+      const matchBadge = p.catMatch ? '<span style="background:rgba(34,197,94,0.15);color:#22C55E;font-size:0.55rem;padding:0.1rem 0.3rem;border-radius:4px;margin-left:0.3rem;">MATCH</span>' : '';
+      return `
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:0.75rem;margin-bottom:0.5rem;${i === 0 ? 'border-color:rgba(249,115,22,0.3);background:rgba(249,115,22,0.05);' : ''}">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="flex:1;">
+              <div style="font-size:0.85rem;font-weight:600;">${p.catIcon || '🏥'} ${p.name}${matchBadge}</div>
+              <div class="text-xs text-muted" style="margin-top:0.15rem;">${p.catLabel || ''} · ${distKm} km · ETA <b style="color:var(--accent-alert);">~${eta} min</b></div>
+              <div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.15rem;">
+                <span style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-muted);">📞 ${p.phone || '---'}</span>
+                <span style="font-size:0.5rem;padding:0.05rem 0.25rem;border-radius:3px;background:${srcStyle.bg};color:${srcStyle.fg};">${srcStyle.label} ${speedKmh}km/h</span>
+              </div>
+            </div>
+            <a href="${smsHref}" style="background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:0.5rem 0.75rem;border-radius:10px;font-size:0.72rem;font-weight:700;text-decoration:none;white-space:nowrap;display:flex;align-items:center;gap:0.2rem;">📱 SMS</a>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Store first provider for banner
+    state.pendingSOS.nearestProvider = top5[0];
+    Store.updateSOSEvent(state.pendingSOS.id, {
+      providerId: top5[0].id || top5[0].name, providerName: top5[0].name,
+      dispatchedAt: new Date().toISOString(), blockCode8,
+      nearbyCount: top5.length,
+    });
+  } else {
+    // No providers — show 112 fallback
+    listEl.innerHTML = '';
+    noProvEl.classList.remove('hidden');
+    const sms112Body = encodeURIComponent(buildSOSMessage('Emergency'));
+    document.getElementById('sos112Link').href = `sms:112?body=${sms112Body}`;
+
+    // Also try old-style fallback
+    const fallback = Store.getProviders().filter(p => p.status === 'Active');
+    if (fallback.length > 0) {
+      listEl.innerHTML = fallback.slice(0, 3).map(p => {
+        const provPhone = p.phone || '112';
+        const smsBody = encodeURIComponent(buildSOSMessage(p.name));
+        return `
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:0.75rem;margin-bottom:0.5rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div><div style="font-size:0.85rem;font-weight:600;">${p.category?.icon || '🏥'} ${p.name}</div><div class="text-xs text-muted">${p.category?.label || ''}</div></div>
+              <a href="sms:${provPhone}?body=${smsBody}" style="background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:0.5rem 0.75rem;border-radius:10px;font-size:0.72rem;font-weight:700;text-decoration:none;">📱 SMS</a>
+            </div>
+          </div>`;
+      }).join('');
+      noProvEl.classList.add('hidden');
     }
-    document.getElementById('sosPinDisplay').textContent = state.pendingSOS.resolutionPin;
-    document.getElementById('sosCodeDisplay').innerHTML = `<div class="sos-code-8">${blockCode8}</div><div class="text-xs text-muted" style="margin-top:0.3rem;">8-character unique location code</div>`;
-    const smsBody = encodeURIComponent(`SOS ${blockCode8}`);
-    document.getElementById('smsLink').href = `sms:112?body=${smsBody}`;
   }
 
   // Update the persistent banner
@@ -1136,11 +1434,12 @@ function updateSOSBanner() {
     // Show 8-char code if available, else fallback to packet
     document.getElementById('bannerSosCode').textContent = state.activeSOS.blockCode8 || state.activeSOS.packet;
     document.getElementById('bannerSosPin').textContent = state.activeSOS.resolutionPin;
-    // SMS link with compact 8-char code
+    // Rich SMS link for banner
     const code8 = state.activeSOS.blockCode8 || state.activeSOS.packet;
     const provPhone = state.activeSOS.nearestProvider?.phone || '112';
-    const smsBody = encodeURIComponent(`SOS ${code8}`);
-    document.getElementById('bannerSmsLink').href = `sms:${provPhone}?body=${smsBody}`;
+    const sosPos = state.lastKnownPos || { lat: 0, lng: 0 };
+    const bannerSmsBody = encodeURIComponent(`APARA SOS ${code8}\nLoc: ${sosPos.lat.toFixed(5)},${sosPos.lng.toFixed(5)}\nPIN: ${state.activeSOS.resolutionPin}\nMaps: https://maps.google.com/?q=${sosPos.lat.toFixed(5)},${sosPos.lng.toFixed(5)}`);
+    document.getElementById('bannerSmsLink').href = `sms:${provPhone}?body=${bannerSmsBody}`;
   } else {
     banner.classList.add('hidden');
   }
@@ -1274,7 +1573,12 @@ function showToast(msg) {
   const t = document.createElement('div');
   t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 4000);
+  // Trigger reflow then add show class for slide-in
+  requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 400);
+  }, 3500);
 }
 
 // ═══ SCREEN WAKE LOCK — Keep GPS tracking when screen is off ═══
