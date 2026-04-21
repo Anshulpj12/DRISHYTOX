@@ -605,4 +605,4 @@ All data is stored in browser **`localStorage`** with these keys:
 7. **PIN-based resolution** — prevents providers from falsely marking events as resolved
 8. **GPS-mandatory for providers** — required for Haversine-based closest-provider matching
 9. **Retro-generation** — blocks are created retroactively when GPS returns, no pre-generation
-10. **V2V relay is silent** — relay drivers see nothing, no privacy exposure, AES-256 encryptedd
+10. **V2V relay is silent** — relay drivers see nothing, no privacy exposure, AES-256 encrypted
