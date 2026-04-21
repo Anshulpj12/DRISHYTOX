@@ -249,7 +249,7 @@ const FirebaseSync = {
       const configRef = this._db.collection('config').doc('apara_config');
       const doc = await configRef.get();
       const changelog = doc.exists ? (doc.data().changelog || []) : [];
-      
+
       // Prepend new change, keep last 50
       changelog.unshift({
         version,
