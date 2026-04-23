@@ -6,6 +6,8 @@
 <title>APARA — Shop Provider</title>
 <meta name="description" content="APARA Shop Provider Dashboard — Manage menu, receive orders from highway drivers">
 <link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 * { -webkit-tap-highlight-color: transparent; }
 .shop-app { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 72px; overflow-x: hidden; }
@@ -490,14 +492,18 @@ function declineOrder(orderId) {
 }
 
 // ═══ LOOKUP ORDER CODE ═══
+let lookupMap = null;
+let lookupMarker = null;
+let lookupOrderData = null;
+
 function lookupOrderCode() {
   const input = document.getElementById('lookupInput').value.trim();
-  if (!input) { showToast('Paste an order code'); return; }
+  if (!input) { showToast('Paste an order code from SMS'); return; }
   const result = OrderPacket.decode(input);
   const resultDiv = document.getElementById('lookupResult');
 
   if (!result.valid) {
-    resultDiv.innerHTML = `<div class="card" style="border-color:var(--danger);"><div class="text-danger">❌ ${result.error}</div></div>`;
+    resultDiv.innerHTML = `<div class="card" style="border-color:var(--danger);"><div class="text-danger">❌ ${result.error}</div><div class="text-xs text-muted mt-1">Expected format: <code>ORD:BLOCKCODE:ITEMS:PIN:LAT,LNG</code></div></div>`;
     resultDiv.classList.remove('hidden');
     return;
   }
@@ -514,23 +520,80 @@ function lookupOrderCode() {
     return s + (mi ? mi.price * i.qty : 0);
   }, 0);
 
+  // PIN display
+  const pinHtml = result.pin
+    ? `<div style="margin-top:0.75rem;background:rgba(16,185,129,0.08);padding:0.75rem;border-radius:var(--radius-sm);border:1px solid rgba(16,185,129,0.2);text-align:center;">
+         <div class="text-xs text-muted" style="letter-spacing:1px;">PICKUP OTP</div>
+         <div style="font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--accent-market);letter-spacing:0.2em;">${result.pin}</div>
+       </div>`
+    : '';
+
+  // Map container
+  const hasCoords = result.lat && result.lng && (result.lat !== 0 || result.lng !== 0);
+  const mapHtml = hasCoords
+    ? `<div id="lookupMapContainer" style="height:180px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:0.75rem;overflow:hidden;"></div>
+       <div class="text-xs text-muted text-center mt-1">📍 ${result.lat.toFixed(4)}, ${result.lng.toFixed(4)}</div>`
+    : '';
+
   resultDiv.innerHTML = `
     <div class="card" style="border-color:var(--accent-market);">
-      <div class="text-xs text-muted mb-1">DECODED ORDER</div>
+      <div class="text-xs text-muted mb-1">DECODED ORDER${result.format === 'compact' ? ' (SMS)' : ''}</div>
       <div style="font-family:var(--font-mono);font-size:1rem;color:var(--accent-market);margin:0.5rem 0;">${result.blockCode}</div>
-      <div class="text-xs text-muted">Time: ${result.time} · Confidence: ${result.confidence}%</div>
       <div style="margin-top:0.75rem;background:var(--bg-card);padding:0.75rem;border-radius:var(--radius-sm);">
         <div class="order-items-list">${itemsHtml}</div>
         <div class="order-total-line"><span>TOTAL</span><span>₹${total}</span></div>
       </div>
+      ${pinHtml}
+      ${mapHtml}
       <button class="btn btn-full mt-2" style="background:var(--accent-market);color:#fff;" onclick="acceptLookupOrder()">✅ Accept & Prepare</button>
     </div>
   `;
   resultDiv.classList.remove('hidden');
+
+  // Store decoded data for accept
+  lookupOrderData = { ...result, total };
+
+  // Initialize map if coords available
+  if (hasCoords) {
+    setTimeout(() => {
+      const mapEl = document.getElementById('lookupMapContainer');
+      if (!mapEl) return;
+      if (lookupMap) { lookupMap.remove(); lookupMap = null; }
+      lookupMap = L.map('lookupMapContainer', { zoomControl: false, attributionControl: false }).setView([result.lat, result.lng], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(lookupMap);
+      lookupMarker = L.marker([result.lat, result.lng]).addTo(lookupMap)
+        .bindPopup(`📍 Customer Location<br>${result.blockCode}`).openPopup();
+      L.circle([result.lat, result.lng], { radius: 500, color: '#10B981', fillOpacity: 0.08, weight: 1.5 }).addTo(lookupMap);
+    }, 200);
+  }
 }
 
 function acceptLookupOrder() {
-  showToast('✅ Order accepted from SMS lookup!');
+  if (!lookupOrderData) { showToast('No order to accept'); return; }
+
+  // Auto-create order in OrderStore
+  const order = {
+    id: `ORD-${Date.now()}`,
+    packet: document.getElementById('lookupInput').value.trim(),
+    compactSMS: document.getElementById('lookupInput').value.trim(),
+    blockCode: lookupOrderData.blockCode,
+    shopId: shopState.shopId,
+    items: lookupOrderData.items,
+    lat: lookupOrderData.lat || 0,
+    lng: lookupOrderData.lng || 0,
+    timestamp: new Date().toISOString(),
+    pickupPin: lookupOrderData.pin || '0000',
+    fulfilled: false,
+    cancelledByUser: false,
+    fulfilledAt: null,
+    source: 'sms_lookup',
+  };
+  OrderStore.saveOrder(order);
+  showToast('✅ Order accepted! Visible in Orders tab.');
+  renderOrders();
+  document.getElementById('lookupInput').value = '';
+  document.getElementById('lookupResult').classList.add('hidden');
+  lookupOrderData = null;
 }
 
 // ═══ SHOP PROFILE ═══

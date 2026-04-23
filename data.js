@@ -2067,10 +2067,21 @@ const OrderPacket = {
     const time = now.toLocaleTimeString('en-IN', { hour12: false });
     // Encode items as CODE+QTY pairs: "BG2TH1CD1"
     const itemStr = items.map(i => `${i.code}${i.qty}`).join('');
+    const pickupPin = Math.floor(1000 + Math.random() * 9000).toString();
+
+    // ═══ COMPACT SMS FORMAT ═══
+    // ORD:BLOCKCODE:ITEMS:PIN:LAT,LNG (~35 chars)
+    const shortLat = lat ? lat.toFixed(2) : '0';
+    const shortLng = lng ? lng.toFixed(2) : '0';
+    const compactSMS = `ORD:${blockCode}:${itemStr}:${pickupPin}:${shortLat},${shortLng}`;
+
+    // Full display packet (for UI)
     const packet = `${blockCode}|${itemStr}|${time}|conf:${confidence}`;
+
     return {
       id: `ORD-${Date.now()}`,
       packet,
+      compactSMS,
       blockCode,
       shopId,
       items: items.map(i => ({ ...i })),
@@ -2085,15 +2096,65 @@ const OrderPacket = {
       fulfilled: false,
       cancelledByUser: false,
       fulfilledAt: null,
-      pickupPin: Math.floor(1000 + Math.random() * 9000).toString(),
+      pickupPin,
     };
   },
 
-  // Decode a packet string back to structured data
+  // Decode a packet string — handles BOTH formats:
+  // 1. Compact SMS: "ORD:K7M2N4AC:BG2TH1:4832:22.30,73.18"
+  // 2. Legacy pipe:  "NH48-B32|BG2TH1CD1|15:24:29|conf:87"
   decode(packetStr) {
     if (!packetStr) return { valid: false, error: 'Empty packet' };
+    packetStr = packetStr.trim();
+
+    // ─── NEW COMPACT FORMAT ───
+    if (packetStr.startsWith('ORD:')) {
+      const parts = packetStr.substring(4).split(':');
+      if (parts.length < 3) return { valid: false, error: 'Invalid compact format' };
+
+      const blockCode = parts[0];
+      const itemStr = parts[1];
+      const pin = parts[2] || '';
+      const coords = parts[3] || '';
+
+      // Parse items: "BG2TH1CD1" → [{code:'BG', qty:2}, ...]
+      const items = [];
+      const regex = /([A-Z][A-Z0-9])(\d+)/gi;
+      let match;
+      while ((match = regex.exec(itemStr)) !== null) {
+        items.push({ code: match[1].toUpperCase(), qty: parseInt(match[2]) });
+      }
+
+      // Parse coords
+      let lat = 0, lng = 0;
+      if (coords.includes(',')) {
+        const [la, ln] = coords.split(',').map(s => parseFloat(s.trim()));
+        if (!isNaN(la)) lat = la;
+        if (!isNaN(ln)) lng = ln;
+      }
+
+      // Try to get precise location from block code (8-char BlockCodeEncoder)
+      if (blockCode.length === 8 && typeof BlockCodeEncoder !== 'undefined') {
+        const decoded = BlockCodeEncoder.decode(blockCode);
+        if (decoded.valid) { lat = decoded.lat; lng = decoded.lng; }
+      }
+
+      return {
+        valid: true,
+        blockCode,
+        items,
+        itemStr,
+        pin,
+        lat, lng,
+        time: new Date().toLocaleTimeString('en-IN', { hour12: false }),
+        confidence: 0,
+        format: 'compact',
+      };
+    }
+
+    // ─── LEGACY PIPE FORMAT ───
     const parts = packetStr.split('|');
-    if (parts.length < 3) return { valid: false, error: 'Invalid format' };
+    if (parts.length < 3) return { valid: false, error: 'Invalid format — use ORD:CODE:ITEMS:PIN or BLOCK|ITEMS|TIME' };
 
     const blockCode = parts[0];
     const itemStr = parts[1];
@@ -2101,12 +2162,11 @@ const OrderPacket = {
     const confStr = parts[3] || '';
     const confidence = parseInt(confStr.replace('conf:', '')) || 0;
 
-    // Parse items: "BG2TH1CD1" → [{code:'BG', qty:2}, ...]
     const items = [];
-    const regex = /([A-Z][A-Z0-9])(\d)/g;
+    const regex = /([A-Z][A-Z0-9])(\d+)/gi;
     let match;
     while ((match = regex.exec(itemStr)) !== null) {
-      items.push({ code: match[1], qty: parseInt(match[2]) });
+      items.push({ code: match[1].toUpperCase(), qty: parseInt(match[2]) });
     }
 
     return {
@@ -2116,56 +2176,7 @@ const OrderPacket = {
       itemStr,
       time,
       confidence,
-    };
-  },
-
-  // Encode to compact 8-char code (like SOS block code but for orders)
-  // Format: LOCATION(5) + ITEM_HASH(2) + CHECKSUM(1)
-  encodeCompact(lat, lng, items) {
-    const grid = BlockRegistry.getGridCell(lat, lng);
-    const relRow = Math.max(0, grid.gridRow - INDIA_ROW_BASE);
-    const relCol = Math.max(0, grid.gridCol - INDIA_COL_BASE);
-    const rowCode = BlockCodeEncoder._toBase36(relRow, 3);
-    const colCode = BlockCodeEncoder._toBase36(relCol, 2);
-    // Item hash: sum of item codes * qty mod 36^2
-    let itemHash = 0;
-    items.forEach(i => {
-      const c1 = BASE36.indexOf(i.code[0].toUpperCase()) || 0;
-      const c2 = BASE36.indexOf(i.code[1].toUpperCase()) || 0;
-      itemHash = (itemHash + (c1 * 36 + c2) * i.qty) % 1296;
-    });
-    const itemCode = BlockCodeEncoder._toBase36(itemHash, 2);
-    const body = rowCode + colCode + itemCode;
-    return body + BlockCodeEncoder._checksum(body);
-  },
-
-  // Decode compact 8-char order code
-  decodeCompact(code) {
-    if (!code || code.length < 8) return { valid: false, error: 'Code must be 8 characters' };
-    code = code.toUpperCase().replace(/[^0-9A-Z]/g, '');
-    if (code.length !== 8) return { valid: false, error: 'Invalid characters' };
-
-    const body = code.substring(0, 7);
-    const checkChar = code[7];
-    if (BlockCodeEncoder._checksum(body) !== checkChar) {
-      return { valid: false, error: 'Invalid checksum — check for typos' };
-    }
-
-    const rowCode = code.substring(0, 3);
-    const colCode = code.substring(3, 5);
-    const relRow = BlockCodeEncoder._fromBase36(rowCode);
-    const relCol = BlockCodeEncoder._fromBase36(colCode);
-    const gridRow = relRow + INDIA_ROW_BASE;
-    const gridCol = relCol + INDIA_COL_BASE;
-    const center = BlockRegistry.getCellCenter(gridRow, gridCol);
-
-    return {
-      valid: true,
-      lat: center.lat,
-      lng: center.lng,
-      gridRow, gridCol,
-      blockId: `BLK-${gridRow}-${gridCol}`,
-      fullCode: code,
+      format: 'legacy',
     };
   },
 };

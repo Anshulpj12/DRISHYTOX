@@ -606,3 +606,226 @@ All data is stored in browser **`localStorage`** with these keys:
 8. **GPS-mandatory for providers** — required for Haversine-based closest-provider matching
 9. **Retro-generation** — blocks are created retroactively when GPS returns, no pre-generation
 10. **V2V relay is silent** — relay drivers see nothing, no privacy exposure, AES-256 encrypted
+11. **Firebase is optional** — system works 100% with localStorage alone; Firebase adds cloud sync for scale
+12. **SOS is always SMS-only** — zero Firebase dependency during emergencies
+
+---
+
+## ☁️ Firebase Sync Engine ([firebase.js](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/firebase.js))
+
+### Purpose
+Hybrid cloud layer for scaling to 100,000+ drivers. **All SOS and order flows remain 100% offline SMS-based.** Firebase is only used for:
+- Provider/Shop registration sync (admin → cloud → driver zones)
+- Config version push (global version counter for data freshness)
+- Block registry (immutable blocks shared across all drivers)
+- Transit records (15-day batch upload for community speed profiles)
+- Zone data download (100km provider/shop cache on driver login)
+
+### Architecture
+
+```
+WHAT USES FIREBASE              WHAT STAYS SMS/LOCAL-ONLY
+─────────────────────           ─────────────────────────
+✅ Provider Registration        ❌ SOS Events (pure SMS)
+✅ Shop Registration            ❌ Marketplace Orders (pure SMS)
+✅ Menu Items                   ❌ SOS Provider Search (local zone cache)
+✅ Config Push Versioning       ❌ Block Code Generation (local math)
+✅ Block Registry (immutable)   ❌ Dead Reckoning (local history)
+✅ Transit Records (15-day)     ❌ V2V Relay (BLE)
+✅ Zone Data (100km download)
+✅ Community Speed Profiles
+```
+
+### Key Module: `FirebaseSync`
+
+| Method | Purpose |
+|---|---|
+| `init()` | Connect to Firestore; graceful fallback if no config |
+| `isReady()` | Guard check before any Firebase call |
+| `pushProvider / updateProvider / deleteProvider` | Admin CRUD → Firestore `providers` collection |
+| `pushShop / updateShop / deleteShop` | Admin CRUD → Firestore `shops` collection |
+| `pushMenu(shopId, items)` | Shop menu sync → Firestore `menus` collection |
+| `pushConfigVersion(version)` | Global version bump → `config/apara_config` doc |
+| `pollConfigVersion()` | Driver polls every 30 min; returns `{changed, remoteVersion}` |
+| `initDriverZone(lat, lng)` | Download ALL providers/shops, filter to 100km, rebuild zone cache |
+| `refreshOutdatedZones(newVersion)` | Re-download all zone data when config version changes |
+| `pushBlock(block)` | Immutable block → Firestore (merge-only, never overwrites) |
+| `pushTransitRecords(records)` | Batch upload transit records for community data |
+| `uploadBatchTransit(driverId, payload)` | 15-day full sync: blocks + transits |
+| `downloadCommunityData(lat, lng)` | Download community blocks + transits → build speed profiles |
+| `fullAdminSync()` | One-click push all local data to Firestore |
+
+### Data Flow for 100,000 Drivers
+
+```
+ADMIN registers provider
+  └→ localStorage.set()
+  └→ FirebaseSync.pushProvider() → Firestore
+  └→ ConfigPush.bumpVersion() → Firestore version++
+
+DRIVER logs in (1 of 100,000)
+  └→ FirebaseSync.init()
+  └→ FirebaseSync.initDriverZone(lat, lng) → downloads providers+shops
+  └→ stores in localStorage zone cache (100km radius)
+  └→ FirebaseSync.downloadCommunityData() → transit records
+  └→ SpeedEstimator.buildCommunityProfiles() → speed profiles cached
+  └→ starts 30-min config version polling
+
+DRIVER triggers SOS
+  └→ block code generated LOCALLY (zero Firebase)
+  └→ searches LOCAL zone cache for top 5 providers in 10km
+  └→ SpeedEstimator.calculateETA() computes smart ETAs
+  └→ renders multi-provider picker with individual SMS buttons
+  └→ SMS body includes: code, type, GPS, speed, PIN, Maps link
+```
+
+### Firebase Collections
+
+| Collection | Documents | Write By | Read By |
+|---|---|---|---|
+| `providers` | One per provider | Admin | Drivers (zone download) |
+| `shops` | One per shop | Admin | Drivers (zone download) |
+| `menus` | One per shop | Shop owner | Drivers (zone download) |
+| `config` | `apara_config` | Admin | All drivers (polling) |
+| `block_registry` | One per 1km block | All drivers | All drivers |
+| `transit_log` | Auto-generated IDs | All drivers | All drivers |
+| `batch_uploads` | `{driverId}_{timestamp}` | Drivers | Admin |
+| `drivers` | One per driver | Drivers | Admin |
+
+---
+
+## 🏎️ Speed Estimator — Smart ETA Engine ([data.js → SpeedEstimator](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/data.js))
+
+### Purpose
+Calculates realistic provider ETAs during SOS using **6 layers of speed data**, falling through each until a match is found:
+
+### 6-Layer Speed Estimation
+
+| Layer | Source | Confidence | When Used |
+|---|---|---|---|
+| 1 | **Live GPS speed** | 95% | Driver is currently moving (>2 km/h) |
+| 2 | **User's block average** | 80% | Driver has traversed this specific block before |
+| 3 | **User's entry speed** | 75% | Driver's speed when entering this block previously |
+| 4 | **Community average** | 50-85% | Speed data from ALL drivers who've crossed this block (from Firebase) |
+| 5 | **User's overall average** | 50% | Driver's average speed across all blocks |
+| 6 | **Default (40 km/h)** | 20% | No data available — generic highway estimate |
+
+### Key Methods
+
+| Method | Returns |
+|---|---|
+| `estimateSpeed(lat, lng, gpsSpeed, driverId)` | `{speed, source, confidence}` |
+| `calculateETA(fromLat, fromLng, toLat, toLng, gpsSpeed, driverId)` | `{etaMinutes, distanceKm, estimatedSpeed, speedSource, confidence}` |
+| `buildCommunityProfiles(transitRecords)` | Processes Firebase transit data → localStorage speed profiles |
+| `getSpeedSummary(lat, lng, gpsSpeed, driverId)` | All speed layers for current position (for UI display) |
+
+### Community Speed Profile Building
+When driver downloads zone data:
+1. `FirebaseSync.downloadCommunityData()` fetches transit records from Firestore
+2. `SpeedEstimator.buildCommunityProfiles()` aggregates speeds per block
+3. Uses **weighted merge**: 70% existing community data + 30% new data
+4. Stored in `localStorage` key `apara_community_speeds` for offline use
+5. Each profile: `{ avgSpeed, sampleCount, lastUpdated }`
+
+### Speed Source Badges in SOS UI
+
+| Badge | Color | Meaning |
+|---|---|---|
+| `LIVE` | 🟢 Green | Using current GPS speed |
+| `YOUR` | 🔵 Blue | Using your own block history |
+| `HIST` | 🔵 Light Blue | Using your entry speed for this block |
+| `COMM` | 🟣 Purple | Using community average from all drivers |
+| `AVG` | 🟡 Yellow | Using your overall speed average |
+| `EST` | ⚪ Grey | Default 40 km/h estimate |
+
+---
+
+## 🚨 Multi-Provider SOS Picker (driver.html)
+
+### How It Works
+When driver triggers SOS, instead of showing a single "nearest provider", the system now:
+
+1. **Scans all cached zones** (100km radius localStorage) for providers within 10km
+2. **Checks both providers AND shops** (fuel stations, mechanics, pharmacies)
+3. **Category-matches first**: Accident → Hospital/Tow/Mechanic, Medical → Hospital/Pharmacy, etc.
+4. **Sorts**: category matches first, then by distance
+5. **Shows top 5** as tappable cards, each with their own **📱 SMS** button
+
+### SMS Message Format
+Each SMS button opens the native messaging app pre-filled with:
+```
+APARA SOS K7M2N4AC
+🚗 Accident
+Loc: 22.30541,73.18126
+Speed: 65km/h
+Conf: 87%
+PIN: 4832
+Maps: https://maps.google.com/?q=22.30541,73.18126
+```
+
+### Provider Card Display
+Each provider card shows:
+- Name + category icon + MATCH badge (if category-relevant)
+- Distance in km + **Smart ETA** (from SpeedEstimator, not simple distance/40)
+- Phone number
+- Speed source badge (LIVE/YOUR/COMM/AVG/EST + speed in km/h)
+- Red **📱 SMS** button
+
+### Fallback Chain
+1. Zone cache providers within 10km → multi-provider list
+2. localStorage providers (old-style) → 3 closest shown
+3. No providers at all → Emergency 112 SMS button
+
+---
+
+## 🏪 Shop Provider Dashboard ([shop_provider.html](file:///c:/Users/anshul%20prajapati/OneDrive/Desktop/DRISHYTOX/shop_provider.html))
+
+### Purpose
+Dashboard for food stalls, fuel stations, mechanics, and other service shops to manage their menu, view orders, and update their profile.
+
+### Features
+- **Login** with Shop ID + Password (admin-issued)
+- **Menu Management** — add/edit/delete items with name, price, category
+- **Order Polling** — checks for incoming SMS-based orders
+- **Profile Management** — view registration details, hours, location
+- **Firebase Sync** — menu changes automatically push to Firestore via data.js hooks
+
+---
+
+## 📊 Updated File Structure
+
+```
+index.html           → Landing / Info page
+driver.html          → Driver Mobile App (SOS, GPS, Marketplace)
+provider.html        → Service Provider Dashboard (SOS Alerts, Dispatch)
+shop_provider.html   → Shop Dashboard (Menu, Orders)
+admin.html           → Admin Control Panel (Full management)
+data.js              → Shared localStorage data store + SpeedEstimator
+firebase.js          → Firebase Firestore sync engine (NEW)
+shared.css           → Global design system
+test_offline.html    → Offline testing tool
+```
+
+### localStorage Keys (Updated)
+
+| Key | Content |
+|---|---|
+| `apara_providers` | Registered service providers |
+| `apara_sos_events` | All SOS events (active + resolved) |
+| `apara_corridors` | Highway corridor definitions |
+| `apara_crossings` | Driver crossing history |
+| `apara_v2v_relays` | V2V relay event log |
+| `apara_zone_history` | Dead zone traversal history |
+| `apara_block_registry` | Immutable 1km block definitions |
+| `apara_block_transit_log` | Block entry/exit timestamps |
+| `apara_drivers` | Registered driver profiles |
+| `apara_driver_buffer` | Pending data to sync |
+| `apara_settings` | Driver app settings |
+| `apara_logged_provider` | Provider session |
+| `apara_shops` | Registered shops |
+| `apara_logged_shop` | Shop session |
+| `apara_config_version` | Config push version counter |
+| `apara_zone_index` | Zone cache index |
+| `apara_zone_*` | Per-zone cached provider/shop data |
+| `apara_community_speeds` | **Community speed profiles from Firebase** |
+

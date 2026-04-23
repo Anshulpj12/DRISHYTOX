@@ -1973,11 +1973,11 @@ function placeOrder() {
   document.getElementById('mktConfirmShopName').textContent = shop ? shop.name : 'Shop';
   document.getElementById('mktConfirmShopCat').textContent = cat ? `${cat.icon} ${cat.label}` : '';
   document.getElementById('mktPickupPin').textContent = order.pickupPin;
-  document.getElementById('mktOrderCodeDisplay').textContent = order.packet;
+  document.getElementById('mktOrderCodeDisplay').textContent = order.compactSMS || order.packet;
 
-  // SMS link
+  // SMS link — uses COMPACT format
   const shopPhone = shop ? (shop.phone || '112') : '112';
-  const smsBody = encodeURIComponent(`ORDER ${order.packet} PIN:${order.pickupPin}`);
+  const smsBody = encodeURIComponent(order.compactSMS || `ORDER ${order.packet} PIN:${order.pickupPin}`);
   document.getElementById('mktSmsLink').href = `sms:${shopPhone}?body=${smsBody}`;
 
   updateOrderBanner();
