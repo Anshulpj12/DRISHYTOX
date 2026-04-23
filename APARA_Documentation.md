@@ -829,3 +829,147 @@ test_offline.html    → Offline testing tool
 | `apara_zone_*` | Per-zone cached provider/shop data |
 | `apara_community_speeds` | **Community speed profiles from Firebase** |
 
+---
+
+## 🔥 Firebase Setup Guide (Step-by-Step)
+
+### 1. Create a Firebase Project
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Click **"Add Project"**
+3. Enter name: `APARA` (or your preferred name)
+4. Disable Google Analytics (not needed) → Click **Create Project**
+
+### 2. Register a Web App
+1. On the project dashboard, click the **Web icon `</>`**
+2. App nickname: `APARA Web`
+3. **DO NOT** enable Firebase Hosting (we use static files)
+4. Click **Register App**
+5. Copy the `firebaseConfig` object shown:
+
+```javascript
+const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "apara-xxxxx.firebaseapp.com",
+  projectId: "apara-xxxxx",
+  storageBucket: "apara-xxxxx.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
+```
+
+### 3. Enable Firestore Database
+1. In Firebase sidebar → **Build → Firestore Database**
+2. Click **Create Database**
+3. Choose location: `asia-south1 (Mumbai)` for India
+4. Start in **Production mode** (we'll set rules next)
+
+### 4. Set Firestore Security Rules
+Go to **Firestore → Rules** and paste:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Config — anyone can read, only admin can write
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    // Providers & Shops — anyone can read (for zone download)
+    match /providers/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /shops/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /menus/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    // Block registry — anyone can read/write (community data)
+    match /block_registry/{doc} {
+      allow read, write: if true;
+    }
+    // Transit logs — anyone can read/write
+    match /transit_log/{doc} {
+      allow read, write: if true;
+    }
+    match /batch_uploads/{doc} {
+      allow read, write: if true;
+    }
+    match /drivers/{doc} {
+      allow read, write: if true;
+    }
+  }
+}
+```
+
+### 5. Paste Config into Code
+Open `firebase.js` and replace lines 17-25:
+
+```javascript
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY_HERE",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+```
+
+### 6. Verify It Works
+1. Open `admin.html` → the **☁️ LIVE** badge should appear in the sidebar
+2. Click **"☁️ Sync All to Firebase"** → providers/shops push to cloud
+3. Open `driver.html` → login → should download zone data from Firebase
+4. Check Firestore console → documents should appear in `providers` and `shops`
+
+---
+
+## 📱 Compact SMS Order Format
+
+### Format
+```
+ORD:BLOCKCODE:ITEMS:PIN:LAT,LNG
+```
+
+### Example
+Driver orders 2 Roti (RT) and 1 Chai (CH):
+```
+ORD:K7M2N4AC:RT2CH1:4832:22.30,73.18
+```
+
+| Part | Meaning | Example |
+|---|---|---|
+| `ORD:` | Order prefix (3 chars) | `ORD:` |
+| `K7M2N4AC` | 8-char block code (location) | `K7M2N4AC` |
+| `RT2CH1` | Item codes + qty | Roti×2, Chai×1 |
+| `4832` | Pickup PIN / OTP | `4832` |
+| `22.30,73.18` | GPS coords (reference) | lat,lng |
+
+**Total: ~35 characters** — fits in a single SMS.
+
+### How It Works
+
+```
+DRIVER places order in marketplace
+  └→ selects items from shop menu
+  └→ OrderPacket.build() generates compact code
+  └→ taps "📱 Send Order via SMS"
+  └→ SMS opens pre-filled: ORD:K7M2N4AC:RT2CH1:4832:22.30,73.18
+
+SHOP PROVIDER receives SMS
+  └→ opens Shop Dashboard → "📋 Lookup" tab
+  └→ pastes the SMS code into input
+  └→ system decodes: items + location + PIN
+  └→ shows items with prices from menu
+  └→ shows customer location on Leaflet map
+  └→ shows PICKUP OTP prominently
+  └→ clicks "Accept & Prepare" → order appears in Orders tab
+
+DRIVER arrives at shop
+  └→ gives 4-digit PICKUP PIN to shop
+  └→ shop enters PIN → order marked fulfilled
+```

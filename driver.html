@@ -15,7 +15,7 @@ html { scroll-behavior: smooth; }
 
 .driver-app {
   max-width: 480px; margin: 0 auto; min-height: 100vh;
-  padding-bottom: 72px; position: relative;
+  padding-bottom: 80px; position: relative;
   background: var(--bg-deep);
   overflow-x: hidden;
 }
@@ -34,17 +34,23 @@ html { scroll-behavior: smooth; }
 /* ─── HEADER BAR — Frosted glass ─── */
 .header-bar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.75rem 1rem;
-  background: rgba(17, 24, 39, 0.85);
+  padding: 0.6rem 1rem;
+  background: rgba(17, 24, 39, 0.92);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255,255,255,0.06);
   position: sticky; top: 0; z-index: 60;
+  flex-wrap: wrap; gap: 0.4rem;
 }
 .header-bar h1 {
   font-family: var(--font-mono); font-size: 1rem;
   background: linear-gradient(135deg, var(--accent-alert), #FBBF24);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text; letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+.header-right {
+  display: flex; align-items: center; gap: 0.4rem;
+  flex-wrap: wrap; justify-content: flex-end;
 }
 
 /* ─── SCREEN PADDING ─── */
@@ -134,13 +140,18 @@ html { scroll-behavior: smooth; }
 .gauge-val { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-family: var(--font-mono); font-size: 1.3rem; font-weight: 800; }
 
 /* ─── SOS BUTTON ─── */
-.sos-float { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%); width: calc(min(480px, 100%) - 2rem); z-index: 90; }
+.sos-section {
+  padding: 0.75rem 1rem;
+  position: sticky; bottom: 68px; z-index: 50;
+  background: linear-gradient(to top, var(--bg-deep) 60%, transparent);
+}
 .btn-sos {
   width: 100%; padding: 0.9rem; border: none; border-radius: 14px;
   font-size: 0.85rem; font-weight: 800; color: #fff;
   background: linear-gradient(135deg, #DC2626, #EF4444);
   cursor: pointer; letter-spacing: 0.08em;
   box-shadow: 0 4px 20px rgba(239,68,68,0.35); transition: all 0.2s; text-transform: uppercase;
+  animation: sos-pulse 2.5s infinite;
 }
 .btn-sos:active { transform: scale(0.97); box-shadow: 0 2px 10px rgba(239,68,68,0.3); }
 
@@ -195,8 +206,8 @@ html { scroll-behavior: smooth; }
 .config-banner .config-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
 
 /* ─── MISC ─── */
-.gps-permission { text-align: center; padding: 3rem 1.5rem; }
-.gps-permission .gps-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+.gps-permission { text-align: center; padding: 2rem 1.5rem; }
+.gps-permission .gps-icon { font-size: 3rem; margin-bottom: 0.75rem; }
 .net-info { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); text-align: center; margin-top: 0.2rem; }
 .driver-id-badge { font-family: var(--font-mono); font-size: 0.62rem; color: var(--accent-online); background: rgba(34,211,238,0.08); padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid rgba(34,211,238,0.12); }
 .zone-status { font-size: 0.68rem; padding: 0.5rem 0.85rem; margin: 0.5rem 1rem; border-radius: 10px; background: rgba(34,211,238,0.04); border: 1px solid rgba(34,211,238,0.1); display: flex; align-items: center; justify-content: space-between; }
@@ -251,10 +262,10 @@ html { scroll-behavior: smooth; }
   <div class="screen" id="screenMainApp">
     <div class="header-bar">
       <h1>🛡️ APARA</h1>
-      <div style="display:flex;align-items:center;gap:0.5rem;">
+      <div class="header-right">
         <span id="driverIdBadge" class="driver-id-badge">---</span>
-        <button id="simOfflineBtn" class="btn btn-sm btn-secondary" style="font-size:0.7rem;padding:0.3rem 0.6rem;" onclick="toggleSimOffline()">⚡ Simulate Offline</button>
         <span id="signalBadge" class="signal-indicator signal-online">🟢 ONLINE</span>
+        <button id="simOfflineBtn" class="btn btn-sm btn-secondary" style="font-size:0.65rem;padding:0.2rem 0.5rem;" onclick="toggleSimOffline()">⚡ Offline</button>
       </div>
     </div>
 
@@ -357,8 +368,8 @@ html { scroll-behavior: smooth; }
         </div>
       </div>
 
-      <!-- SOS BUTTON — ALWAYS VISIBLE regardless of GPS state -->
-      <div class="sos-float">
+      <!-- SOS BUTTON — in content flow, sticky to bottom -->
+      <div class="sos-section">
         <button class="btn-sos" id="sosBtn" onclick="openSOS()">🚨 SOS EMERGENCY</button>
       </div>
     </div>
