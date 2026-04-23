@@ -12,17 +12,13 @@
 // ═══════════════════════════════════════════════════════════════════
 
 // ════════════════════════════════════════════
-// ▶ PASTE YOUR FIREBASE CONFIG BELOW
+// ▶ CONFIG is loaded from firebase-config.js (gitignored)
+// ▶ If not loaded, system runs in localStorage-only mode
 // ════════════════════════════════════════════
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDX8DGuclPPPeFErcUiElE6hTTxdt9ntec",
-  authDomain: "apara-c5959.firebaseapp.com",
-  projectId: "apara-c5959",
-  storageBucket: "apara-c5959.firebasestorage.app",
-  messagingSenderId: "906238811432",
-  appId: "1:906238811432:web:1e82c210211a82d36dc41d",
-  measurementId: "G-LQRVB75TF4"
-};
+if (typeof FIREBASE_CONFIG === 'undefined') {
+  var FIREBASE_CONFIG = { apiKey: "", projectId: "" };
+  console.warn('[Firebase] firebase-config.js not loaded — running in localStorage-only mode');
+}
 
 // ═══ Firebase Sync Manager ═══
 const FirebaseSync = {
