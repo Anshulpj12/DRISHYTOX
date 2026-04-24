@@ -58,25 +58,31 @@ html { scroll-behavior: smooth; }
 
 /* ─── BOTTOM NAV — Frosted glass native feel ─── */
 .mobile-nav {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  max-width: 480px; margin: 0 auto;
+  position: fixed; bottom: 0; left: 0;
+  width: 100%; max-width: 480px;
   height: 64px;
   display: flex; justify-content: space-around; align-items: center;
-  background: rgba(17, 24, 39, 0.95);
+  background: rgba(17, 24, 39, 0.96);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid rgba(255,255,255,0.08);
-  z-index: 100; padding-bottom: env(safe-area-inset-bottom, 0);
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+  z-index: 9999; padding-bottom: env(safe-area-inset-bottom, 0);
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+  overflow: hidden;
+}
+/* Center nav when viewport > 480px */
+@media (min-width: 481px) {
+  .mobile-nav { left: 50%; transform: translateX(-50%); }
 }
 .mobile-nav-item {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 2px; font-size: 0.6rem; color: var(--text-muted);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; font-size: 0.58rem; color: var(--text-muted);
   cursor: pointer; position: relative;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 0.35rem 0.7rem; border-radius: 12px;
+  padding: 0.4rem 0; border-radius: 10px;
   -webkit-user-select: none; user-select: none;
+  flex: 1; min-width: 0; text-align: center;
 }
-.mobile-nav-item .nav-icon { font-size: 1.3rem; transition: transform 0.25s ease; }
+.mobile-nav-item .nav-icon { font-size: 1.2rem; transition: transform 0.25s ease; }
 .mobile-nav-item.active {
   color: var(--accent-alert);
   background: rgba(249, 115, 22, 0.1);
@@ -763,9 +769,11 @@ function driverLogout() {
 function switchScreen(id) {
   document.querySelectorAll('#screenMainApp > .screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
+  // Update nav items — use #mainNav since it's outside .driver-app
+  document.querySelectorAll('#mainNav .mobile-nav-item').forEach(n => n.classList.remove('active'));
   const map = { screenHome: 0, screenMarketplace: 1, screenHistory: 2, screenV2V: 3, screenSettings: 4 };
-  if (map[id] !== undefined) document.querySelectorAll('.mobile-nav-item')[map[id]].classList.add('active');
+  const navItems = document.querySelectorAll('#mainNav .mobile-nav-item');
+  if (map[id] !== undefined && navItems[map[id]]) navItems[map[id]].classList.add('active');
   if (id === 'screenHistory') renderCrossings();
   if (id === 'screenV2V') renderRelays();
   if (id === 'screenSettings') renderSettings();
@@ -780,40 +788,88 @@ function switchScreen(id) {
 // ═══ GPS ═══
 function requestGPS() {
   if (state.gpsStarted) return; // Already running
+
+  // If no geolocation API at all, use fallback immediately
   if (!navigator.geolocation) {
+    showToast('📍 GPS not available — using estimated position');
     startFallbackGPS();
     return;
   }
+
   showToast('📍 Requesting GPS location...');
+
+  // Try to check permission state first (if supported)
+  if (navigator.permissions && navigator.permissions.query) {
+    navigator.permissions.query({ name: 'geolocation' }).then(perm => {
+      if (perm.state === 'denied') {
+        showToast('📍 Location denied — using estimated position');
+        startFallbackGPS();
+        return;
+      }
+      // Permission is granted or prompt — try to get position
+      attemptGPSFix();
+    }).catch(() => {
+      // permissions API not supported, just try directly
+      attemptGPSFix();
+    });
+  } else {
+    attemptGPSFix();
+  }
+}
+
+function attemptGPSFix() {
+  // Set a hard fallback timer — if GPS doesn't respond in 12s, use fallback
+  const fallbackTimer = setTimeout(() => {
+    if (!state.gpsStarted) {
+      showToast('📍 GPS timeout — using estimated position');
+      startFallbackGPS();
+    }
+  }, 12000);
+
   navigator.geolocation.getCurrentPosition(
     (position) => {
-      // Pass the initial position directly for best accuracy
+      clearTimeout(fallbackTimer);
       startGPSTracking(position);
     },
     (err) => {
+      clearTimeout(fallbackTimer);
       console.warn('GPS error:', err.code, err.message);
       if (err.code === 1) {
-        showToast('⚠️ Location permission denied. Please enable in browser settings.');
-        // Show the banner again so user can retry
-        document.getElementById('locationBanner').classList.remove('hidden');
+        showToast('📍 Permission denied — using estimated position');
       } else {
-        showToast('GPS unavailable. Starting in fallback mode.');
-        startFallbackGPS();
+        showToast('📍 GPS unavailable — using estimated position');
       }
+      // ALWAYS fall back — never leave the user stuck
+      startFallbackGPS();
     },
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
   );
 }
 
 function startFallbackGPS() {
+  // CRITICAL: Hide banner and show dashboard FIRST, before any other operation
   state.gpsStarted = true;
-  document.getElementById('locationBanner').classList.add('hidden');
-  document.getElementById('gpsActive').classList.remove('hidden');
-  initMap();
+  const banner = document.getElementById('locationBanner');
+  const gpsUI = document.getElementById('gpsActive');
+  if (banner) banner.style.display = 'none';
+  if (banner) banner.classList.add('hidden');
+  if (gpsUI) gpsUI.classList.remove('hidden');
+  if (gpsUI) gpsUI.style.display = '';
+
+  // Set default position (center of India)
   state.lastKnownPos = { lat: 20.5937, lng: 78.9629, accuracy: 100, speed: 0, heading: 45, timestamp: Date.now() };
-  GPSTracker.lastOnlinePosition = state.lastKnownPos;
-  onGPSUpdate(state.lastKnownPos, true); // true = fresh initial reading
-  startOfflineEstimation();
+
+  // Try to initialize map and GPS tracker — each wrapped in try-catch
+  try { initMap(); } catch(e) { console.warn('[Fallback] initMap error:', e); }
+  try {
+    if (typeof GPSTracker !== 'undefined') GPSTracker.lastOnlinePosition = state.lastKnownPos;
+  } catch(e) { console.warn('[Fallback] GPSTracker error:', e); }
+  try { onGPSUpdate(state.lastKnownPos, true); } catch(e) { console.warn('[Fallback] onGPSUpdate error:', e); }
+  try {
+    if (typeof startOfflineEstimation === 'function') startOfflineEstimation();
+  } catch(e) { console.warn('[Fallback] startOfflineEstimation error:', e); }
+
+  showToast('📍 GPS fallback active — using estimated position');
 }
 
 function startGPSTracking(initialPosition) {
@@ -1193,7 +1249,7 @@ function openSOS() {
 function launchSOSScreen() {
   state.sosCategory = null;
   switchScreen('screenSOS');
-  document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('#mainNav .mobile-nav-item').forEach(n => n.classList.remove('active'));
   ['sosStep1','sosStep2','sosStep3','sosStep4'].forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById('sosStep1').classList.remove('hidden');
   renderSOSCategories();
