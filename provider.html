@@ -10,7 +10,13 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 * { -webkit-tap-highlight-color: transparent; }
-.provider-app { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 72px; overflow-x: hidden; }
+.provider-app { max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 80px; overflow-x: hidden; }
+.mobile-nav { position:fixed; bottom:0; left:0; right:0; max-width:480px; margin:0 auto; height:64px; display:flex; justify-content:space-around; align-items:center; background:rgba(17,24,39,0.95); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-top:1px solid rgba(255,255,255,0.08); z-index:100; padding-bottom:env(safe-area-inset-bottom,0); box-shadow:0 -4px 20px rgba(0,0,0,0.3); }
+.mobile-nav-item { display:flex; flex-direction:column; align-items:center; gap:2px; font-size:0.6rem; color:var(--text-muted); cursor:pointer; padding:0.35rem 0.7rem; border-radius:12px; transition:all 0.25s; -webkit-user-select:none; user-select:none; }
+.mobile-nav-item .nav-icon { font-size:1.3rem; transition:transform 0.25s; }
+.mobile-nav-item.active { color:var(--accent-alert); background:rgba(249,115,22,0.1); }
+.mobile-nav-item.active .nav-icon { transform:scale(1.15) translateY(-1px); }
+.mobile-nav-item:active { transform:scale(0.92); }
 .screen { display: none; opacity: 0; transform: translateY(12px); }
 .screen.active { display: block; opacity: 1; transform: translateY(0); animation: screenSlideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
 @keyframes screenSlideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
@@ -121,14 +127,16 @@
       <div id="lookupMap" style="display:none;height:250px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:1rem;"></div>
     </div>
 
-    <nav class="mobile-nav" id="providerNav" style="display:none;">
-      <div class="mobile-nav-item active" onclick="showTab('tabAlerts')"><span class="nav-icon">🚨</span>Alerts</div>
-      <div class="mobile-nav-item" onclick="showTab('tabLookup')"><span class="nav-icon">🔍</span>Lookup</div>
-      <div class="mobile-nav-item" onclick="showTab('tabDispatch')"><span class="nav-icon">🚀</span>Dispatch</div>
-      <div class="mobile-nav-item" onclick="showTab('tabProfile')"><span class="nav-icon">👤</span>Profile</div>
-    </nav>
   </div>
 </div>
+
+<!-- Bottom Nav — outside .provider-app for position:fixed -->
+<nav class="mobile-nav" id="providerNav" style="display:none;">
+  <div class="mobile-nav-item active" onclick="showTab('tabAlerts')"><span class="nav-icon">🚨</span>Alerts</div>
+  <div class="mobile-nav-item" onclick="showTab('tabLookup')"><span class="nav-icon">🔍</span>Lookup</div>
+  <div class="mobile-nav-item" onclick="showTab('tabDispatch')"><span class="nav-icon">🚀</span>Dispatch</div>
+  <div class="mobile-nav-item" onclick="showTab('tabProfile')"><span class="nav-icon">👤</span>Profile</div>
+</nav>
 
 <!-- Firebase SDK (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
