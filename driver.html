@@ -248,6 +248,73 @@ html { scroll-behavior: smooth; }
 .signal-indicator { font-size: 0.62rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 20px; display: inline-flex; align-items: center; gap: 0.2rem; }
 .signal-indicator.signal-online { background: rgba(34,211,238,0.08); color: var(--accent-online); border: 1px solid rgba(34,211,238,0.12); }
 .signal-indicator.signal-offline { background: rgba(250,204,21,0.08); color: var(--accent-offline); border: 1px solid rgba(250,204,21,0.12); }
+
+/* ─── VOICE SOS OVERLAY ─── */
+.voice-sos-overlay {
+  position: fixed; inset: 0; z-index: 99999;
+  background: rgba(0,0,0,0.92); backdrop-filter: blur(24px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+}
+.voice-sos-overlay.active { opacity: 1; pointer-events: all; }
+.voice-sos-overlay .vsos-shock-badge {
+  background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3);
+  color: #F87171; font-size: 0.72rem; font-weight: 700; padding: 0.3rem 1rem;
+  border-radius: 20px; letter-spacing: 0.1em; margin-bottom: 1.5rem;
+  animation: vosPulse 1.5s infinite;
+}
+@keyframes vosPulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.3);} 50%{box-shadow:0 0 20px 6px rgba(239,68,68,0.15);} }
+.voice-sos-overlay .vsos-mic {
+  width: 100px; height: 100px; border-radius: 50%;
+  background: linear-gradient(135deg, #DC2626, #EF4444);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.8rem; margin-bottom: 1.5rem; position: relative;
+  box-shadow: 0 0 40px rgba(239,68,68,0.4);
+  animation: micPulse 2s infinite;
+}
+@keyframes micPulse {
+  0%,100%{ transform: scale(1); box-shadow: 0 0 40px rgba(239,68,68,0.4); }
+  50%{ transform: scale(1.08); box-shadow: 0 0 60px rgba(239,68,68,0.6), 0 0 100px rgba(239,68,68,0.2); }
+}
+.voice-sos-overlay .vsos-mic.listening { animation: micListening 0.8s infinite; }
+@keyframes micListening {
+  0%,100%{ transform: scale(1); } 50%{ transform: scale(1.12); }
+}
+.voice-sos-overlay .vsos-mic.cancelled { background: linear-gradient(135deg,#374151,#4B5563); animation: none; box-shadow: none; }
+.voice-sos-overlay .vsos-title { font-size: 1.4rem; font-weight: 800; color: #fff; margin-bottom: 0.4rem; text-align: center; }
+.voice-sos-overlay .vsos-subtitle { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 2rem; text-align: center; max-width: 300px; line-height: 1.5; }
+.voice-sos-overlay .vsos-heard { font-family: var(--font-mono); font-size: 1.6rem; color: var(--accent-online); margin-bottom: 1rem; min-height: 2rem; text-align: center; }
+.voice-sos-overlay .vsos-commands { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; width: 100%; max-width: 320px; margin-bottom: 1.5rem; }
+.voice-sos-overlay .vsos-cmd {
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px; padding: 0.85rem; text-align: center; cursor: pointer; transition: all 0.2s;
+}
+.voice-sos-overlay .vsos-cmd:active { transform: scale(0.96); }
+.voice-sos-overlay .vsos-cmd .cmd-num { font-size: 1.8rem; font-weight: 800; color: var(--accent-alert); }
+.voice-sos-overlay .vsos-cmd .cmd-label { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.2rem; }
+.voice-sos-overlay .vsos-cmd.cmd-hospital { border-color: rgba(239,68,68,0.3); }
+.voice-sos-overlay .vsos-cmd.cmd-mechanic { border-color: rgba(251,191,36,0.3); }
+.voice-sos-overlay .vsos-cmd.cmd-fuel { border-color: rgba(59,130,246,0.3); }
+.voice-sos-overlay .vsos-cmd.cmd-cancel { border-color: rgba(107,114,128,0.3); }
+.voice-sos-overlay .vsos-cmd.cmd-cancel .cmd-num { color: #9CA3AF; }
+.voice-sos-overlay .vsos-cancel-btn {
+  background: rgba(107,114,128,0.2); border: 1px solid rgba(107,114,128,0.3);
+  color: #9CA3AF; padding: 0.7rem 2rem; border-radius: 12px; font-size: 0.82rem;
+  font-weight: 700; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.voice-sos-overlay .vsos-cancel-btn:active { transform: scale(0.96); background: rgba(107,114,128,0.3); }
+.voice-sos-overlay .vsos-countdown {
+  font-family: var(--font-mono); font-size: 3rem; font-weight: 800;
+  color: var(--accent-alert); margin-bottom: 0.5rem;
+}
+.voice-sos-overlay .vsos-processing {
+  display: flex; flex-direction: column; align-items: center; gap: 1rem;
+}
+.voice-sos-overlay .vsos-processing .spinner {
+  width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.1);
+  border-top-color: var(--accent-alert); border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -578,6 +645,14 @@ html { scroll-behavior: smooth; }
           <div class="setting-info"><h4>Alert Sound</h4><p>Play sound on incoming events</p></div>
           <label class="toggle-switch"><input type="checkbox" checked id="soundToggle" onchange="saveSetting('alertSound', this.checked)"><span class="toggle-slider"></span></label>
         </div>
+        <div class="setting-row">
+          <div class="setting-info"><h4>🔊 Shock Detection (Voice SOS)</h4><p>Auto-trigger voice SOS on sudden impact</p></div>
+          <label class="toggle-switch"><input type="checkbox" checked id="shockToggle" onchange="ShockDetector.setEnabled(this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><h4>🧪 Test Voice SOS</h4><p>Simulate a shock to test voice overlay</p></div>
+          <button class="btn btn-sm btn-danger" onclick="ShockDetector.simulateShock()" style="font-size:0.7rem;">⚡ Simulate Shock</button>
+        </div>
         <div class="card mt-2" style="text-align:center;">
           <div class="text-xs text-muted" style="text-transform:uppercase;">DATA USAGE</div>
           <div style="font-family:var(--font-mono);font-size:1.1rem;font-weight:700;margin:0.3rem 0;" id="dataUsage">0 KB</div>
@@ -617,7 +692,33 @@ html { scroll-behavior: smooth; }
   </div>
 </div>
 
-<!-- Bottom Nav — MUST be outside .driver-app for position:fixed to work -->
+<!-- ═══ VOICE SOS OVERLAY — Fullscreen shock-triggered voice assistant ═══ -->
+<div class="voice-sos-overlay" id="voiceSosOverlay">
+  <div class="vsos-shock-badge" id="vsosShockBadge">⚠️ IMPACT DETECTED</div>
+  <div class="vsos-mic" id="vsosMic">🎤</div>
+  <div class="vsos-title" id="vsosTitle">Emergency Detected</div>
+  <div class="vsos-subtitle" id="vsosSubtitle">Say a number or tap to select emergency type. Say "cancel" or "no" to dismiss.</div>
+  <div class="vsos-heard" id="vsosHeard"></div>
+  <div class="vsos-commands" id="vsosCommands">
+    <div class="vsos-cmd cmd-hospital" onclick="voiceSosSelect(1)">
+      <div class="cmd-num">1</div>
+      <div class="cmd-label">🏥 Hospital / Accident</div>
+    </div>
+    <div class="vsos-cmd cmd-mechanic" onclick="voiceSosSelect(2)">
+      <div class="cmd-num">2</div>
+      <div class="cmd-label">🔧 Mechanic / Tow</div>
+    </div>
+    <div class="vsos-cmd cmd-fuel" onclick="voiceSosSelect(3)">
+      <div class="cmd-num">3</div>
+      <div class="cmd-label">⛽ Fuel / Tyre</div>
+    </div>
+    <div class="vsos-cmd cmd-cancel" onclick="voiceSosCancel()">
+      <div class="cmd-num">0</div>
+      <div class="cmd-label">❌ Cancel / False Alarm</div>
+    </div>
+  </div>
+  <button class="vsos-cancel-btn" onclick="voiceSosCancel()">✕ Cancel — I'm OK</button>
+</div>
 <nav class="mobile-nav" id="mainNav" style="display:none;">
   <div class="mobile-nav-item active" onclick="switchScreen('screenHome')"><span class="nav-icon">🏠</span>Home</div>
   <div class="mobile-nav-item" onclick="switchScreen('screenMarketplace')"><span class="nav-icon">🍽️</span>Market</div>
@@ -777,7 +878,11 @@ function switchScreen(id) {
   if (id === 'screenHistory') renderCrossings();
   if (id === 'screenV2V') renderRelays();
   if (id === 'screenSettings') renderSettings();
-  if (id === 'screenMarketplace') refreshMarketplace();
+  if (id === 'screenMarketplace') {
+    refreshMarketplace();
+    // Extra invalidateSize after screen transition animation finishes
+    setTimeout(() => { if (mktState.map) { mktState.map.invalidateSize(); mktState.map.setView([state.lastKnownPos?.lat || 20.5937, state.lastKnownPos?.lng || 78.9629], 12); } }, 500);
+  }
   if (id === 'screenHome') {
     updateSOSBanner();
     updateOrderBanner();
@@ -1592,6 +1697,7 @@ function renderSettings() {
   const settings = Store.getSettings();
   document.getElementById('v2vToggle').checked = settings.v2vRelay !== false;
   document.getElementById('soundToggle').checked = settings.alertSound !== false;
+  document.getElementById('shockToggle').checked = settings.shockDetection !== false;
   if (settings.sosMode) document.getElementById('sosModeSelect').value = settings.sosMode;
   const blockCount = BlockRegistry.getBlockCount();
   document.getElementById('dataUsage').textContent = `${blockCount} blocks`;
@@ -2080,6 +2186,10 @@ function initMktMap() {
   if (!mapDiv) return;
   const pos = state.lastKnownPos || { lat: 20.5937, lng: 78.9629 };
 
+  // Force explicit height on container before Leaflet init
+  mapDiv.style.height = '220px';
+  mapDiv.style.minHeight = '220px';
+
   if (!mktState.map) {
     mktState.map = L.map('mktMap', { zoomControl: false, attributionControl: false }).setView([pos.lat, pos.lng], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(mktState.map);
@@ -2108,8 +2218,11 @@ function initMktMap() {
     blockLabel.innerHTML = `📍 ${state.currentBlockId || '---'} · <span style="color:var(--accent-market);">10km radius</span> · ${zoneStatus.totalShops || 0} shops cached`;
   }
 
-  // Resize fix
-  setTimeout(() => mktState.map.invalidateSize(), 200);
+  // Multiple invalidateSize calls — Leaflet needs the container fully visible
+  // Screen animation takes 350ms, so we call at 100ms, 400ms, and 800ms
+  setTimeout(() => { if (mktState.map) mktState.map.invalidateSize(); }, 100);
+  setTimeout(() => { if (mktState.map) { mktState.map.invalidateSize(); mktState.map.setView([pos.lat, pos.lng], 12); } }, 400);
+  setTimeout(() => { if (mktState.map) mktState.map.invalidateSize(); }, 800);
 
   renderMktMapMarkers();
 }
@@ -2253,7 +2366,258 @@ function toggleSimOffline() {
   }
 }
 
+// ═══ SHOCK DETECTION ENGINE — DeviceMotionEvent ═══
+const ShockDetector = {
+  _active: false,
+  _threshold: 30,
+  _cooldownMs: 10000,
+  _lastTrigger: 0,
+  _enabled: true,
+
+  start() {
+    if (this._active) return;
+    const settings = Store.getSettings();
+    this._enabled = settings.shockDetection !== false;
+    if (settings.shockThreshold) this._threshold = settings.shockThreshold;
+    if (window.DeviceMotionEvent) {
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission().then(p => {
+          if (p === 'granted') this._bind();
+        }).catch(e => console.warn('[Shock] Permission error:', e));
+      } else {
+        this._bind();
+      }
+    }
+    this._active = true;
+  },
+
+  _bind() {
+    window.addEventListener('devicemotion', (e) => this._onMotion(e), { passive: true });
+    console.log('[Shock] Monitoring active, threshold:', this._threshold);
+  },
+
+  _onMotion(event) {
+    if (!this._enabled) return;
+    const a = event.accelerationIncludingGravity;
+    if (!a) return;
+    const total = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2);
+    const net = Math.abs(total - 9.8);
+    if (net >= this._threshold) {
+      const now = Date.now();
+      if (now - this._lastTrigger < this._cooldownMs) return;
+      this._lastTrigger = now;
+      console.log('[Shock] IMPACT! Net:', net.toFixed(1));
+      VoiceSOS.trigger('shock');
+    }
+  },
+
+  simulateShock() {
+    this._lastTrigger = Date.now();
+    VoiceSOS.trigger('manual');
+  },
+
+  setEnabled(val) {
+    this._enabled = val;
+    const s = Store.getSettings();
+    s.shockDetection = val;
+    Store.saveSettings(s);
+  },
+};
+
+// ═══ VOICE SOS MODULE — Web Speech API ═══
+const VoiceSOS = {
+  _recognition: null,
+  _isListening: false,
+  _triggered: false,
+  _autoCloseTimer: null,
+
+  COMMANDS: {
+    '1':'ACC','one':'ACC','won':'ACC','hospital':'ACC','accident':'ACC',
+    '2':'TOW','two':'TOW','mechanic':'TOW','tow':'TOW',
+    '3':'TYR','three':'TYR','fuel':'FUL','tyre':'TYR','petrol':'FUL',
+    '0':'CANCEL','zero':'CANCEL','cancel':'CANCEL','no':'CANCEL','stop':'CANCEL','fine':'CANCEL',
+  },
+
+  trigger(source) {
+    if (this._triggered) return;
+    this._triggered = true;
+    const ov = document.getElementById('voiceSosOverlay');
+    const mic = document.getElementById('vsosMic');
+    const badge = document.getElementById('vsosShockBadge');
+    const title = document.getElementById('vsosTitle');
+    const sub = document.getElementById('vsosSubtitle');
+    const heard = document.getElementById('vsosHeard');
+    const cmds = document.getElementById('vsosCommands');
+
+    badge.textContent = source === 'shock' ? '⚠️ IMPACT DETECTED' : '⚠️ SOS VOICE MODE';
+    title.textContent = 'Emergency Detected';
+    sub.textContent = 'Say a number or tap to select. Say "cancel" or "no" to dismiss.';
+    heard.textContent = '';
+    mic.className = 'vsos-mic';
+    mic.innerHTML = '🎤';
+    mic.style.background = '';
+    cmds.style.display = '';
+    ov.classList.add('active');
+
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+    this._startRecognition();
+    clearTimeout(this._autoCloseTimer);
+    this._autoCloseTimer = setTimeout(() => { if (this._triggered) this.cancel(); }, 30000);
+  },
+
+  _startRecognition() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      document.getElementById('vsosSubtitle').textContent = 'Voice not supported. Tap a number to select.';
+      return;
+    }
+    this._recognition = new SR();
+    this._recognition.lang = 'en-IN';
+    this._recognition.continuous = true;
+    this._recognition.interimResults = true;
+    this._recognition.maxAlternatives = 3;
+
+    const mic = document.getElementById('vsosMic');
+    const heard = document.getElementById('vsosHeard');
+
+    this._recognition.onstart = () => { this._isListening = true; mic.classList.add('listening'); };
+    this._recognition.onresult = (ev) => {
+      let t = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) t += ev.results[i][0].transcript;
+      t = t.trim().toLowerCase();
+      heard.textContent = `"${t}"`;
+      const words = t.split(/\s+/);
+      for (const w of words) {
+        const c = w.replace(/[^a-z0-9]/g, '');
+        if (this.COMMANDS[c]) {
+          if (this.COMMANDS[c] === 'CANCEL') this.cancel();
+          else this._executeVoiceSOS(this.COMMANDS[c], t);
+          return;
+        }
+      }
+    };
+    this._recognition.onerror = (ev) => {
+      if (ev.error === 'not-allowed') {
+        document.getElementById('vsosSubtitle').textContent = 'Mic blocked. Tap a number.';
+        mic.classList.remove('listening');
+      }
+      if ((ev.error === 'no-speech' || ev.error === 'aborted') && this._triggered) {
+        setTimeout(() => { try { this._recognition.start(); } catch(e) {} }, 500);
+      }
+    };
+    this._recognition.onend = () => {
+      this._isListening = false;
+      mic.classList.remove('listening');
+      if (this._triggered) setTimeout(() => { if (this._triggered) { try { this._recognition.start(); } catch(e) {} } }, 300);
+    };
+    try { this._recognition.start(); } catch(e) {
+      document.getElementById('vsosSubtitle').textContent = 'Voice unavailable. Tap a number.';
+    }
+  },
+
+  _executeVoiceSOS(sosTypeCode) {
+    if (!this._triggered) return;
+    this._stopRecognition();
+    clearTimeout(this._autoCloseTimer);
+    const title = document.getElementById('vsosTitle');
+    const sub = document.getElementById('vsosSubtitle');
+    const mic = document.getElementById('vsosMic');
+    const cmds = document.getElementById('vsosCommands');
+    const heard = document.getElementById('vsosHeard');
+    const sosType = EMERGENCY_TYPES.find(t => t.code === sosTypeCode) || EMERGENCY_TYPES[0];
+    title.textContent = sosType.icon + ' ' + sosType.label + ' SOS';
+    sub.textContent = 'Generating SOS code and opening SMS...';
+    heard.textContent = '';
+    mic.innerHTML = sosType.icon;
+    mic.style.background = 'linear-gradient(135deg, #DC2626, #EF4444)';
+    cmds.style.display = 'none';
+    if (navigator.vibrate) navigator.vibrate([100, 50, 300]);
+    setTimeout(() => this._fireSOS(sosTypeCode), 800);
+  },
+
+  _fireSOS(sosTypeCode) {
+    const pos = state.lastKnownPos || (typeof GPSTracker !== 'undefined' ? GPSTracker.getEstimatedPosition() : null);
+    if (!pos) { showToast('⚠️ No GPS for SOS'); this._close(); return; }
+    const blockCode8 = BlockCodeEncoder.encode(pos.lat, pos.lng, sosTypeCode);
+    const sosInfo = EMERGENCY_TYPES.find(t => t.code === sosTypeCode) || EMERGENCY_TYPES[0];
+    const conf = state.currentBlock?.confidence || 85;
+    const block = state.currentBlock || BlockResolver.resolve(pos.lat, pos.lng);
+    const bCode = state.currentBlockId || block.blockCode;
+    const sosData = SOSPacket.build(bCode, sosTypeCode, conf, pos.lat, pos.lng);
+    sosData.blockCode8 = blockCode8;
+    state.activeSOS = sosData;
+    state.pendingSOS = sosData;
+    localStorage.setItem('apara_active_sos', JSON.stringify(sosData));
+    Store.saveSOSEvent(sosData);
+
+    // Find nearest provider in 10km
+    let allN = [];
+    const catMap = {'ACC':['HOSP','TOW'],'MED':['HOSP','PHAR'],'TYR':['PUNC','MECH'],'FUL':['FUEL'],'TOW':['TOW','MECH']};
+    const relCats = catMap[sosTypeCode] || [];
+    ZoneManager.getCachedZoneIds().forEach(zId => {
+      const z = ZoneManager.getZoneData(zId);
+      if (!z || !z.providers) return;
+      z.providers.forEach(p => {
+        if (p.status !== 'Active') return;
+        const d = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
+        if (d <= 10000) allN.push({...p, distance: d, catMatch: relCats.includes(p.cat)});
+      });
+    });
+    allN.sort((a, b) => (b.catMatch - a.catMatch) || (a.distance - b.distance));
+    const near = allN[0];
+
+    const smsBody = `APARA SOS ${blockCode8}\n${sosInfo.icon} ${sosInfo.label}\nLoc: ${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}\nPIN: ${sosData.resolutionPin}\nMaps: https://maps.google.com/?q=${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`;
+    const phone = near?.phone || '112';
+    const smsUri = `sms:${phone}?body=${encodeURIComponent(smsBody)}`;
+
+    document.getElementById('vsosTitle').textContent = 'SOS: ' + blockCode8;
+    document.getElementById('vsosSubtitle').innerHTML = '📱 Opening SMS to <b>' + (near?.name || 'Emergency 112') + '</b>...<br>Tap SEND in your messaging app.';
+
+    if (near) {
+      sosData.nearestProvider = near;
+      Store.updateSOSEvent(sosData.id, {providerId: near.id||near.name, providerName: near.name, blockCode8});
+    }
+
+    setTimeout(() => {
+      window.location.href = smsUri;
+      setTimeout(() => { this._close(); updateSOSBanner(); showToast('🚨 Voice SOS sent! Code: ' + blockCode8); }, 1500);
+    }, 600);
+  },
+
+  cancel() {
+    this._stopRecognition();
+    clearTimeout(this._autoCloseTimer);
+    const mic = document.getElementById('vsosMic');
+    mic.className = 'vsos-mic cancelled';
+    mic.innerHTML = '✓';
+    document.getElementById('vsosTitle').textContent = 'Cancelled — Stay Safe!';
+    document.getElementById('vsosSubtitle').textContent = 'False alarm dismissed.';
+    if (navigator.vibrate) navigator.vibrate(50);
+    setTimeout(() => this._close(), 1200);
+  },
+
+  _stopRecognition() {
+    if (this._recognition) { try { this._recognition.abort(); } catch(e) {} this._recognition = null; }
+    this._isListening = false;
+  },
+
+  _close() {
+    this._triggered = false;
+    this._stopRecognition();
+    clearTimeout(this._autoCloseTimer);
+    document.getElementById('voiceSosOverlay').classList.remove('active');
+  },
+};
+
+function voiceSosSelect(num) {
+  const map = {1:'ACC', 2:'TOW', 3:'TYR'};
+  if (map[num]) VoiceSOS._executeVoiceSOS(map[num]);
+}
+function voiceSosCancel() { VoiceSOS.cancel(); }
+
 init();
+// Start shock detection after init
+ShockDetector.start();
 </script>
 </body>
 </html>
