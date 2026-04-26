@@ -362,7 +362,7 @@ function initRegForm() {
   EMERGENCY_TYPES.forEach(t => { const o = document.createElement('option'); o.value = t.code; o.textContent = `${t.icon} ${t.label}`; at.appendChild(o); });
 }
 
-function registerProvider() {
+async function registerProvider() {
   const name = document.getElementById('regName').value.trim();
   const catCode = document.getElementById('regCat').value;
   const phone = document.getElementById('regPhone').value.trim();
@@ -381,7 +381,7 @@ function registerProvider() {
   const category = PROVIDER_CATEGORIES.find(c => c.code === catCode);
   const providers = Store.getProviders();
   const id = `RSOS-${catCode}-${String(100001 + providers.length).slice(-6)}`;
-  const password = Math.random().toString(36).slice(2, 10).toUpperCase();
+  const password = Math.random().toString(36).slice(2, 8).toUpperCase(); // 6 char code
   const corridorId = document.getElementById('regCorridor').value;
   const corridor = Store.getCorridors().find(c => c.id === corridorId);
 
@@ -392,28 +392,30 @@ function registerProvider() {
     gps: gps,
     status: 'Active', available: true, lastLogin: null,
     registeredAt: new Date().toISOString(),
+    type: 'provider'
   };
 
-  Store.saveProvider(provider);
+  try {
+    await FirebaseSync.pushPendingRegistration(provider);
 
-  // ═══ BUMP CONFIG VERSION — Triggers push to all driver apps ═══
-  ConfigPush.bumpVersion({ action: 'add', providerId: id, providerName: name });
-
-  const res = document.getElementById('credResult');
-  res.classList.remove('hidden');
-  res.innerHTML = `<div class="cred-card">
-    <div style="font-size:2rem;margin-bottom:0.5rem;">✅</div>
-    <h3>Provider Activated</h3>
-    <p class="text-sm text-muted mb-2">Credentials ready — share with the provider. Config version bumped for auto-push to drivers.</p>
-    <div class="cred-field"><span class="text-xs text-muted">Registration ID</span><code>${id}</code><button class="copy-btn" onclick="copyText('${id}')">Copy</button></div>
-    <div class="cred-field"><span class="text-xs text-muted">Password</span><code>${password}</code><button class="copy-btn" onclick="copyText('${password}')">Copy</button></div>
-    <div class="text-xs text-muted" style="margin-top:0.5rem;">📡 Config v${ConfigPush.getVersion()} — drivers will receive this update within 30 min</div>
-  </div>`;
-  showToast('Provider activated. Config version bumped.');
-  document.getElementById('regName').value = '';
-  document.getElementById('regCat').value = '';
-  document.getElementById('regPhone').value = '';
-  document.getElementById('regGPS').value = '';
+    const res = document.getElementById('credResult');
+    res.classList.remove('hidden');
+    res.innerHTML = `<div class="cred-card">
+      <div style="font-size:2rem;margin-bottom:0.5rem;">✅</div>
+      <h3>Temporary Registration Generated</h3>
+      <p class="text-sm text-muted mb-2">Credentials ready — share with the provider. They must log in to permanently claim this registration.</p>
+      <div class="cred-field"><span class="text-xs text-muted">Registration ID</span><code>${id}</code><button class="copy-btn" onclick="copyText('${id}')">Copy</button></div>
+      <div class="cred-field"><span class="text-xs text-muted">Claim Code</span><code>${password}</code><button class="copy-btn" onclick="copyText('${password}')">Copy</button></div>
+      <div class="text-xs text-muted" style="margin-top:0.5rem;">📡 Saved in Firebase pending_registrations.</div>
+    </div>`;
+    showToast('Pending registration saved to Firebase.');
+    document.getElementById('regName').value = '';
+    document.getElementById('regCat').value = '';
+    document.getElementById('regPhone').value = '';
+    document.getElementById('regGPS').value = '';
+  } catch (err) {
+    showToast('Error storing pending registration. Ensure you have internet.');
+  }
 }
 
 function copyText(text) { navigator.clipboard.writeText(text).then(() => showToast('Copied!')); }
@@ -765,7 +767,7 @@ function initShopRegForm() {
   Store.getCorridors().forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; corrSel.appendChild(o); });
 }
 
-function registerShop() {
+async function registerShop() {
   initShopRegForm();
   const name = document.getElementById('regShopName').value.trim();
   const catCode = document.getElementById('regShopCat').value;
@@ -782,33 +784,38 @@ function registerShop() {
 
   const category = SHOP_CATEGORIES.find(c => c.code === catCode);
   const id = ShopRegistry.generateShopId(catCode);
-  const password = ShopRegistry.generatePassword();
+  const password = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit PIN code
 
   const shop = {
     id, name, category, categoryCode: catCode, owner, phone, gps, hours,
     password, corridorId: corridorId || null,
     status: 'Active', registeredAt: new Date().toISOString(), lastLogin: null,
+    type: 'shop'
   };
 
-  ShopRegistry.saveShop(shop);
+  try {
+    await FirebaseSync.pushPendingRegistration(shop);
 
-  const res = document.getElementById('shopCredResult');
-  res.classList.remove('hidden');
-  res.innerHTML = `<div class="cred-card" style="border-color:var(--accent-market, #10B981);">
-    <div style="font-size:2rem;margin-bottom:0.5rem;">🏪</div>
-    <h3 style="color:var(--accent-market, #10B981);">Shop Registered!</h3>
-    <p class="text-sm text-muted mb-2">Share these credentials with the shop owner. They use shop_provider.html to login.</p>
-    <div class="cred-field"><span class="text-xs text-muted">Shop ID</span><code style="color:var(--accent-market, #10B981);">${id}</code><button class="copy-btn" onclick="copyText('${id}')">Copy</button></div>
-    <div class="cred-field"><span class="text-xs text-muted">Password</span><code style="color:var(--accent-market, #10B981);">${password}</code><button class="copy-btn" onclick="copyText('${password}')">Copy</button></div>
-    <div class="text-xs text-muted" style="margin-top:0.5rem;">📍 Location: ${gps}</div>
-  </div>`;
-  showToast('Shop registered successfully!');
-  document.getElementById('regShopName').value = '';
-  document.getElementById('regShopCat').value = '';
-  document.getElementById('regShopOwner').value = '';
-  document.getElementById('regShopPhone').value = '';
-  document.getElementById('regShopGPS').value = '';
-  document.getElementById('regShopHours').value = '';
+    const res = document.getElementById('shopCredResult');
+    res.classList.remove('hidden');
+    res.innerHTML = `<div class="cred-card" style="border-color:var(--accent-market, #10B981);">
+      <div style="font-size:2rem;margin-bottom:0.5rem;">🏪</div>
+      <h3 style="color:var(--accent-market, #10B981);">Temporary Shop Code Generated!</h3>
+      <p class="text-sm text-muted mb-2">Share these credentials with the shop owner. They use shop_provider.html to login and claim their account.</p>
+      <div class="cred-field"><span class="text-xs text-muted">Shop ID</span><code style="color:var(--accent-market, #10B981);">${id}</code><button class="copy-btn" onclick="copyText('${id}')">Copy</button></div>
+      <div class="cred-field"><span class="text-xs text-muted">Claim PIN</span><code style="color:var(--accent-market, #10B981);">${password}</code><button class="copy-btn" onclick="copyText('${password}')">Copy</button></div>
+      <div class="text-xs text-muted" style="margin-top:0.5rem;">📍 Location: ${gps}</div>
+    </div>`;
+    showToast('Shop pending registration saved to Firebase!');
+    document.getElementById('regShopName').value = '';
+    document.getElementById('regShopCat').value = '';
+    document.getElementById('regShopOwner').value = '';
+    document.getElementById('regShopPhone').value = '';
+    document.getElementById('regShopGPS').value = '';
+    document.getElementById('regShopHours').value = '';
+  } catch (err) {
+    showToast('Error storing pending registration. Ensure you have internet.');
+  }
 }
 
 // ═══ SHOP TABLE ═══

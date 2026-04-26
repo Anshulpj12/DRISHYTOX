@@ -153,7 +153,7 @@ let detailMap = null;
 let dispatchMap = null;
 
 // ═══ LOGIN ═══
-function doLogin() {
+async function doLogin() {
   const id = document.getElementById('loginId').value.trim();
   const pass = document.getElementById('loginPass').value.trim();
 
@@ -164,7 +164,35 @@ function doLogin() {
   }
 
   // Validate against admin-registered providers in localStorage
-  const provider = Store.findProvider(id, pass);
+  let provider = Store.findProvider(id, pass);
+
+  // If not found locally, try to claim from Firebase
+  if (!provider) {
+    const btn = document.querySelector('#screenLogin .btn-primary');
+    const ogText = btn.textContent;
+    btn.textContent = 'Verifying Code...';
+    btn.disabled = true;
+
+    try {
+      const ready = await FirebaseSync.init();
+      if (ready) {
+        const claimed = await FirebaseSync.claimPendingRegistration(id, pass);
+        if (claimed && claimed.type === 'provider') {
+          provider = claimed;
+          Store.saveProvider(provider);
+          await FirebaseSync.pushProvider(provider);
+          const ver = await FirebaseSync.fetchConfigVersion() || 1;
+          await FirebaseSync.pushConfigVersion(ver + 1, { action: 'provider_claimed', detail: provider.id });
+          showToast('Provider account successfully claimed!');
+        }
+      }
+    } catch (e) {
+      console.error('[ProviderLogin] Claim error:', e);
+    } finally {
+      btn.textContent = ogText;
+      btn.disabled = false;
+    }
+  }
 
   if (!provider) {
     document.getElementById('loginError').style.display = 'block';

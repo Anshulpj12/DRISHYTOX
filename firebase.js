@@ -679,6 +679,43 @@ const FirebaseSync = {
   },
 
   // ═══════════════════════════════════════════
+  // PENDING REGISTRATIONS — Temporary claim codes for login
+  // ═══════════════════════════════════════════
+
+  async pushPendingRegistration(regData) {
+    if (!this.isReady()) return false;
+    try {
+      await this._db.collection('pending_registrations').doc(regData.id).set({
+        ...regData,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      console.log(`[FirebaseSync] Pending registration pushed: ${regData.id}`);
+      return true;
+    } catch (err) {
+      console.error('[FirebaseSync] pushPendingRegistration failed:', err);
+      return false;
+    }
+  },
+
+  async claimPendingRegistration(id, code) {
+    if (!this.isReady()) return null;
+    try {
+      const doc = await this._db.collection('pending_registrations').doc(id).get();
+      if (doc.exists && doc.data().password === code) {
+        const data = doc.data();
+        // Delete the temporary registration
+        await this._db.collection('pending_registrations').doc(id).delete();
+        console.log(`[FirebaseSync] Claimed and deleted pending registration: ${id}`);
+        return data;
+      }
+      return null;
+    } catch (err) {
+      console.error('[FirebaseSync] claimPendingRegistration failed:', err);
+      return null;
+    }
+  },
+
+  // ═══════════════════════════════════════════
   // DRIVERS — Register driver in Firestore
   // ═══════════════════════════════════════════
 

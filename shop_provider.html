@@ -209,12 +209,43 @@ let shopState = {
 };
 
 // ═══ LOGIN ═══
-function shopLogin() {
+async function shopLogin() {
   const id = document.getElementById('shopLoginId').value.trim();
   const pw = document.getElementById('shopLoginPw').value.trim();
   if (!id || !pw) { showToast('Enter Shop ID and Password'); return; }
-  const shop = ShopRegistry.findShop(id, pw);
+
+  let shop = ShopRegistry.findShop(id, pw);
+
+  // If not found locally, try to claim from Firebase
+  if (!shop) {
+    const btn = document.querySelector('#screenShopLogin .btn-full');
+    const ogText = btn.textContent;
+    btn.textContent = 'Verifying Code...';
+    btn.disabled = true;
+
+    try {
+      const ready = await FirebaseSync.init();
+      if (ready) {
+        const claimed = await FirebaseSync.claimPendingRegistration(id, pw);
+        if (claimed && claimed.type === 'shop') {
+          shop = claimed;
+          ShopRegistry.saveShop(shop);
+          await FirebaseSync.pushShop(shop);
+          const ver = await FirebaseSync.fetchConfigVersion() || 1;
+          await FirebaseSync.pushConfigVersion(ver + 1, { action: 'shop_claimed', detail: shop.id });
+          showToast('Shop account successfully claimed!');
+        }
+      }
+    } catch (e) {
+      console.error('[ShopLogin] Claim error:', e);
+    } finally {
+      btn.textContent = ogText;
+      btn.disabled = false;
+    }
+  }
+
   if (!shop) { showToast('Invalid credentials. Contact Admin.'); return; }
+
   shopState.shopId = shop.id;
   shopState.shopData = shop;
   localStorage.setItem(STORE_KEYS.LOGGED_SHOP, JSON.stringify({ id: shop.id, pw: pw }));
