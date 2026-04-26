@@ -277,7 +277,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="firebase.js"></script>
+<script src="firebase_v2.js"></script>
 <script src="data.js"></script>
 <script>
 let providerPage = 1;
@@ -363,7 +363,6 @@ function initRegForm() {
 }
 
 async function registerProvider() {
-  alert("BUTTON TAPPED! If you see this, the new code is loaded.");
   try {
     const res = document.getElementById('credResult');
     res.classList.remove('hidden');
@@ -716,7 +715,11 @@ function showToast(msg) {
   const t = document.createElement('div');
   t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 4000);
+  setTimeout(() => t.classList.add('show'), 10);
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 300);
+  }, 4000);
 }
 
 function downloadFile(content, filename, type) {
