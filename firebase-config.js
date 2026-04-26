@@ -2,7 +2,7 @@
 // This file is in .gitignore to protect your API keys.
 // Each developer/deployment needs their own copy.
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDX8DGuclPPPeFErcUiElE6hTTxdt9ntec",
+  apiKey: "AIzaSyAK6c3E2_O7m9ce4HGxfeHSVs-iPTrU1FQ",
   authDomain: "apara-c5959.firebaseapp.com",
   projectId: "apara-c5959",
   storageBucket: "apara-c5959.firebasestorage.app",
