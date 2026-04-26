@@ -1,6 +1,4 @@
-// ═══ FIREBASE CONFIG — DO NOT COMMIT TO GIT ═══
-// This file is in .gitignore to protect your API keys.
-// Each developer/deployment needs their own copy.
+// ═══ FIREBASE CONFIG ═══
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyAK6c3E2_O7m9ce4HGxfeHSVs-iPTrU1FQ",
   authDomain: "apara-c5959.firebaseapp.com",

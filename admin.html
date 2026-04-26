@@ -363,43 +363,64 @@ function initRegForm() {
 }
 
 async function registerProvider() {
-  const name = document.getElementById('regName').value.trim();
-  const catCode = document.getElementById('regCat').value;
-  const phone = document.getElementById('regPhone').value.trim();
-  const gps = document.getElementById('regGPS').value.trim();
-
-  if (!name || !catCode || !phone) { showToast('Please fill in Name, Category, and Phone'); return; }
-
-  // Validate GPS coordinates (mandatory)
-  if (!gps) { showToast('⚠️ GPS Coordinates are required for closest-provider matching!'); return; }
-  const gpsParts = gps.split(',').map(s => parseFloat(s.trim()));
-  if (gpsParts.length !== 2 || isNaN(gpsParts[0]) || isNaN(gpsParts[1]) || Math.abs(gpsParts[0]) > 90 || Math.abs(gpsParts[1]) > 180) {
-    showToast('⚠️ Invalid GPS coordinates. Format: latitude, longitude (e.g. 28.6139, 77.2090)');
-    return;
-  }
-
-  const category = PROVIDER_CATEGORIES.find(c => c.code === catCode);
-  const providers = Store.getProviders();
-  const id = `RSOS-${catCode}-${String(100001 + providers.length).slice(-6)}`;
-  const password = Math.random().toString(36).slice(2, 8).toUpperCase(); // 6 char code
-  const corridorId = document.getElementById('regCorridor').value;
-  const corridor = Store.getCorridors().find(c => c.id === corridorId);
-
-  const provider = {
-    id, name, category, phone, password,
-    corridorId: corridorId || null,
-    corridorName: corridor ? corridor.name : 'All corridors',
-    gps: gps,
-    status: 'Active', available: true, lastLogin: null,
-    registeredAt: new Date().toISOString(),
-    type: 'provider'
-  };
-
+  alert("BUTTON TAPPED! If you see this, the new code is loaded.");
   try {
-    await FirebaseSync.pushPendingRegistration(provider);
-
     const res = document.getElementById('credResult');
     res.classList.remove('hidden');
+    res.innerHTML = `<div class="cred-card"><div style="font-size:2rem;animation:pulse 1s infinite;">⏳</div><h3>Generating Registration...</h3><p class="text-sm text-muted">Connecting to Firebase...</p></div>`;
+
+    const name = document.getElementById('regName').value.trim();
+    const catCode = document.getElementById('regCat').value;
+    const phone = document.getElementById('regPhone').value.trim();
+    const gps = document.getElementById('regGPS').value.trim();
+
+    if (!name || !catCode || !phone) { 
+      res.classList.add('hidden');
+      showToast('Please fill in Name, Category, and Phone'); return; 
+    }
+
+    if (!gps) { 
+      res.classList.add('hidden');
+      showToast('⚠️ GPS Coordinates are required for closest-provider matching!'); return; 
+    }
+    const gpsParts = gps.split(',').map(s => parseFloat(s.trim()));
+    if (gpsParts.length !== 2 || isNaN(gpsParts[0]) || isNaN(gpsParts[1]) || Math.abs(gpsParts[0]) > 90 || Math.abs(gpsParts[1]) > 180) {
+      res.classList.add('hidden');
+      showToast('⚠️ Invalid GPS coordinates. Format: latitude, longitude (e.g. 28.6139, 77.2090)');
+      return;
+    }
+
+    const category = PROVIDER_CATEGORIES.find(c => c.code === catCode);
+    const providers = Store.getProviders();
+    const id = `RSOS-${catCode}-${String(100001 + providers.length).slice(-6)}`;
+    const password = Math.random().toString(36).slice(2, 8).toUpperCase(); 
+    const corridorId = document.getElementById('regCorridor').value;
+    const corridor = Store.getCorridors().find(c => c.id === corridorId);
+
+    const provider = {
+      id, name, category, phone, password,
+      corridorId: corridorId || null,
+      corridorName: corridor ? corridor.name : 'All corridors',
+      gps: gps,
+      status: 'Active', available: true, lastLogin: null,
+      registeredAt: new Date().toISOString(),
+      type: 'provider'
+    };
+
+    await FirebaseSync.init();
+    
+    // Add a timeout to the Firebase push
+    const success = await Promise.race([
+      FirebaseSync.pushPendingRegistration(provider),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 10000))
+    ]);
+
+    if (!success) {
+      res.classList.add('hidden');
+      showToast('Error storing pending registration. Ensure you have internet.');
+      return;
+    }
+
     res.innerHTML = `<div class="cred-card">
       <div style="font-size:2rem;margin-bottom:0.5rem;">✅</div>
       <h3>Temporary Registration Generated</h3>
@@ -414,7 +435,9 @@ async function registerProvider() {
     document.getElementById('regPhone').value = '';
     document.getElementById('regGPS').value = '';
   } catch (err) {
-    showToast('Error storing pending registration. Ensure you have internet.');
+    console.error(err);
+    document.getElementById('credResult').classList.add('hidden');
+    showToast('Error: ' + err.message);
   }
 }
 
@@ -768,36 +791,58 @@ function initShopRegForm() {
 }
 
 async function registerShop() {
-  initShopRegForm();
-  const name = document.getElementById('regShopName').value.trim();
-  const catCode = document.getElementById('regShopCat').value;
-  const owner = document.getElementById('regShopOwner').value.trim();
-  const phone = document.getElementById('regShopPhone').value.trim();
-  const gps = document.getElementById('regShopGPS').value.trim();
-  const hours = document.getElementById('regShopHours').value.trim();
-  const corridorId = document.getElementById('regShopCorridor').value;
-
-  if (!name || !catCode || !phone) { showToast('Fill in Name, Category, and Phone'); return; }
-  if (!gps) { showToast('⚠️ GPS coordinates are required!'); return; }
-  const gpsParts = gps.split(',').map(s => parseFloat(s.trim()));
-  if (gpsParts.length !== 2 || isNaN(gpsParts[0]) || isNaN(gpsParts[1])) { showToast('Invalid GPS format'); return; }
-
-  const category = SHOP_CATEGORIES.find(c => c.code === catCode);
-  const id = ShopRegistry.generateShopId(catCode);
-  const password = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit PIN code
-
-  const shop = {
-    id, name, category, categoryCode: catCode, owner, phone, gps, hours,
-    password, corridorId: corridorId || null,
-    status: 'Active', registeredAt: new Date().toISOString(), lastLogin: null,
-    type: 'shop'
-  };
-
   try {
-    await FirebaseSync.pushPendingRegistration(shop);
-
     const res = document.getElementById('shopCredResult');
     res.classList.remove('hidden');
+    res.innerHTML = `<div class="cred-card" style="border-color:var(--accent-market, #10B981);"><div style="font-size:2rem;animation:pulse 1s infinite;">⏳</div><h3 style="color:var(--accent-market, #10B981);">Generating Shop Registration...</h3><p class="text-sm text-muted">Connecting to Firebase...</p></div>`;
+
+    initShopRegForm();
+    const name = document.getElementById('regShopName').value.trim();
+    const catCode = document.getElementById('regShopCat').value;
+    const owner = document.getElementById('regShopOwner').value.trim();
+    const phone = document.getElementById('regShopPhone').value.trim();
+    const gps = document.getElementById('regShopGPS').value.trim();
+    const hours = document.getElementById('regShopHours').value.trim();
+    const corridorId = document.getElementById('regShopCorridor').value;
+
+    if (!name || !catCode || !phone) { 
+      res.classList.add('hidden');
+      showToast('Fill in Name, Category, and Phone'); return; 
+    }
+    if (!gps) { 
+      res.classList.add('hidden');
+      showToast('⚠️ GPS coordinates are required!'); return; 
+    }
+    const gpsParts = gps.split(',').map(s => parseFloat(s.trim()));
+    if (gpsParts.length !== 2 || isNaN(gpsParts[0]) || isNaN(gpsParts[1])) { 
+      res.classList.add('hidden');
+      showToast('Invalid GPS format'); return; 
+    }
+
+    const category = SHOP_CATEGORIES.find(c => c.code === catCode);
+    const id = ShopRegistry.generateShopId(catCode);
+    const password = Math.floor(100000 + Math.random() * 900000).toString(); 
+
+    const shop = {
+      id, name, category, categoryCode: catCode, owner, phone, gps, hours,
+      password, corridorId: corridorId || null,
+      status: 'Active', registeredAt: new Date().toISOString(), lastLogin: null,
+      type: 'shop'
+    };
+
+    await FirebaseSync.init();
+    
+    const success = await Promise.race([
+      FirebaseSync.pushPendingRegistration(shop),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 10000))
+    ]);
+
+    if (!success) {
+      res.classList.add('hidden');
+      showToast('Error storing pending registration. Ensure you have internet.');
+      return;
+    }
+
     res.innerHTML = `<div class="cred-card" style="border-color:var(--accent-market, #10B981);">
       <div style="font-size:2rem;margin-bottom:0.5rem;">🏪</div>
       <h3 style="color:var(--accent-market, #10B981);">Temporary Shop Code Generated!</h3>
@@ -814,7 +859,9 @@ async function registerShop() {
     document.getElementById('regShopGPS').value = '';
     document.getElementById('regShopHours').value = '';
   } catch (err) {
-    showToast('Error storing pending registration. Ensure you have internet.');
+    console.error(err);
+    document.getElementById('shopCredResult').classList.add('hidden');
+    showToast('Error: ' + err.message);
   }
 }
 
