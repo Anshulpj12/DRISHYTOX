@@ -803,7 +803,25 @@ function driverLogin() {
       ConfigPush.setVersion(poll.remoteVersion);
       ConfigPush.checkForUpdates();
     }
-  }, 30 * 60 * 1000);
+  }, 5 * 60 * 1000); // Poll every 5 minutes for fast sync
+
+  // Community speed profile auto-refresh (every 2 days)
+  const COMMUNITY_REFRESH_INTERVAL = 2 * 24 * 60 * 60 * 1000; // 2 days
+  const lastCommunityRefresh = parseInt(localStorage.getItem('apara_last_community_refresh') || '0');
+  const timeSinceRefresh = Date.now() - lastCommunityRefresh;
+  if (timeSinceRefresh >= COMMUNITY_REFRESH_INTERVAL) {
+    setTimeout(async () => {
+      if (state.lastKnownPos && FirebaseSync.isReady()) {
+        console.log('[Community] 2-day refresh: downloading community speed data...');
+        const result = await FirebaseSync.downloadCommunityData(state.lastKnownPos.lat, state.lastKnownPos.lng);
+        if (result) {
+          localStorage.setItem('apara_last_community_refresh', String(Date.now()));
+          showToast(`🌐 Community data refreshed: +${result.newBlocks} blocks`);
+        }
+      }
+    }, 10000); // 10s after login to let GPS settle
+  }
+
   // Auto-request GPS on login
   setTimeout(() => requestGPS(), 500);
 }
@@ -847,7 +865,7 @@ function driverLogout() {
             ConfigPush.setVersion(poll.remoteVersion);
             ConfigPush.checkForUpdates();
           }
-        }, 30 * 60 * 1000);
+        }, 5 * 60 * 1000); // Poll every 5 minutes for fast sync
         // First check immediately
         setTimeout(async () => {
           const poll = await FirebaseSync.pollConfigVersion();
@@ -922,31 +940,45 @@ function requestGPS() {
 }
 
 function attemptGPSFix() {
-  // Set a hard fallback timer — if GPS doesn't respond in 12s, use fallback
+  // Stage 1: Quick low-accuracy fix (works on most mobile browsers immediately)
+  // Stage 2: Upgrade to high-accuracy continuous tracking
   const fallbackTimer = setTimeout(() => {
     if (!state.gpsStarted) {
       showToast('📍 GPS timeout — using estimated position');
       startFallbackGPS();
     }
-  }, 12000);
+  }, 15000); // 15s total timeout
 
+  // First try with relaxed settings for a quick position
   navigator.geolocation.getCurrentPosition(
     (position) => {
       clearTimeout(fallbackTimer);
       startGPSTracking(position);
     },
     (err) => {
-      clearTimeout(fallbackTimer);
-      console.warn('GPS error:', err.code, err.message);
-      if (err.code === 1) {
-        showToast('📍 Permission denied — using estimated position');
-      } else {
-        showToast('📍 GPS unavailable — using estimated position');
-      }
-      // ALWAYS fall back — never leave the user stuck
-      startFallbackGPS();
+      console.warn('GPS high-accuracy error:', err.code, err.message);
+      // If high accuracy failed, try low accuracy as fallback
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          clearTimeout(fallbackTimer);
+          startGPSTracking(position);
+        },
+        (err2) => {
+          clearTimeout(fallbackTimer);
+          console.warn('GPS low-accuracy error:', err2.code, err2.message);
+          if (err2.code === 1) {
+            showToast('📍 Location permission denied — please enable in browser settings');
+          } else if (err2.code === 2) {
+            showToast('📍 Location unavailable — check GPS settings');
+          } else {
+            showToast('📍 GPS timeout — using estimated position');
+          }
+          startFallbackGPS();
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      );
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
   );
 }
 
@@ -2233,12 +2265,12 @@ function renderMktMapMarkers() {
   mktState.markers.forEach(m => mktState.map.removeLayer(m));
   mktState.markers = [];
 
-  // Get shops within 10km display radius (same as list)
   const pos = state.lastKnownPos;
+
+  // ═══ SHOP MARKERS (green family) ═══
   let shops = [];
   if (pos) {
     shops = ShopRegistry.getNearbyShops(pos.lat, pos.lng, MKT_DISPLAY_RADIUS);
-    // Merge from zone cache
     const zoneShops = ZoneManager.getShopsInRadius(pos.lat, pos.lng, MKT_DISPLAY_RADIUS);
     zoneShops.forEach(zs => {
       if (!shops.find(s => s.id === zs.id)) shops.push(zs);
@@ -2255,7 +2287,6 @@ function renderMktMapMarkers() {
   }
 
   shops.forEach(shop => {
-    // Support both direct lat/lng and gps string
     let lat, lng;
     if (shop.lat != null && shop.lng != null) {
       lat = shop.lat; lng = shop.lng;
@@ -2281,6 +2312,68 @@ function renderMktMapMarkers() {
         <span style="color:#888;font-size:0.8em;">${cat.label} ${distStr ? '· ' + distStr : ''}</span><br>
         <span style="font-size:0.85em;">${menu.length} items available</span><br>
         <a href="#" onclick="openMktShopDetail('${shop.id}');return false;" style="color:${color};font-weight:700;font-size:0.85em;">View Menu →</a>
+      </div>
+    `);
+
+    mktState.markers.push(marker);
+  });
+
+  // ═══ SOS PROVIDER MARKERS (red/orange family) ═══
+  let providers = [];
+  if (pos) {
+    // Get providers from all cached zones within 10km
+    ZoneManager.getCachedZoneIds().forEach(zId => {
+      const zone = ZoneManager.getZoneData(zId);
+      if (!zone || !zone.providers) return;
+      zone.providers.forEach(p => {
+        if (p.status !== 'Active') return;
+        const dist = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
+        if (dist <= MKT_DISPLAY_RADIUS) {
+          if (!providers.find(ep => ep.id === p.id)) {
+            providers.push({ ...p, distance: dist });
+          }
+        }
+      });
+    });
+    // Also from Store directly
+    Store.getProviders().forEach(p => {
+      if (p.status !== 'Active' || !p.gps) return;
+      const pts = p.gps.split(',').map(x => parseFloat(x.trim()));
+      if (pts.length !== 2 || isNaN(pts[0]) || isNaN(pts[1])) return;
+      const dist = Utils.haversine(pos.lat, pos.lng, pts[0], pts[1]);
+      if (dist <= MKT_DISPLAY_RADIUS && !providers.find(ep => ep.id === p.id)) {
+        providers.push({
+          id: p.id, name: p.name, cat: p.category?.code || '',
+          catIcon: p.category?.icon || '🏥', catLabel: p.category?.label || 'Provider',
+          phone: p.phone, lat: pts[0], lng: pts[1], distance: dist
+        });
+      }
+    });
+  }
+
+  const PROVIDER_COLORS = {
+    'HOSP': '#EF4444', 'PHAR': '#A855F7', 'MECH': '#F97316',
+    'TOW': '#EAB308', 'FUEL': '#3B82F6', 'PUNC': '#F59E0B',
+  };
+
+  providers.forEach(prov => {
+    const color = PROVIDER_COLORS[prov.cat] || '#EF4444';
+    const distStr = prov.distance ? (prov.distance / 1000).toFixed(1) + ' km' : '';
+    const icon = prov.catIcon || '🏥';
+    const label = prov.catLabel || prov.cat || 'SOS Provider';
+
+    // Diamond-shaped marker for providers (larger, distinct from shops)
+    const marker = L.circleMarker([prov.lat, prov.lng], {
+      radius: 9, fillColor: color, color: '#fff', weight: 2.5, opacity: 1, fillOpacity: 0.9
+    }).addTo(mktState.map);
+
+    const phoneLink = prov.phone ? `<br><a href="tel:${prov.phone}" style="color:${color};font-weight:700;font-size:0.85em;">📞 Call ${prov.phone}</a>` : '';
+
+    marker.bindPopup(`
+      <div style="font-family:system-ui;min-width:150px;">
+        <strong>${icon} ${prov.name}</strong><br>
+        <span style="color:#888;font-size:0.8em;">🆘 ${label} ${distStr ? '· ' + distStr : ''}</span>
+        ${phoneLink}
       </div>
     `);
 

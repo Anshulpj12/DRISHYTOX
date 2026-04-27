@@ -254,7 +254,7 @@ const GPSTracker = {
     this.watchId = navigator.geolocation.watchPosition(
       (pos) => { this._processRawPosition(pos); },
       (err) => { console.warn('GPS error:', err.message); },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
 
     // Backup: force a fresh GPS read every 5 seconds if watchPosition is slow
@@ -1991,6 +1991,12 @@ const MenuManager = {
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
       FirebaseSync.pushMenu(shopId, items).catch(e => console.warn('[MenuManager] Firebase pushMenu failed:', e));
     }
+  },
+
+  // Set menu directly from cloud data (no Firebase re-push to avoid circular sync)
+  setMenu(shopId, items) {
+    localStorage.setItem(STORE_KEYS.MENU_PREFIX + shopId, JSON.stringify(items));
+    console.log(`[MenuManager] Menu set from cloud for ${shopId}: ${items.length} items`);
   },
 
   addItem(shopId, item) {

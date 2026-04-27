@@ -34,6 +34,17 @@
 .status-dot.open { background:var(--success); }
 .status-dot.closed { background:var(--danger); }
 .order-timer { font-family:var(--font-mono); font-size:1.6rem; font-weight:700; color:var(--accent-market); text-align:center; }
+
+/* Floating Sync Button */
+.sync-fab { position:fixed; bottom:80px; right:16px; z-index:9998; display:flex; align-items:center; gap:8px; background:linear-gradient(135deg, #FBBF24, #F59E0B); color:#111827; font-weight:700; font-size:0.82rem; padding:0.65rem 1.2rem; border-radius:50px; border:none; cursor:pointer; box-shadow:0 4px 20px rgba(251,191,36,0.4), 0 0 40px rgba(251,191,36,0.15); transition:all 0.3s cubic-bezier(0.22,1,0.36,1); animation:syncPulse 2s infinite; }
+.sync-fab:active { transform:scale(0.93); }
+.sync-fab.syncing { pointer-events:none; opacity:0.7; animation:none; }
+.sync-fab .sync-icon { font-size:1.1rem; }
+.sync-fab .sync-icon.spinning { animation:spinSync 0.8s linear infinite; }
+@keyframes syncPulse { 0%,100% { box-shadow:0 4px 20px rgba(251,191,36,0.4); } 50% { box-shadow:0 4px 30px rgba(251,191,36,0.6), 0 0 50px rgba(251,191,36,0.2); } }
+@keyframes spinSync { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+.sync-fab.hidden { display:none; }
+.sync-badge { background:rgba(0,0,0,0.2); padding:0.15rem 0.4rem; border-radius:8px; font-size:0.7rem; font-weight:600; }
 </style>
 </head>
 <body>
@@ -186,6 +197,13 @@
   </div>
 </div>
 
+<!-- Floating Sync to Cloud Button -->
+<button class="sync-fab hidden" id="syncFab" onclick="syncMenuToCloud()">
+  <span class="sync-icon" id="syncIcon">☁️</span>
+  <span id="syncLabel">Sync to Cloud</span>
+  <span class="sync-badge" id="syncBadge">0 changes</span>
+</button>
+
 <!-- Bottom Nav — outside .shop-app for position:fixed -->
 <nav class="mobile-nav" id="shopNav" style="display:none;">
   <div class="mobile-nav-item active" onclick="switchShopTab('tabMenu')"><span class="nav-icon">📋</span>Menu</div>
@@ -206,6 +224,8 @@ let shopState = {
   shopId: null,
   shopData: null,
   activeOrderDetail: null,
+  menuDirtyCount: 0,  // Track unsaved menu changes
+  isSyncing: false,
 };
 
 // ═══ LOGIN ═══
@@ -321,6 +341,7 @@ function addMenuItem() {
   });
   hideAddItemForm();
   renderMenu();
+  markMenuDirty();
   showToast(`✅ Added: ${name} (${item.code})`);
 }
 
@@ -328,13 +349,77 @@ function removeMenuItem(code) {
   if (!confirm('Remove this item from your menu?')) return;
   MenuManager.removeItem(shopState.shopId, code);
   renderMenu();
+  markMenuDirty();
   showToast('Item removed');
 }
 
 function toggleMenuItem(code) {
   const item = MenuManager.toggleItem(shopState.shopId, code);
   renderMenu();
+  markMenuDirty();
   showToast(item.available ? `✅ ${item.name} is now available` : `❌ ${item.name} marked unavailable`);
+}
+
+// ═══ SYNC TO CLOUD ═══
+function markMenuDirty() {
+  shopState.menuDirtyCount++;
+  const fab = document.getElementById('syncFab');
+  const badge = document.getElementById('syncBadge');
+  fab.classList.remove('hidden');
+  badge.textContent = `${shopState.menuDirtyCount} change${shopState.menuDirtyCount > 1 ? 's' : ''}`;
+}
+
+async function syncMenuToCloud() {
+  if (shopState.isSyncing || !shopState.shopId) return;
+  shopState.isSyncing = true;
+
+  const fab = document.getElementById('syncFab');
+  const icon = document.getElementById('syncIcon');
+  const label = document.getElementById('syncLabel');
+  fab.classList.add('syncing');
+  icon.classList.add('spinning');
+  icon.textContent = '🔄';
+  label.textContent = 'Syncing...';
+
+  try {
+    const ready = await FirebaseSync.init();
+    if (!ready) {
+      showToast('⚠️ Firebase not available — changes saved locally only');
+      return;
+    }
+
+    const menu = MenuManager.getMenu(shopState.shopId);
+    const shop = shopState.shopData;
+
+    // 1. Push menu to Firebase
+    await FirebaseSync.pushMenu(shopState.shopId, menu);
+
+    // 2. Push updated shop data
+    await FirebaseSync.pushShop(shop);
+
+    // 3. Bump config version so drivers get the update
+    const ver = parseInt(localStorage.getItem('apara_config_version') || '1');
+    await FirebaseSync.pushConfigVersion(ver + 1, {
+      action: 'shop_menu_updated',
+      detail: `${shopState.shopId}: ${shopState.menuDirtyCount} changes, ${menu.length} items`
+    });
+    localStorage.setItem('apara_config_version', String(ver + 1));
+
+    // Success
+    shopState.menuDirtyCount = 0;
+    fab.classList.add('hidden');
+    showToast(`✅ Menu synced to cloud! Drivers will see updates shortly.`);
+    console.log(`[ShopSync] Pushed ${menu.length} items, config v${ver + 1}`);
+  } catch (err) {
+    console.error('[ShopSync] Sync failed:', err);
+    showToast('❌ Sync failed — will retry. Changes saved locally.');
+  } finally {
+    shopState.isSyncing = false;
+    fab.classList.remove('syncing');
+    icon.classList.remove('spinning');
+    icon.textContent = '☁️';
+    label.textContent = 'Sync to Cloud';
+  }
 }
 
 function renderMenu() {
@@ -665,6 +750,18 @@ function toggleShopOpen() {
   shopState.shopData.status = isOpen ? 'Active' : 'Inactive';
   renderShopProfile();
   showToast(isOpen ? '✅ Shop is now OPEN' : '❌ Shop is now CLOSED');
+  // Auto-sync status change to cloud
+  FirebaseSync.init().then(ready => {
+    if (ready) {
+      FirebaseSync.pushShop(shopState.shopData);
+      FirebaseSync.fetchConfigVersion().then(ver => {
+        FirebaseSync.pushConfigVersion((ver || 0) + 1, {
+          action: 'shop_status_changed',
+          detail: `${shopState.shopId}: ${isOpen ? 'OPEN' : 'CLOSED'}`
+        });
+      });
+    }
+  });
 }
 
 // ═══ TOAST ═══

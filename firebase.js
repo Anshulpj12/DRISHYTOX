@@ -353,6 +353,22 @@ try {
       });
       Store.set(STORE_KEYS.SHOPS, existingShops);
 
+      // Download menus for all shops in zone
+      let menusDownloaded = 0;
+      for (const s of shops) {
+        try {
+          const menuData = await this.fetchMenu(s.id);
+          if (menuData && menuData.items && menuData.items.length > 0) {
+            if (typeof MenuManager !== 'undefined' && MenuManager.setMenu) {
+              MenuManager.setMenu(s.id, menuData.items);
+              menusDownloaded++;
+            }
+          }
+        } catch (e) {
+          console.warn(`[FirebaseSync] Menu fetch failed for ${s.id}:`, e);
+        }
+      }
+
       // Update config version from Firestore
       const remoteVersion = await this.fetchConfigVersion();
       if (remoteVersion !== null) {
@@ -370,8 +386,8 @@ try {
         ZoneManager.loadZone(zoneId, existingProviders);
       }
 
-      console.log(`[FirebaseSync] Zone loaded: +${added} providers, +${shopsAdded} shops`);
-      return { providersAdded: added, shopsAdded };
+      console.log(`[FirebaseSync] Zone loaded: +${added} providers, +${shopsAdded} shops, ${menusDownloaded} menus`);
+      return { providersAdded: added, shopsAdded, menusDownloaded };
     } catch (err) {
       console.error('[FirebaseSync] initDriverZone failed:', err);
       return null;
@@ -393,6 +409,22 @@ try {
         Store.set(STORE_KEYS.SHOPS, shops);
       }
 
+      // Download menus for all shops
+      let menusRefreshed = 0;
+      for (const s of shops) {
+        try {
+          const menuData = await this.fetchMenu(s.id);
+          if (menuData && menuData.items && menuData.items.length > 0) {
+            if (typeof MenuManager !== 'undefined' && MenuManager.setMenu) {
+              MenuManager.setMenu(s.id, menuData.items);
+              menusRefreshed++;
+            }
+          }
+        } catch (e) {
+          console.warn(`[FirebaseSync] Menu refresh failed for ${s.id}:`, e);
+        }
+      }
+
       // Rebuild all cached zones
       if (typeof ZoneManager !== 'undefined') {
         const zoneIds = ZoneManager.getCachedZoneIds();
@@ -411,7 +443,7 @@ try {
 
       // Save new version
       localStorage.setItem('apara_config_version', String(newVersion));
-      console.log(`[FirebaseSync] Zones refreshed to v${newVersion}: ${providers.length} providers, ${shops.length} shops`);
+      console.log(`[FirebaseSync] Zones refreshed to v${newVersion}: ${providers.length} providers, ${shops.length} shops, ${menusRefreshed} menus`);
     } catch (err) {
       console.error('[FirebaseSync] refreshOutdatedZones failed:', err);
     }

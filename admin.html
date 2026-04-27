@@ -406,17 +406,26 @@ async function registerProvider() {
       type: 'provider'
     };
 
+    // 1. Save locally to Admin Panel immediately
+    Store.saveProvider(provider);
+    renderProviderTable();
+
+    // 2. Push to Firebase Live Collections
     await FirebaseSync.init();
     
-    // Add a timeout to the Firebase push
+    const ver = parseInt(localStorage.getItem('apara_config_version') || '1');
     const success = await Promise.race([
-      FirebaseSync.pushPendingRegistration(provider),
+      Promise.all([
+        FirebaseSync.pushPendingRegistration(provider),
+        FirebaseSync.pushProvider(provider),
+        FirebaseSync.pushConfigVersion(ver + 1, { action: 'admin_created_provider', detail: provider.id })
+      ]).then(() => true).catch(() => false),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 10000))
     ]);
 
     if (!success) {
       res.classList.add('hidden');
-      showToast('Error storing pending registration. Ensure you have internet.');
+      showToast('Error syncing to Firebase. Ensure you have internet.');
       return;
     }
 
@@ -833,16 +842,26 @@ async function registerShop() {
       type: 'shop'
     };
 
+    // 1. Save locally to Admin Panel immediately
+    ShopRegistry.saveShop(shop);
+    renderShopTable();
+
+    // 2. Push to Firebase Live Collections
     await FirebaseSync.init();
     
+    const ver = parseInt(localStorage.getItem('apara_config_version') || '1');
     const success = await Promise.race([
-      FirebaseSync.pushPendingRegistration(shop),
+      Promise.all([
+        FirebaseSync.pushPendingRegistration(shop),
+        FirebaseSync.pushShop(shop),
+        FirebaseSync.pushConfigVersion(ver + 1, { action: 'admin_created_shop', detail: shop.id })
+      ]).then(() => true).catch(() => false),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 10000))
     ]);
 
     if (!success) {
       res.classList.add('hidden');
-      showToast('Error storing pending registration. Ensure you have internet.');
+      showToast('Error syncing to Firebase. Ensure you have internet.');
       return;
     }
 
@@ -1003,8 +1022,13 @@ FirebaseSync.init().then(ready => {
       const fbCard = document.createElement('div');
       fbCard.className = 'stat-card';
       fbCard.innerHTML = `<div class="stat-val" style="color:#FBBF24;">☁️ LIVE</div><div class="stat-label">Firebase</div>`;
+      fbCard.style.cursor = 'pointer';
+      fbCard.onclick = () => pullFromCloud();
+      fbCard.title = 'Click to pull latest data from cloud';
       statsGrid.appendChild(fbCard);
     }
+    // Auto-pull on load so admin always has latest data
+    pullFromCloud();
   } else {
     console.warn('[Admin] Firebase not configured — localStorage only');
   }
@@ -1020,6 +1044,74 @@ async function fullFirebaseSync() {
   const result = await FirebaseSync.fullAdminSync();
   showToast(`✅ Synced: ${result.providers} providers, ${result.shops} shops to Firebase`);
   renderDashboard();
+}
+
+// Pull latest data from Firebase cloud into admin localStorage
+async function pullFromCloud() {
+  if (!FirebaseSync.isReady()) {
+    showToast('⚠️ Firebase not connected');
+    return;
+  }
+  showToast('☁️ Pulling latest data from cloud...');
+  try {
+    const [providers, shops] = await Promise.all([
+      FirebaseSync.fetchAllProviders(),
+      FirebaseSync.fetchAllShops(),
+    ]);
+
+    // Merge providers
+    const localProviders = Store.getProviders();
+    const localIds = new Set(localProviders.map(p => p.id));
+    let newProviders = 0;
+    providers.forEach(p => {
+      if (!localIds.has(p.id)) {
+        localProviders.push(p);
+        newProviders++;
+      } else {
+        const idx = localProviders.findIndex(lp => lp.id === p.id);
+        if (idx >= 0) localProviders[idx] = { ...localProviders[idx], ...p };
+      }
+    });
+    Store.set(STORE_KEYS.PROVIDERS, localProviders);
+
+    // Merge shops
+    const localShops = ShopRegistry.getShops();
+    const localShopIds = new Set(localShops.map(s => s.id));
+    let newShops = 0;
+    shops.forEach(s => {
+      if (!localShopIds.has(s.id)) {
+        localShops.push(s);
+        newShops++;
+      } else {
+        const idx = localShops.findIndex(ls => ls.id === s.id);
+        if (idx >= 0) localShops[idx] = { ...localShops[idx], ...s };
+      }
+    });
+    Store.set(STORE_KEYS.SHOPS, localShops);
+
+    // Pull menus for all shops
+    let menusUpdated = 0;
+    for (const s of shops) {
+      const menuData = await FirebaseSync.fetchMenu(s.id);
+      if (menuData && menuData.items && menuData.items.length > 0) {
+        MenuManager.setMenu(s.id, menuData.items);
+        menusUpdated++;
+      }
+    }
+
+    // Update config version
+    const remoteVer = await FirebaseSync.fetchConfigVersion();
+    if (remoteVer) localStorage.setItem('apara_config_version', String(remoteVer));
+
+    renderProviderTable();
+    renderShopTable();
+    renderDashboard();
+    showToast(`✅ Pulled: +${newProviders} providers, +${newShops} shops, ${menusUpdated} menus updated`);
+    console.log(`[Admin] Cloud pull: +${newProviders} providers, +${newShops} shops, ${menusUpdated} menus`);
+  } catch (err) {
+    console.error('[Admin] Pull from cloud failed:', err);
+    showToast('❌ Pull failed: ' + err.message);
+  }
 }
 
 setInterval(() => {
