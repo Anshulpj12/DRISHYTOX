@@ -1042,7 +1042,11 @@ async function fullFirebaseSync() {
   }
   showToast('☁️ Syncing all data to Firebase...');
   const result = await FirebaseSync.fullAdminSync();
-  showToast(`✅ Synced: ${result.providers} providers, ${result.shops} shops to Firebase`);
+  showToast(`✅ Synced: ${result.providers} providers, ${result.shops} shops`);
+  // Build zone bundles so drivers get single-file downloads
+  showToast('📦 Building zone bundles...');
+  const bundles = await FirebaseSync.buildAllZoneBundles();
+  showToast(`✅ ${bundles} zone bundles built! Drivers will get instant downloads.`);
   renderDashboard();
 }
 

@@ -308,7 +308,16 @@ try {
     try {
       console.log(`[FirebaseSync] Downloading zone data for ${lat.toFixed(2)}, ${lng.toFixed(2)}...`);
 
-      // Fetch all providers and shops from Firestore
+      // Try zone bundle first (single document = fastest download)
+      const zoneId = this._getZoneId(lat, lng);
+      const bundle = await this.fetchZoneBundle(zoneId);
+      if (bundle && (bundle.providerCount > 0 || bundle.shopCount > 0)) {
+        console.log(`[FirebaseSync] Zone bundle found: ${zoneId}`);
+        const result = await this.applyZoneBundle(bundle);
+        if (result) return { ...result, menusDownloaded: result.menusApplied, fromBundle: true };
+      }
+
+      // Fallback: fetch from individual collections
       const [providers, shops] = await Promise.all([
         this.fetchAllProviders(),
         this.fetchAllShops(),
@@ -810,6 +819,141 @@ try {
       console.error('[FirebaseSync] fullAdminSync failed:', err);
       return { providers: 0, shops: 0 };
     }
+  },
+
+  // ═══════════════════════════════════════════
+  // ZONE BUNDLES — Single-file zone data for instant driver download
+  // ═══════════════════════════════════════════
+
+  _getZoneId(lat, lng) {
+    const zLat = Math.floor(lat);
+    const zLng = Math.floor(lng);
+    return `Z-${zLat}-${zLng}`;
+  },
+
+  async pushZoneBundle(zoneId) {
+    if (!this.isReady()) return null;
+    try {
+      const allProviders = Store.getProviders();
+      const allShops = typeof ShopRegistry !== 'undefined' ? ShopRegistry.getShops() : [];
+      const parts = zoneId.split('-');
+      const centerLat = parseInt(parts[1]) + 0.5;
+      const centerLng = parseInt(parts[2]) + 0.5;
+      const radiusM = 111320;
+
+      const zoneProviders = allProviders.filter(p => {
+        if (!p.gps) return false;
+        const pts = p.gps.split(',').map(x => parseFloat(x.trim()));
+        if (pts.length !== 2 || isNaN(pts[0]) || isNaN(pts[1])) return false;
+        return Utils.haversine(centerLat, centerLng, pts[0], pts[1]) <= radiusM;
+      }).map(p => {
+        const pts = p.gps.split(',').map(x => parseFloat(x.trim()));
+        return { id: p.id, name: p.name, phone: p.phone, status: p.status, cat: p.category?.code || '', catIcon: p.category?.icon || '', catLabel: p.category?.label || '', lat: pts[0], lng: pts[1], gps: p.gps };
+      });
+
+      const zoneShops = allShops.filter(s => {
+        if (!s.gps) return false;
+        const pts = s.gps.split(',').map(x => parseFloat(x.trim()));
+        if (pts.length !== 2 || isNaN(pts[0]) || isNaN(pts[1])) return false;
+        return Utils.haversine(centerLat, centerLng, pts[0], pts[1]) <= radiusM;
+      }).map(s => {
+        const pts = s.gps.split(',').map(x => parseFloat(x.trim()));
+        return { id: s.id, name: s.name, phone: s.phone, status: s.status, catCode: s.category?.code || s.categoryCode || '', hours: s.hours, owner: s.owner, lat: pts[0], lng: pts[1], gps: s.gps };
+      });
+
+      const zoneMenus = {};
+      zoneShops.forEach(s => {
+        const menu = typeof MenuManager !== 'undefined' ? MenuManager.getMenu(s.id) : [];
+        if (menu.length > 0) zoneMenus[s.id] = menu;
+      });
+
+      const communityProfiles = typeof SpeedEstimator !== 'undefined' ? SpeedEstimator.getCommunityProfiles() : {};
+
+      const bundle = { zoneId, centerLat, centerLng, providers: zoneProviders, shops: zoneShops, menus: zoneMenus, communityProfiles, configVersion: parseInt(localStorage.getItem('apara_config_version') || '1'), providerCount: zoneProviders.length, shopCount: zoneShops.length, menuCount: Object.keys(zoneMenus).length, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), builtAt: new Date().toISOString() };
+
+      await this._db.collection('zone_bundles').doc(zoneId).set(bundle, { merge: true });
+      console.log(`[FirebaseSync] Zone bundle pushed: ${zoneId}`);
+      return bundle;
+    } catch (err) {
+      console.error('[FirebaseSync] pushZoneBundle failed:', err);
+      return null;
+    }
+  },
+
+  async fetchZoneBundle(zoneId) {
+    if (!this.isReady()) return null;
+    try {
+      const doc = await this._db.collection('zone_bundles').doc(zoneId).get();
+      return doc.exists ? doc.data() : null;
+    } catch (err) {
+      console.error('[FirebaseSync] fetchZoneBundle failed:', err);
+      return null;
+    }
+  },
+
+  async applyZoneBundle(bundle) {
+    if (!bundle) return null;
+    try {
+      const existingProviders = Store.getProviders();
+      const existingIds = new Set(existingProviders.map(p => p.id));
+      let added = 0;
+      (bundle.providers || []).forEach(p => {
+        if (!existingIds.has(p.id)) { existingProviders.push(p); added++; }
+        else { const idx = existingProviders.findIndex(ep => ep.id === p.id); if (idx >= 0) existingProviders[idx] = { ...existingProviders[idx], ...p }; }
+      });
+      Store.set(STORE_KEYS.PROVIDERS, existingProviders);
+
+      const existingShops = typeof ShopRegistry !== 'undefined' ? ShopRegistry.getShops() : [];
+      const existingShopIds = new Set(existingShops.map(s => s.id));
+      let shopsAdded = 0;
+      (bundle.shops || []).forEach(s => {
+        if (!existingShopIds.has(s.id)) { existingShops.push(s); shopsAdded++; }
+        else { const idx = existingShops.findIndex(es => es.id === s.id); if (idx >= 0) existingShops[idx] = { ...existingShops[idx], ...s }; }
+      });
+      Store.set(STORE_KEYS.SHOPS, existingShops);
+
+      let menusApplied = 0;
+      for (const shopId in (bundle.menus || {})) {
+        if (typeof MenuManager !== 'undefined' && MenuManager.setMenu) { MenuManager.setMenu(shopId, bundle.menus[shopId]); menusApplied++; }
+      }
+
+      if (bundle.communityProfiles && typeof SpeedEstimator !== 'undefined') {
+        const existing = SpeedEstimator.getCommunityProfiles();
+        for (const blockId in bundle.communityProfiles) {
+          if (!existing[blockId]) existing[blockId] = bundle.communityProfiles[blockId];
+          else { existing[blockId].avgSpeed = existing[blockId].avgSpeed * 0.7 + bundle.communityProfiles[blockId].avgSpeed * 0.3; existing[blockId].sampleCount = (existing[blockId].sampleCount || 0) + (bundle.communityProfiles[blockId].sampleCount || 0); }
+        }
+        SpeedEstimator.saveCommunityProfiles(existing);
+      }
+
+      if (bundle.configVersion) localStorage.setItem('apara_config_version', String(bundle.configVersion));
+
+      if (typeof ZoneManager !== 'undefined' && bundle.centerLat && bundle.centerLng) {
+        const zoneId = ZoneManager.getZoneId(bundle.centerLat, bundle.centerLng);
+        localStorage.removeItem(STORE_KEYS.ZONE_PREFIX + zoneId);
+        const idx = ZoneManager._getIndex(); idx.zones = idx.zones.filter(z => z !== zoneId); ZoneManager._saveIndex(idx);
+        ZoneManager.loadZone(zoneId, existingProviders);
+      }
+
+      console.log(`[FirebaseSync] Zone bundle applied: +${added} providers, +${shopsAdded} shops, ${menusApplied} menus`);
+      return { providersAdded: added, shopsAdded, menusApplied };
+    } catch (err) {
+      console.error('[FirebaseSync] applyZoneBundle failed:', err);
+      return null;
+    }
+  },
+
+  async buildAllZoneBundles() {
+    if (!this.isReady()) return 0;
+    const allProviders = Store.getProviders();
+    const allShops = typeof ShopRegistry !== 'undefined' ? ShopRegistry.getShops() : [];
+    const zoneIds = new Set();
+    allProviders.forEach(p => { if (!p.gps) return; const pts = p.gps.split(',').map(x => parseFloat(x.trim())); if (pts.length === 2 && !isNaN(pts[0]) && !isNaN(pts[1])) zoneIds.add(this._getZoneId(pts[0], pts[1])); });
+    allShops.forEach(s => { if (!s.gps) return; const pts = s.gps.split(',').map(x => parseFloat(x.trim())); if (pts.length === 2 && !isNaN(pts[0]) && !isNaN(pts[1])) zoneIds.add(this._getZoneId(pts[0], pts[1])); });
+    let built = 0;
+    for (const zoneId of zoneIds) { await this.pushZoneBundle(zoneId); built++; }
+    console.log(`[FirebaseSync] Built ${built} zone bundles`);
+    return built;
   },
 };
 } catch (e) {
