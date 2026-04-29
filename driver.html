@@ -729,6 +729,7 @@ html { scroll-behavior: smooth; }
 <!-- Firebase SDK (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="firebase.js"></script>
 <script src="data.js"></script>
@@ -794,32 +795,46 @@ function driverLogin() {
       }, 3000);
     }
   });
-  // Start Firebase config polling (every 30 min)
-  setInterval(async () => {
-    const poll = await FirebaseSync.pollConfigVersion();
-    if (poll.changed) {
-      showToast(`☁️ Config update: v${poll.remoteVersion}`);
-      await FirebaseSync.refreshOutdatedZones(poll.remoteVersion);
-      ConfigPush.setVersion(poll.remoteVersion);
-      ConfigPush.checkForUpdates();
-    }
-  }, 5 * 60 * 1000); // Poll every 5 minutes for fast sync
+  // Start Firebase RTDB push listener (FREE — replaces expensive Firestore polling)
+  // Config changes are pushed INSTANTLY to all connected drivers via WebSocket
+  FirebaseSync.listenConfigVersion(async (remoteVersion) => {
+    showToast(`☁️ Config update pushed: v${remoteVersion}`);
+    await FirebaseSync.refreshOutdatedZones(remoteVersion);
+    ConfigPush.setVersion(remoteVersion);
+    ConfigPush.checkForUpdates();
+    localStorage.setItem('apara_config_version', String(remoteVersion));
+  });
 
   // Community speed profile auto-refresh (every 2 days)
+  // Uses zone bundle (already includes communityProfiles) — NO extra Firestore reads
   const COMMUNITY_REFRESH_INTERVAL = 2 * 24 * 60 * 60 * 1000; // 2 days
   const lastCommunityRefresh = parseInt(localStorage.getItem('apara_last_community_refresh') || '0');
   const timeSinceRefresh = Date.now() - lastCommunityRefresh;
   if (timeSinceRefresh >= COMMUNITY_REFRESH_INTERVAL) {
     setTimeout(async () => {
       if (state.lastKnownPos && FirebaseSync.isReady()) {
-        console.log('[Community] 2-day refresh: downloading community speed data...');
-        const result = await FirebaseSync.downloadCommunityData(state.lastKnownPos.lat, state.lastKnownPos.lng);
-        if (result) {
+        console.log('[Community] 2-day refresh: re-fetching zone bundle for community speeds...');
+        const zoneId = FirebaseSync._getZoneId(state.lastKnownPos.lat, state.lastKnownPos.lng);
+        const bundle = await FirebaseSync.fetchZoneBundle(zoneId);
+        if (bundle && bundle.communityProfiles) {
+          // Merge community speed profiles from bundle (1 read instead of 500+)
+          const existing = SpeedEstimator.getCommunityProfiles();
+          let newProfiles = 0;
+          for (const blockId in bundle.communityProfiles) {
+            if (!existing[blockId]) {
+              existing[blockId] = bundle.communityProfiles[blockId];
+              newProfiles++;
+            } else {
+              existing[blockId].avgSpeed = existing[blockId].avgSpeed * 0.7 + bundle.communityProfiles[blockId].avgSpeed * 0.3;
+              existing[blockId].sampleCount = (existing[blockId].sampleCount || 0) + (bundle.communityProfiles[blockId].sampleCount || 0);
+            }
+          }
+          SpeedEstimator.saveCommunityProfiles(existing);
           localStorage.setItem('apara_last_community_refresh', String(Date.now()));
-          showToast(`🌐 Community data refreshed: +${result.newBlocks} blocks`);
+          showToast(`🌐 Community speeds refreshed: +${newProfiles} profiles (1 read)`);
         }
       }
-    }, 10000); // 10s after login to let GPS settle
+    }, 10000);
   }
 
   // Auto-request GPS on login

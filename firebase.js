@@ -24,9 +24,11 @@ try {
   console.log("Evaluating firebase.js...");
   window.FirebaseSync = {
   _db: null,
+  _rtdb: null,
   _app: null,
   _ready: false,
   _initPromise: null,
+  _configListener: null,
 
   // ─── Initialize Firebase ───
   init() {
@@ -59,6 +61,14 @@ try {
       }
 
       this._db = firebase.firestore();
+
+      // Initialize Realtime Database (FREE push-based config versioning)
+      try {
+        this._rtdb = firebase.database();
+        console.log('[FirebaseSync] Realtime Database initialized');
+      } catch (err) {
+        console.warn('[FirebaseSync] RTDB init failed, will use Firestore fallback:', err.message);
+      }
 
       // Enable offline persistence for Firestore
       try {
@@ -243,33 +253,63 @@ try {
   async pushConfigVersion(version, changeInfo) {
     if (!this.isReady()) return;
     try {
+      if (this._rtdb) {
+        await this._rtdb.ref('apara_config').set({
+          version, lastUpdated: firebase.database.ServerValue.TIMESTAMP,
+          action: changeInfo?.action || 'update', detail: changeInfo?.detail || '',
+        });
+        console.log(`[FirebaseSync] Config v${version} pushed to RTDB`);
+      }
       const configRef = this._db.collection('config').doc('apara_config');
       const doc = await configRef.get();
       const changelog = doc.exists ? (doc.data().changelog || []) : [];
-
-      // Prepend new change, keep last 50
-      changelog.unshift({
-        version,
-        action: changeInfo?.action || 'update',
-        detail: changeInfo?.detail || '',
-        timestamp: new Date().toISOString(),
-      });
+      changelog.unshift({ version, action: changeInfo?.action || 'update', detail: changeInfo?.detail || '', timestamp: new Date().toISOString() });
       if (changelog.length > 50) changelog.length = 50;
-
-      await configRef.set({
-        version,
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
-        changelog,
-      });
-      console.log(`[FirebaseSync] Config version pushed: v${version}`);
+      await configRef.set({ version, lastUpdated: firebase.firestore.FieldValue.serverTimestamp(), changelog });
     } catch (err) {
       console.error('[FirebaseSync] pushConfigVersion failed:', err);
     }
   },
 
+  listenConfigVersion(callback) {
+    if (!this._rtdb) {
+      console.warn('[FirebaseSync] RTDB not available, falling back to Firestore polling');
+      return this._startFirestoreFallbackPolling(callback);
+    }
+    if (this._configListener) this._rtdb.ref('apara_config').off('value', this._configListener);
+    let isFirstLoad = true;
+    this._configListener = this._rtdb.ref('apara_config').on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (!data || !data.version) return;
+      const remoteVersion = data.version;
+      const localVersion = parseInt(localStorage.getItem('apara_config_version') || '1');
+      if (isFirstLoad) {
+        isFirstLoad = false;
+        if (remoteVersion > localVersion && callback) callback(remoteVersion);
+        return;
+      }
+      if (remoteVersion > localVersion && callback) callback(remoteVersion);
+    }, (err) => {
+      console.error('[FirebaseSync] RTDB listener error:', err);
+      this._startFirestoreFallbackPolling(callback);
+    });
+    console.log('[FirebaseSync] ✅ RTDB config listener active (FREE push)');
+  },
+
+  _startFirestoreFallbackPolling(callback) {
+    setInterval(async () => {
+      const poll = await this.pollConfigVersion();
+      if (poll.changed && callback) callback(poll.remoteVersion);
+    }, 30 * 60 * 1000);
+  },
+
   async fetchConfigVersion() {
     if (!this.isReady()) return null;
     try {
+      if (this._rtdb) {
+        const snapshot = await this._rtdb.ref('apara_config/version').once('value');
+        if (snapshot.exists()) return snapshot.val();
+      }
       const doc = await this._db.collection('config').doc('apara_config').get();
       return doc.exists ? doc.data().version : null;
     } catch (err) {
@@ -278,18 +318,13 @@ try {
     }
   },
 
-  // Poll config version — called by driver app every 30 min
-  // Returns { changed: true/false, remoteVersion, localVersion }
   async pollConfigVersion() {
     if (!this.isReady()) return { changed: false };
     try {
       const remoteVersion = await this.fetchConfigVersion();
       if (remoteVersion === null) return { changed: false };
       const localVersion = parseInt(localStorage.getItem('apara_config_version') || '1');
-      if (remoteVersion > localVersion) {
-        console.log(`[FirebaseSync] Config version mismatch: local v${localVersion} < remote v${remoteVersion}`);
-        return { changed: true, remoteVersion, localVersion };
-      }
+      if (remoteVersion > localVersion) return { changed: true, remoteVersion, localVersion };
       return { changed: false, remoteVersion, localVersion };
     } catch (err) {
       return { changed: false };
