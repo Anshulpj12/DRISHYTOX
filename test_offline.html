@@ -1,5 +1,7 @@
 <!DOCTYPE html>
 <html>
+<!DOCTYPE html>
+<html>
 <head>
     <title>Offline Test Harness</title>
 </head>
@@ -8,22 +10,73 @@
     <script>
         document.getElementById('appFrame').onload = function() {
             const fw = document.getElementById('appFrame').contentWindow;
+
+            // Step 1: Try to get the user's REAL location first
+            navigator.geolocation.getCurrentPosition((pos) => {
+                startTestHarness(pos.coords.latitude, pos.coords.longitude);
+            }, (err) => {
+                console.warn("Real GPS failed:", err.message, "Attempting IP location fallback...");
+                fetch('https://get.geojs.io/v1/ip/geo.json')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.latitude && data.longitude) {
+                            startTestHarness(parseFloat(data.latitude), parseFloat(data.longitude));
+                        } else {
+                            startTestHarness(20.5937, 78.9629);
+                        }
+                    })
+                    .catch(() => startTestHarness(20.5937, 78.9629));
+            }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
             
-            // Wait for GPS to initialize (2 seconds)
-            setTimeout(() => {
-                // Force a moving GPS state
-                fw.state.lastKnownPos = { lat: 20.5937, lng: 78.9629, accuracy: 20, speed: 27.77, heading: 90, timestamp: Date.now() }; // 100 km/h East
-                fw.GPSTracker.lastOnlinePosition = fw.state.lastKnownPos;
-                fw.onGPSUpdate(fw.state.lastKnownPos);
-                
-                // Wait 2 more seconds to let the user see it moving online
+            function startTestHarness(startLat, startLng) {
+                // Mock geolocation using the REAL coordinates
+                Object.defineProperty(fw.navigator, 'geolocation', {
+                    value: {
+                        getCurrentPosition: function(success) {
+                            success({
+                                coords: { latitude: startLat, longitude: startLng, accuracy: 20, speed: 27.77, heading: 90 },
+                                timestamp: Date.now()
+                            });
+                        },
+                        watchPosition: function() { return 1; },
+                        clearWatch: function() {}
+                    },
+                    configurable: true
+                });
+
+                // Mock permissions API to bypass browser prompts
+                Object.defineProperty(fw.navigator, 'permissions', {
+                    value: {
+                        query: function() {
+                            return Promise.resolve({ state: 'granted' });
+                        }
+                    },
+                    configurable: true
+                });
+
+                // Auto-login to bypass login screen
+                const mobileInput = fw.document.getElementById('driverMobile');
+                if (mobileInput) {
+                    mobileInput.value = '9876543210';
+                    fw.driverLogin();
+                }
+
+                // Wait for GPS to initialize (2 seconds)
                 setTimeout(() => {
-                    // Fire offline event
-                    fw.window.dispatchEvent(new Event('offline'));
+                    // Force a moving GPS state from the starting location
+                    fw.state.lastKnownPos = { lat: startLat, lng: startLng, accuracy: 20, speed: 27.77, heading: 90, timestamp: Date.now() }; // 100 km/h East
+                    fw.GPSTracker.lastOnlinePosition = fw.state.lastKnownPos;
+                    fw.onGPSUpdate(fw.state.lastKnownPos, true);
                     
-                    // The offline loop should now estimate position based on 100km/h East.
+                    // Wait 2 more seconds to let the user see it moving online
+                    setTimeout(() => {
+                        // Fire offline event
+                        fw.window.dispatchEvent(new Event('offline'));
+                        
+                        // The offline loop should now estimate position based on 100km/h East.
+                    }, 2000);
                 }, 2000);
-            }, 2000);
+            }
         };
     </script>
 </body>

@@ -1010,6 +1010,23 @@ function startFallbackGPS() {
   // Set default position (center of India)
   state.lastKnownPos = { lat: 20.5937, lng: 78.9629, accuracy: 100, speed: 0, heading: 45, timestamp: Date.now() };
 
+  // Attempt IP-based location fallback if real GPS fails completely
+  fetch('https://get.geojs.io/v1/ip/geo.json')
+    .then(res => res.json())
+    .then(data => {
+      if (data.latitude && data.longitude) {
+        state.lastKnownPos = { 
+          lat: parseFloat(data.latitude), 
+          lng: parseFloat(data.longitude), 
+          accuracy: 5000, 
+          speed: 0, heading: 45, timestamp: Date.now() 
+        };
+        try { if (typeof GPSTracker !== 'undefined') GPSTracker.lastOnlinePosition = state.lastKnownPos; } catch(e) {}
+        try { onGPSUpdate(state.lastKnownPos, true); } catch(e) {}
+        showToast('📍 Using IP-based network location fallback');
+      }
+    }).catch(() => { /* Silent fail */ });
+
   // Try to initialize map and GPS tracker — each wrapped in try-catch
   try { initMap(); } catch(e) { console.warn('[Fallback] initMap error:', e); }
   try {
