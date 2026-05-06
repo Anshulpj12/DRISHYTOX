@@ -9,16 +9,34 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-/* ═══ PREMIUM MOBILE APP — Full Redesign ═══ */
+/* ═══ PREMIUM MOBILE APP — Road Safety Theme ═══ */
 * { -webkit-tap-highlight-color: transparent; }
 html { scroll-behavior: smooth; }
 
 .driver-app {
   width: 100%; max-width: 480px; margin: 0 auto; min-height: 100vh;
   padding-bottom: 80px; position: relative;
-  background: var(--bg-deep);
+  background: var(--asphalt-texture);
   overflow-x: hidden;
-  box-shadow: 0 0 40px rgba(0,0,0,0.5);
+  box-shadow: 0 0 40px rgba(0,0,0,0.6);
+}
+.driver-app::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 80px,
+      rgba(255, 214, 10, 0.02) 80px,
+      rgba(255, 214, 10, 0.02) 82px
+    );
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ─── SCREEN TRANSITIONS ─── */
@@ -32,73 +50,117 @@ html { scroll-behavior: smooth; }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── HEADER BAR — Frosted glass ─── */
+/* ─── HEADER BAR — Enhanced Frosted Glass ─── */
 .header-bar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.8rem 1.25rem;
-  background: rgba(17, 24, 39, 0.95);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 1rem 1.5rem;
+  background: rgba(26, 26, 31, 0.95);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 60;
   flex-wrap: nowrap; gap: 0.5rem;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.3);
 }
 .header-bar h1 {
-  font-family: var(--font-mono); font-size: 1.15rem;
-  background: linear-gradient(135deg, var(--accent-alert), #FBBF24);
+  font-family: var(--font-mono); font-size: 1.2rem;
+  background: linear-gradient(135deg, var(--accent-alert), var(--lane-yellow));
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text; letter-spacing: 0.05em;
   flex-shrink: 0; margin: 0;
+  font-weight: 800;
 }
 .header-right {
-  display: flex; align-items: center; gap: 0.6rem;
+  display: flex; align-items: center; gap: 0.8rem;
   flex-wrap: nowrap; justify-content: flex-end;
 }
 
 /* ─── SCREEN PADDING ─── */
 .screen-pad { padding: 1rem; }
 
-/* ─── BOTTOM NAV — Frosted glass native feel ─── */
+/* ─── BOTTOM NAV — Premium Road Safety Feel ─── */
 .mobile-nav {
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
   width: 100%; max-width: 480px;
-  height: 68px;
+  height: 72px;
   display: flex; justify-content: space-between; align-items: center;
-  background: rgba(17, 24, 39, 0.98);
-  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255,255,255,0.08);
+  background: rgba(26, 26, 31, 0.98);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid var(--border);
   z-index: 9999; padding-bottom: env(safe-area-inset-bottom, 0);
-  box-shadow: 0 -4px 24px rgba(0,0,0,0.5);
+  box-shadow: 0 -4px 32px rgba(0,0,0,0.6);
   overflow: hidden;
-  padding: 0 0.5rem;
+  padding: 0 0.75rem;
+}
+.mobile-nav::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    var(--lane-yellow) 25%, 
+    var(--lane-yellow) 75%, 
+    transparent 100%);
+  opacity: 0.6;
 }
 .mobile-nav-item {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 4px; font-size: 0.65rem; color: var(--text-muted);
   cursor: pointer; position: relative;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 0.5rem 0; border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0.6rem 0; border-radius: 12px;
   -webkit-user-select: none; user-select: none;
   flex: 1; min-width: 0; text-align: center;
 }
-.mobile-nav-item .nav-icon { font-size: 1.35rem; transition: transform 0.25s ease; }
+.mobile-nav-item .nav-icon { font-size: 1.4rem; transition: all 0.3s ease; }
 .mobile-nav-item.active {
   color: var(--accent-alert);
-  background: rgba(249, 115, 22, 0.12);
+  background: linear-gradient(135deg, rgba(255,59,48,0.15), rgba(255,214,10,0.05));
+  transform: translateY(-2px);
 }
-.mobile-nav-item.active .nav-icon { transform: scale(1.15) translateY(-2px); }
+.mobile-nav-item.active .nav-icon { 
+  transform: scale(1.2) translateY(-2px); 
+  filter: drop-shadow(0 0 8px rgba(255,59,48,0.4));
+}
 .mobile-nav-item:active { transform: scale(0.92); }
 
-/* ─── LOGIN SCREEN ─── */
+/* ─── LOGIN SCREEN — Enhanced Road Safety Theme ─── */
 .login-container {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; min-height: 100vh; padding: 2rem;
-  background: radial-gradient(ellipse at 50% 30%, rgba(249,115,22,0.08) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 30%, rgba(255,59,48,0.12) 0%, transparent 60%);
+  position: relative;
+}
+.login-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 100px,
+      rgba(255, 214, 10, 0.03) 100px,
+      rgba(255, 214, 10, 0.03) 102px
+    );
+  pointer-events: none;
 }
 .login-box {
-  width: 100%; max-width: 360px;
-  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px; padding: 2rem 1.5rem;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.3), 0 0 60px rgba(249,115,22,0.04);
+  width: 100%; max-width: 380px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem 2rem;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.4), 0 0 80px rgba(255,59,48,0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  position: relative;
+  z-index: 1;
 }
 .login-logo { text-align: center; margin-bottom: 2.5rem; }
 .login-logo h1 {

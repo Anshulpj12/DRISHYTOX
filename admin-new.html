@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRISHYTOX — Admin Dashboard</title>
+    <meta name="description" content="DRISHYTOX Admin Dashboard — AI Road Safety Intelligence Platform">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        :root {
+            --asphalt: #0E0E10;
+            --road-surface: #1A1A1D;
+            --lane-yellow: #FFD60A;
+            --signal-red: #FF3B30;
+            --signal-green: #34C759;
+            --cool-gray: #8E8E93;
+            --border-gray: #38383D;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--asphalt);
+            color: #FFFFFF;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Road Background */
+        .road-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--asphalt) 0%, var(--road-surface) 100%);
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .road-lines {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                repeating-linear-gradient(90deg, transparent, transparent 100px, var(--lane-yellow) 100px, var(--lane-yellow) 102px),
+                repeating-linear-gradient(0deg, transparent, transparent 100px, var(--lane-yellow) 100px, var(--lane-yellow) 102px);
+            opacity: 0.05;
+            animation: roadMove 20s linear infinite;
+        }
+
+        @keyframes roadMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(102px, 102px); }
+        }
+
+        /* Dashboard Layout */
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar-nav {
+            width: 320px;
+            background: var(--road-surface);
+            border-right: 1px solid var(--border-gray);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .sidebar-header {
+            padding: 2rem 1.5rem;
+            border-bottom: 1px solid var(--border-gray);
+            background: linear-gradient(135deg, rgba(255, 59, 48, 0.1), rgba(255, 214, 10, 0.05));
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--signal-red), var(--lane-yellow));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 900;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--signal-red), var(--lane-yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-section {
+            padding: 1.5rem 0;
+            border-bottom: 1px solid rgba(56, 56, 61, 0.5);
+        }
+
+        .nav-section:last-child {
+            border-bottom: none;
+        }
+
+        .nav-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--cool-gray);
+            padding: 0 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-section-title::before {
+            content: '';
+            width: 8px;
+            height: 2px;
+            background: var(--lane-yellow);
+            border-radius: 1px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            color: var(--cool-gray);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 3px solid transparent;
+            position: relative;
+        }
+
+        .nav-item:hover {
+            color: #FFFFFF;
+            background: rgba(255, 214, 10, 0.05);
+            border-left-color: var(--lane-yellow);
+        }
+
+        .nav-item.active {
+            color: var(--signal-red);
+            background: linear-gradient(90deg, rgba(255, 59, 48, 0.15), transparent);
+            border-left-color: var(--signal-red);
+        }
+
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+
+        .nav-item:hover .nav-icon {
+            transform: scale(1.1);
+        }
+
+        .nav-item.active .nav-icon {
+            transform: scale(1.15);
+            filter: drop-shadow(0 0 8px rgba(255, 59, 48, 0.4));
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .content-header {
+            padding: 2rem 2rem 1rem;
+            border-bottom: 1px solid var(--border-gray);
+            background: linear-gradient(135deg, rgba(255, 59, 48, 0.05), rgba(255, 214, 10, 0.02));
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #FFFFFF, var(--lane-yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-description {
+            font-size: 1.1rem;
+            color: var(--cool-gray);
+            font-weight: 400;
+        }
+
+        .content-body {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--road-surface);
+            border: 1px solid var(--border-gray);
+            border-radius: 16px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--signal-red), var(--lane-yellow), var(--signal-green));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--lane-yellow);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-icon.alert {
+            background: linear-gradient(135deg, var(--signal-red), #FF6B5B);
+        }
+
+        .stat-icon.safe {
+            background: linear-gradient(135deg, var(--signal-green), #2ECC71);
+        }
+
+        .stat-icon.warning {
+            background: linear-gradient(135deg, var(--lane-yellow), #FFB700);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--cool-gray);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            background: var(--road-surface);
+            border: 1px solid var(--border-gray);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            height: 400px;
+            position: relative;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        /* Risk Gauge */
+        .risk-gauge {
+            background: var(--road-surface);
+            border: 1px solid var(--border-gray);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .gauge-container {
+            width: 200px;
+            height: 100px;
+            margin: 0 auto 2rem;
+            position: relative;
+        }
+
+        .gauge-svg {
+            width: 200px;
+            height: 100px;
+        }
+
+        .gauge-value {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2rem;
+            font-weight: 900;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .risk-level {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .risk-level.low {
+            color: var(--signal-green);
+        }
+
+        .risk-level.medium {
+            color: var(--lane-yellow);
+        }
+
+        .risk-level.high {
+            color: var(--signal-red);
+        }
+
+        .risk-description {
+            color: var(--cool-gray);
+            font-size: 1rem;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--cool-gray);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid var(--border-gray);
+            border-radius: 12px;
+            color: #FFFFFF;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--lane-yellow);
+            box-shadow: 0 0 0 3px rgba(255, 214, 10, 0.1);
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--signal-red), #FF6B5B);
+            color: #FFFFFF;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 59, 48, 0.3);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid var(--border-gray);
+            color: var(--cool-gray);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 214, 10, 0.1);
+            border-color: var(--lane-yellow);
+            color: var(--lane-yellow);
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            background: var(--road-surface);
+            border: 1px solid var(--border-gray);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .data-table thead {
+            background: linear-gradient(135deg, rgba(255, 59, 48, 0.1), rgba(255, 214, 10, 0.05));
+        }
+
+        .data-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--cool-gray);
+            border-bottom: 1px solid var(--border-gray);
+        }
+
+        .data-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(56, 56, 61, 0.3);
+        }
+
+        .data-table tbody tr:hover {
+            background: rgba(255, 214, 10, 0.05);
+        }
+
+        /* Loading States */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(14, 14, 16, 0.95);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-gray);
+            border-top: 4px solid var(--signal-red);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .sidebar-nav {
+                width: 280px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                flex-direction: column;
+            }
+            
+            .sidebar-nav {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border-gray);
+            }
+            
+            .page-title {
+                font-size: 2rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="road-background">
+        <div class="road-lines"></div>
+    </div>
+
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar-nav">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">🛡️</div>
+                    <div class="logo-text">DRISHYTOX</div>
+                </div>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div class="nav-section">
+                <div class="nav-section-title">Dashboard</div>
+                <a href="#" class="nav-item active" onclick="showSection('overview', this)">
+                    <span class="nav-icon">📊</span>
+                    <span>Platform Overview</span>
+                </a>
+            </div>
+
+            <!-- Provider Management -->
+            <div class="nav-section">
+                <div class="nav-section-title">Provider Management</div>
+                <a href="#" class="nav-item" onclick="showSection('register-provider', this)">
+                    <span class="nav-icon">➕</span>
+                    <span>Register Provider</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showSection('register-shop', this)">
+                    <span class="nav-icon">🏪</span>
+                    <span>Register Shop</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showSection('providers', this)">
+                    <span class="nav-icon">👥</span>
+                    <span>Provider Table</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showSection('shops', this)">
+                    <span class="nav-icon">🏪</span>
+                    <span>Shop Table</span>
+                </a>
+            </div>
+
+            <!-- User Management -->
+            <div class="nav-section">
+                <div class="nav-section-title">User Management</div>
+                <a href="#" class="nav-item" onclick="showSection('drivers', this)">
+                    <span class="nav-icon">🚗</span>
+                    <span>Drivers</span>
+                </a>
+            </div>
+
+            <!-- Data & Analytics -->
+            <div class="nav-section">
+                <div class="nav-section-title">Data & Analytics</div>
+                <a href="#" class="nav-item" onclick="showSection('block-registry', this)">
+                    <span class="nav-icon">📦</span>
+                    <span>Block Registry</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showSection('transit-log', this)">
+                    <span class="nav-icon">🕐</span>
+                    <span>Transit Log</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showSection('block-map', this)">
+                    <span class="nav-icon">🗺️</span>
+                    <span>Block Map</span>
+                </a>
+            </div>
+
+            <!-- Reports & Audit -->
+            <div class="nav-section">
+                <div class="nav-section-title">Reports & Audit</div>
+                <a href="#" class="nav-item" onclick="showSection('sos-audit', this)">
+                    <span class="nav-icon">📋</span>
+                    <span>SOS Audit Trail</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showSection('order-audit', this)">
+                    <span class="nav-icon">🍽️</span>
+                    <span>Order Audit</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showSection('v2v-relay', this)">
+                    <span class="nav-icon">📡</span>
+                    <span>V2V Relay Log</span>
+                </a>
+            </div>
+
+            <!-- System Configuration -->
+            <div class="nav-section">
+                <div class="nav-section-title">System</div>
+                <a href="#" class="nav-item" onclick="showSection('config', this)">
+                    <span class="nav-icon">🔄</span>
+                    <span>Config Push</span>
+                </a>
+                <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-gray); margin-top: 1rem;">
+                    <button class="btn" style="width: 100%; justify-content: center;" onclick="syncData()">
+                        <span>☁️ Sync All to Firebase</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1 class="page-title" id="pageTitle">Platform Overview</h1>
+                <p class="page-description" id="pageDescription">Real-time road safety intelligence and analytics</p>
+            </header>
+
+            <div class="content-body" id="contentBody">
+                <!-- Overview Section -->
+                <div id="overview-content">
+                    <!-- Stats Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon alert">⚠️</div>
+                            <div class="stat-value">247</div>
+                            <div class="stat-label">Active Alerts</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon safe">✓</div>
+                            <div class="stat-value">1,842</div>
+                            <div class="stat-label">Safe Zones</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon warning">⚡</div>
+                            <div class="stat-value">89%</div>
+                            <div class="stat-label">System Health</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon alert">🚗</div>
+                            <div class="stat-value">12,459</div>
+                            <div class="stat-label">Active Drivers</div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Gauge -->
+                    <div class="risk-gauge">
+                        <div class="gauge-container">
+                            <svg class="gauge-svg" viewBox="0 0 200 100">
+                                <path d="M 10 90 A 80 80 0 0 1 190 90" stroke="#38383D" stroke-width="8" fill="none"/>
+                                <path d="M 10 90 A 80 80 0 0 1 190 90" stroke="url(#gaugeGradient)" stroke-width="8" fill="none" stroke-dasharray="251.2" stroke-dashoffset="62.8" stroke-linecap="round"/>
+                                <defs>
+                                    <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" style="stop-color:#34C759"/>
+                                        <stop offset="50%" style="stop-color:#FFD60A"/>
+                                        <stop offset="100%" style="stop-color:#FF3B30"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <div class="gauge-value">75%</div>
+                        </div>
+                        <div class="risk-level medium">Medium Risk</div>
+                        <div class="risk-description">Current road safety conditions require attention in several corridors</div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="stats-grid">
+                        <div class="chart-container">
+                            <h3 class="chart-title">Incident Trends</h3>
+                            <canvas id="incidentChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h3 class="chart-title">Risk Distribution</h3>
+                            <canvas id="riskChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        // Show Section
+        function showSection(section, element) {
+            // Update active nav item
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+
+            // Update page content
+            const contentBody = document.getElementById('contentBody');
+            const pageTitle = document.getElementById('pageTitle');
+            const pageDescription = document.getElementById('pageDescription');
+
+            // Update based on section
+            switch(section) {
+                case 'overview':
+                    pageTitle.textContent = 'Platform Overview';
+                    pageDescription.textContent = 'Real-time road safety intelligence and analytics';
+                    contentBody.innerHTML = document.getElementById('overview-content').outerHTML;
+                    initializeCharts();
+                    break;
+                case 'register-provider':
+                    pageTitle.textContent = 'Register Provider';
+                    pageDescription.textContent = 'Add new service providers to the network';
+                    contentBody.innerHTML = `
+                        <div style="max-width: 600px;">
+                            <form onsubmit="handleProviderRegistration(event)">
+                                <div class="form-group">
+                                    <label class="form-label">Provider Name</label>
+                                    <input type="text" class="form-input" placeholder="Enter provider name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Service Type</label>
+                                    <select class="form-input" required>
+                                        <option value="">Select service type</option>
+                                        <option value="ambulance">Ambulance</option>
+                                        <option value="tow">Tow Truck</option>
+                                        <option value="mechanic">Mechanic</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Contact Number</label>
+                                    <input type="tel" class="form-input" placeholder="+91 98765 43210" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Service Area</label>
+                                    <input type="text" class="form-input" placeholder="e.g., Delhi-NCR" required>
+                                </div>
+                                <button type="submit" class="btn">Register Provider</button>
+                            </form>
+                        </div>
+                    `;
+                    break;
+                case 'register-shop':
+                    pageTitle.textContent = 'Register Shop';
+                    pageDescription.textContent = 'Add new shops and service centers';
+                    contentBody.innerHTML = `
+                        <div style="max-width: 600px;">
+                            <form onsubmit="handleShopRegistration(event)">
+                                <div class="form-group">
+                                    <label class="form-label">Shop Name</label>
+                                    <input type="text" class="form-input" placeholder="Enter shop name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Shop Type</label>
+                                    <select class="form-input" required>
+                                        <option value="">Select shop type</option>
+                                        <option value="restaurant">Restaurant</option>
+                                        <option value="fuel">Fuel Station</option>
+                                        <option value="repair">Repair Shop</option>
+                                        <option value="pharmacy">Pharmacy</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Contact Number</label>
+                                    <input type="tel" class="form-input" placeholder="+91 98765 43210" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Location</label>
+                                    <input type="text" class="form-input" placeholder="Enter address" required>
+                                </div>
+                                <button type="submit" class="btn">Register Shop</button>
+                            </form>
+                        </div>
+                    `;
+                    break;
+                case 'providers':
+                    pageTitle.textContent = 'Provider Management';
+                    pageDescription.textContent = 'View and manage registered service providers';
+                    contentBody.innerHTML = `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Provider ID</th>
+                                    <th>Name</th>
+                                    <th>Service Type</th>
+                                    <th>Contact</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>PRV-001</td>
+                                    <td>City Ambulance Service</td>
+                                    <td>Ambulance</td>
+                                    <td>+91 98765 43210</td>
+                                    <td><span style="color: var(--signal-green);">Active</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                                <tr>
+                                    <td>PRV-002</td>
+                                    <td>Quick Tow Services</td>
+                                    <td>Tow Truck</td>
+                                    <td>+91 87654 32109</td>
+                                    <td><span style="color: var(--signal-green);">Active</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                                <tr>
+                                    <td>PRV-003</td>
+                                    <td>Roadside Rescue</td>
+                                    <td>Mechanic</td>
+                                    <td>+91 76543 21098</td>
+                                    <td><span style="color: var(--lane-yellow);">Busy</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                    break;
+                case 'shops':
+                    pageTitle.textContent = 'Shop Management';
+                    pageDescription.textContent = 'View and manage registered shops';
+                    contentBody.innerHTML = `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Shop ID</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>SHOP-001</td>
+                                    <td>Highway Dhaba</td>
+                                    <td>Restaurant</td>
+                                    <td>NH-44, Delhi</td>
+                                    <td><span style="color: var(--signal-green);">Open</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                                <tr>
+                                    <td>SHOP-002</td>
+                                    <td>Bharat Petroleum</td>
+                                    <td>Fuel Station</td>
+                                    <td>NH-8, Gurgaon</td>
+                                    <td><span style="color: var(--signal-green);">Open</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                                <tr>
+                                    <td>SHOP-003</td>
+                                    <td>Auto Care Center</td>
+                                    <td>Repair Shop</td>
+                                    <td>NH-2, Faridabad</td>
+                                    <td><span style="color: var(--cool-gray);">Closed</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                    break;
+                case 'drivers':
+                    pageTitle.textContent = 'Driver Management';
+                    pageDescription.textContent = 'View and manage registered drivers';
+                    contentBody.innerHTML = `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Driver ID</th>
+                                    <th>Name</th>
+                                    <th>Vehicle</th>
+                                    <th>Phone</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>DRV-001</td>
+                                    <td>Raj Kumar</td>
+                                    <td>Car - MH-12-AB-1234</td>
+                                    <td>+91 98765 43210</td>
+                                    <td><span style="color: var(--signal-green);">Active</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                                <tr>
+                                    <td>DRV-002</td>
+                                    <td>Priya Singh</td>
+                                    <td>Truck - DL-01-CD-5678</td>
+                                    <td>+91 87654 32109</td>
+                                    <td><span style="color: var(--signal-green);">Active</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                                <tr>
+                                    <td>DRV-003</td>
+                                    <td>Amit Sharma</td>
+                                    <td>Bus - GJ-05-EF-8901</td>
+                                    <td>+91 76543 21098</td>
+                                    <td><span style="color: var(--cool-gray);">Offline</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                    break;
+                case 'block-registry':
+                    pageTitle.textContent = 'Block Registry';
+                    pageDescription.textContent = 'View and manage highway dead zone blocks';
+                    contentBody.innerHTML = `
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon alert">📍</div>
+                                <div class="stat-value">127</div>
+                                <div class="stat-label">Total Blocks</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon warning">⚠️</div>
+                                <div class="stat-value">42</div>
+                                <div class="stat-label">High Risk Zones</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon safe">✓</div>
+                                <div class="stat-value">85</div>
+                                <div class="stat-label">Monitored Areas</div>
+                            </div>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Block ID</th>
+                                    <th>Highway</th>
+                                    <th>Start KM</th>
+                                    <th>End KM</th>
+                                    <th>Risk Level</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>BLOCK-001</td>
+                                    <td>NH-44</td>
+                                    <td>45.2</td>
+                                    <td>52.8</td>
+                                    <td><span style="color: var(--signal-red);">High</span></td>
+                                    <td>Active</td>
+                                </tr>
+                                <tr>
+                                    <td>BLOCK-002</td>
+                                    <td>NH-8</td>
+                                    <td>78.5</td>
+                                    <td>85.3</td>
+                                    <td><span style="color: var(--lane-yellow);">Medium</span></td>
+                                    <td>Active</td>
+                                </tr>
+                                <tr>
+                                    <td>BLOCK-003</td>
+                                    <td>NH-2</td>
+                                    <td>112.1</td>
+                                    <td>118.9</td>
+                                    <td><span style="color: var(--signal-green);">Low</span></td>
+                                    <td>Active</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                    break;
+                case 'transit-log':
+                    pageTitle.textContent = 'Transit Log';
+                    pageDescription.textContent = 'View vehicle transit through monitored zones';
+                    contentBody.innerHTML = `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Vehicle ID</th>
+                                    <th>Block</th>
+                                    <th>Entry/Exit</th>
+                                    <th>Speed</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2024-05-04 10:23:45</td>
+                                    <td>VEH-001</td>
+                                    <td>BLOCK-001</td>
+                                    <td><span style="color: var(--signal-green);">Entry</span></td>
+                                    <td>65 km/h</td>
+                                    <td>Normal</td>
+                                </tr>
+                                <tr>
+                                    <td>2024-05-04 10:25:12</td>
+                                    <td>VEH-002</td>
+                                    <td>BLOCK-002</td>
+                                    <td><span style="color: var(--signal-red);">Exit</span></td>
+                                    <td>82 km/h</td>
+                                    <td>Alert</td>
+                                </tr>
+                                <tr>
+                                    <td>2024-05-04 10:28:33</td>
+                                    <td>VEH-003</td>
+                                    <td>BLOCK-001</td>
+                                    <td><span style="color: var(--signal-green);">Entry</span></td>
+                                    <td>58 km/h</td>
+                                    <td>Normal</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                    break;
+                case 'block-map':
+                    pageTitle.textContent = 'Block Map';
+                    pageDescription.textContent = 'Visual representation of highway dead zones';
+                    contentBody.innerHTML = `
+                        <div style="height: 500px; background: var(--road-surface); border: 1px solid var(--border-gray); border-radius: 16px; display: flex; align-items: center; justify-content: center;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">🗺️</div>
+                                <h3 style="margin-bottom: 0.5rem;">Interactive Map View</h3>
+                                <p style="color: var(--cool-gray);">Real-time visualization of highway blocks and vehicle positions</p>
+                                <button class="btn" style="margin-top: 1rem;">Load Map</button>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'sos-audit':
+                    pageTitle.textContent = 'SOS Audit Trail';
+                    pageDescription.textContent = 'View emergency alert history and responses';
+                    contentBody.innerHTML = `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Alert ID</th>
+                                    <th>Type</th>
+                                    <th>Location</th>
+                                    <th>Response Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2024-05-04 09:45:23</td>
+                                    <td>SOS-001</td>
+                                    <td>Accident</td>
+                                    <td>NH-44, KM 47.2</td>
+                                    <td>3m 15s</td>
+                                    <td><span style="color: var(--signal-green);">Resolved</span></td>
+                                </tr>
+                                <tr>
+                                    <td>2024-05-04 08:32:10</td>
+                                    <td>SOS-002</td>
+                                    <td>Medical</td>
+                                    <td>NH-8, KM 82.1</td>
+                                    <td>2m 45s</td>
+                                    <td><span style="color: var(--signal-green);">Resolved</span></td>
+                                </tr>
+                                <tr>
+                                    <td>2024-05-04 07:15:55</td>
+                                    <td>SOS-003</td>
+                                    <td>Breakdown</td>
+                                    <td>NH-2, KM 115.3</td>
+                                    <td>5m 20s</td>
+                                    <td><span style="color: var(--signal-green);">Resolved</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                    break;
+                case 'order-audit':
+                    pageTitle.textContent = 'Order Audit';
+                    pageDescription.textContent = 'Track service orders and deliveries';
+                    contentBody.innerHTML = `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Service</th>
+                                    <th>Provider</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>ORD-001</td>
+                                    <td>John Doe</td>
+                                    <td>Ambulance</td>
+                                    <td>PRV-001</td>
+                                    <td><span style="color: var(--signal-green);">Completed</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                                <tr>
+                                    <td>ORD-002</td>
+                                    <td>Jane Smith</td>
+                                    <td>Tow Truck</td>
+                                    <td>PRV-002</td>
+                                    <td><span style="color: var(--lane-yellow);">In Progress</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                                <tr>
+                                    <td>ORD-003</td>
+                                    <td>Mike Johnson</td>
+                                    <td>Mechanic</td>
+                                    <td>PRV-003</td>
+                                    <td><span style="color: var(--cool-gray);">Pending</span></td>
+                                    <td><button class="btn-secondary" style="padding: 0.5rem 1rem;">View</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                    break;
+                case 'v2v-relay':
+                    pageTitle.textContent = 'V2V Relay Log';
+                    pageDescription.textContent = 'Vehicle-to-vehicle communication logs';
+                    contentBody.innerHTML = `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Sender</th>
+                                    <th>Receiver</th>
+                                    <th>Message Type</th>
+                                    <th>Signal Strength</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2024-05-04 10:15:23</td>
+                                    <td>VEH-001</td>
+                                    <td>VEH-002</td>
+                                    <td>Traffic Alert</td>
+                                    <td>Strong</td>
+                                    <td><span style="color: var(--signal-green);">Delivered</span></td>
+                                </tr>
+                                <tr>
+                                    <td>2024-05-04 10:12:45</td>
+                                    <td>VEH-003</td>
+                                    <td>VEH-004</td>
+                                    <td>Hazard Warning</td>
+                                    <td>Medium</td>
+                                    <td><span style="color: var(--signal-green);">Delivered</span></td>
+                                </tr>
+                                <tr>
+                                    <td>2024-05-04 10:08:12</td>
+                                    <td>VEH-005</td>
+                                    <td>VEH-006</td>
+                                    <td>Speed Check</td>
+                                    <td>Weak</td>
+                                    <td><span style="color: var(--signal-red);">Failed</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                    break;
+                case 'config':
+                    pageTitle.textContent = 'Configuration Push';
+                    pageDescription.textContent = 'Manage system configuration and settings';
+                    contentBody.innerHTML = `
+                        <div style="max-width: 600px;">
+                            <form onsubmit="handleConfigPush(event)">
+                                <div class="form-group">
+                                    <label class="form-label">Configuration Type</label>
+                                    <select class="form-input" required>
+                                        <option value="">Select configuration type</option>
+                                        <option value="system">System Settings</option>
+                                        <option value="alerts">Alert Thresholds</option>
+                                        <option value="network">Network Parameters</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Target Devices</label>
+                                    <select class="form-input" required>
+                                        <option value="">Select target</option>
+                                        <option value="all">All Devices</option>
+                                        <option value="drivers">Drivers Only</option>
+                                        <option value="providers">Providers Only</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Configuration Data</label>
+                                    <textarea class="form-input" rows="6" placeholder="Enter configuration JSON" required></textarea>
+                                </div>
+                                <button type="submit" class="btn">Push Configuration</button>
+                            </form>
+                        </div>
+                    `;
+                    break;
+            }
+        }
+
+        // Handle Provider Registration
+        function handleProviderRegistration(event) {
+            event.preventDefault();
+            showLoading();
+            setTimeout(() => {
+                hideLoading();
+                alert('Provider registered successfully!');
+            }, 1500);
+        }
+
+        // Handle Shop Registration
+        function handleShopRegistration(event) {
+            event.preventDefault();
+            showLoading();
+            setTimeout(() => {
+                hideLoading();
+                alert('Shop registered successfully!');
+            }, 1500);
+        }
+
+        // Handle Config Push
+        function handleConfigPush(event) {
+            event.preventDefault();
+            showLoading();
+            setTimeout(() => {
+                hideLoading();
+                alert('Configuration pushed successfully!');
+            }, 1500);
+        }
+
+        // Sync Data
+        function syncData() {
+            showLoading();
+            setTimeout(() => {
+                hideLoading();
+                alert('Data synced successfully!');
+            }, 1500);
+        }
+
+        // Loading States
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
+
+        // Initialize Charts
+        function initializeCharts() {
+            // Incident Trends Chart
+            const incidentCtx = document.getElementById('incidentChart');
+            if (incidentCtx) {
+                new Chart(incidentCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Incidents',
+                            data: [65, 59, 80, 81, 56, 55],
+                            borderColor: '#FF3B30',
+                            backgroundColor: 'rgba(255, 59, 48, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: '#38383D'
+                                },
+                                ticks: {
+                                    color: '#8E8E93'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    color: '#38383D'
+                                },
+                                ticks: {
+                                    color: '#8E8E93'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Risk Distribution Chart
+            const riskCtx = document.getElementById('riskChart');
+            if (riskCtx) {
+                new Chart(riskCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+                        datasets: [{
+                            data: [45, 35, 20],
+                            backgroundColor: ['#34C759', '#FFD60A', '#FF3B30']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#8E8E93'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+        });
+    </script>
+</body>
+</html>

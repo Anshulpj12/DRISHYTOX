@@ -1,0 +1,28 @@
+{
+  "name": "drishytox",
+  "version": "1.0.0",
+  "description": "APARA — GPS-based emergency response platform for India's highway dead zones",
+  "main": "index.html",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "echo 'Static site - no build needed'",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "emergency-response",
+    "road-safety",
+    "gps",
+    "v2v",
+    "highway",
+    "dead-zones",
+    "india"
+  ],
+  "author": "APARA Team",
+  "license": "MIT",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
