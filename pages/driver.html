@@ -6,8 +6,9 @@
 <title>APARA — Driver App</title>
 <meta name="description" content="APARA Driver App — GPS-based emergency response for India's highway dead zones">
 <link rel="stylesheet" href="../css/shared.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+<noscript><style>body{background:#0F1419;color:#e0e3e7;font-family:sans-serif;padding:2rem;text-align:center}.screen{display:block!important;opacity:1!important;transform:none!important}</style><p>Please enable JavaScript to use APARA Driver App</p></noscript>
 <style>
 /* ═══ PREMIUM MOBILE APP — Full Redesign ═══ */
 * { -webkit-tap-highlight-color: transparent; }
@@ -727,9 +728,9 @@ html { scroll-behavior: smooth; }
 </nav>
 
 <!-- Firebase SDK (compat) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js" crossorigin="anonymous"></script>
 <script src="../js/firebase-config.js"></script>
 <script src="../js/firebase.js"></script>
 <script src="../js/data.js"></script>
@@ -935,44 +936,35 @@ function requestGPS() {
 
   showToast('📍 Requesting GPS location...');
 
-  // Try to check permission state first (if supported)
-  if (navigator.permissions && navigator.permissions.query) {
-    navigator.permissions.query({ name: 'geolocation' }).then(perm => {
-      if (perm.state === 'denied') {
-        showToast('📍 Location denied — using estimated position');
-        startFallbackGPS();
-        return;
-      }
-      // Permission is granted or prompt — try to get position
-      attemptGPSFix();
-    }).catch(() => {
-      // permissions API not supported, just try directly
-      attemptGPSFix();
-    });
-  } else {
-    attemptGPSFix();
-  }
+  // Go straight to GPS request — skip navigator.permissions.query()
+  // Many mobile browsers (in-app browsers, older Chrome) don't support
+  // the Permissions API or return wrong state, causing GPS to never trigger
+  attemptGPSFix();
 }
 
 function attemptGPSFix() {
-  // Stage 1: Quick low-accuracy fix (works on most mobile browsers immediately)
-  // Stage 2: Upgrade to high-accuracy continuous tracking
+  // Detect mobile for longer timeouts (cold GPS start takes 15-30s on mobile)
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const highAccTimeout = isMobile ? 15000 : 8000;
+  const lowAccTimeout = isMobile ? 20000 : 10000;
+  const totalTimeout = isMobile ? 35000 : 15000;
+
   const fallbackTimer = setTimeout(() => {
     if (!state.gpsStarted) {
-      showToast('📍 GPS timeout — using estimated position');
+      showToast('📍 GPS timeout — using network location, GPS will retry...');
       startFallbackGPS();
     }
-  }, 15000); // 15s total timeout
+  }, totalTimeout);
 
-  // First try with relaxed settings for a quick position
+  // Stage 1: Try low-accuracy first (faster on mobile — uses cell/wifi)
   navigator.geolocation.getCurrentPosition(
     (position) => {
       clearTimeout(fallbackTimer);
       startGPSTracking(position);
     },
     (err) => {
-      console.warn('GPS high-accuracy error:', err.code, err.message);
-      // If high accuracy failed, try low accuracy as fallback
+      console.warn('GPS low-accuracy error:', err.code, err.message);
+      // Stage 2: Try high-accuracy (uses actual GPS hardware)
       navigator.geolocation.getCurrentPosition(
         (position) => {
           clearTimeout(fallbackTimer);
@@ -980,20 +972,20 @@ function attemptGPSFix() {
         },
         (err2) => {
           clearTimeout(fallbackTimer);
-          console.warn('GPS low-accuracy error:', err2.code, err2.message);
+          console.warn('GPS high-accuracy error:', err2.code, err2.message);
           if (err2.code === 1) {
-            showToast('📍 Location permission denied — please enable in browser settings');
+            showToast('📍 Location permission denied — please enable in browser/phone settings');
           } else if (err2.code === 2) {
-            showToast('📍 Location unavailable — check GPS settings');
+            showToast('📍 Location unavailable — please enable GPS in phone settings');
           } else {
-            showToast('📍 GPS timeout — using estimated position');
+            showToast('📍 GPS timeout — using network location, GPS will retry...');
           }
           startFallbackGPS();
         },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+        { enableHighAccuracy: true, timeout: highAccTimeout, maximumAge: 30000 }
       );
     },
-    { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+    { enableHighAccuracy: false, timeout: lowAccTimeout, maximumAge: 60000 }
   );
 }
 
@@ -1023,7 +1015,7 @@ function startFallbackGPS() {
         };
         try { if (typeof GPSTracker !== 'undefined') GPSTracker.lastOnlinePosition = state.lastKnownPos; } catch(e) {}
         try { onGPSUpdate(state.lastKnownPos, true); } catch(e) {}
-        showToast('📍 Using IP-based network location fallback');
+        showToast('📍 Using network location — GPS still acquiring...');
       }
     }).catch(() => { /* Silent fail */ });
 
@@ -1037,7 +1029,41 @@ function startFallbackGPS() {
     if (typeof startOfflineEstimation === 'function') startOfflineEstimation();
   } catch(e) { console.warn('[Fallback] startOfflineEstimation error:', e); }
 
-  showToast('📍 GPS fallback active — using estimated position');
+  // ═══ KEEP RETRYING GPS IN BACKGROUND ═══
+  // Mobile GPS often needs 15-30s cold start. Even after IP fallback,
+  // keep trying to acquire real GPS and auto-upgrade when available.
+  if (navigator.geolocation) {
+    let gpsRetryCount = 0;
+    const maxRetries = 6; // Try for ~1 minute
+    const gpsRetryInterval = setInterval(() => {
+      gpsRetryCount++;
+      if (gpsRetryCount > maxRetries) {
+        clearInterval(gpsRetryInterval);
+        console.log('[GPS Retry] Stopped after', maxRetries, 'attempts');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          clearInterval(gpsRetryInterval);
+          const c = position.coords;
+          const gpsPos = {
+            lat: c.latitude, lng: c.longitude,
+            accuracy: c.accuracy, speed: c.speed || 0,
+            heading: c.heading || 0, timestamp: Date.now()
+          };
+          state.lastKnownPos = gpsPos;
+          try { if (typeof GPSTracker !== 'undefined') { GPSTracker.lastOnlinePosition = gpsPos; GPSTracker.start(); GPSTracker.onChange((pos) => onGPSUpdate(pos, true)); } } catch(e) {}
+          try { onGPSUpdate(gpsPos, true); } catch(e) {}
+          showToast('✅ GPS acquired! Now using precise location');
+          console.log('[GPS Retry] Success on attempt', gpsRetryCount);
+        },
+        () => { console.log('[GPS Retry] Attempt', gpsRetryCount, '/', maxRetries, 'failed'); },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+      );
+    }, 10000); // Retry every 10 seconds
+  }
+
+  showToast('📍 Using estimated position — GPS acquiring in background...');
 }
 
 function startGPSTracking(initialPosition) {
@@ -1934,10 +1960,10 @@ function init() {
   // Start 5-second silent auto-refresh
   setInterval(autoRefreshUI, 5000);
 
-  if (navigator.permissions) {
-    navigator.permissions.query({ name: 'geolocation' }).then(result => {
-      if (result.state === 'granted' && state.driverId) requestGPS();
-    });
+  // Auto-request GPS if logged in — don't use navigator.permissions.query()
+  // which is unreliable on mobile browsers and in-app webviews
+  if (state.driverId) {
+    setTimeout(() => requestGPS(), 1000);
   }
 }
 
