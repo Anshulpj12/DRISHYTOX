@@ -1,12 +1,13 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>APARA — Provider Dashboard</title>
-<meta name="description" content="APARA Service Provider Dashboard — Receive and respond to emergency SOS alerts">
-<link rel="stylesheet" href="../css/shared.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<meta content="APARA Service Provider Dashboard — Receive and respond to emergency SOS alerts" name="description"/>
+<link href="../css/shared.css" rel="stylesheet"/>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 * { -webkit-tap-highlight-color: transparent; }
@@ -49,95 +50,111 @@
 .empty-state { text-align:center; padding:3rem 1rem; color:var(--text-muted); }
 .empty-state .icon { font-size:2.5rem; margin-bottom:0.5rem; }
 </style>
-</head>
-<body>
-<div class="provider-app" id="app">
-  <!-- Login Screen -->
-  <div class="screen active" id="screenLogin">
-    <div class="login-container">
-      <div class="login-box">
-        <div class="login-logo">
-          <div style="font-size:3rem;margin-bottom:0.5rem;">🛡️</div>
-          <h1>APARA</h1>
-          <p>Service Provider Dashboard</p>
-        </div>
-        <div class="login-error" id="loginError">Credentials invalid. Contact APARA Admin.</div>
-        <div style="margin-bottom:1rem;">
-          <label class="label">Registration ID</label>
-          <input class="input" type="text" id="loginId" placeholder="RSOS-XXXX-000000" style="font-family:var(--font-mono);">
-        </div>
-        <div style="margin-bottom:1.5rem;">
-          <label class="label">Password</label>
-          <input class="input" type="password" id="loginPass" placeholder="Enter password">
-        </div>
-        <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Sign In</button>
-        <div class="text-center text-xs text-muted mt-2">No self-registration. Credentials provided by admin.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Main Dashboard -->
-  <div class="screen" id="screenMain">
-    <div class="header-bar">
-      <h1>🛡️ APARA</h1>
-      <div class="flex-row"><span class="text-xs text-muted" id="provBadge"></span></div>
-    </div>
-
-    <div id="tabAlerts" class="screen-pad" style="display:block;">
-      <div class="flex-between mb-2">
-        <h3 style="font-size:1rem;">Live SOS Alerts</h3>
-        <span class="badge badge-active" id="alertCount">0 active</span>
-      </div>
-      <div id="alertList"></div>
-      <div id="emptyAlerts" class="empty-state">
-        <div class="icon">🔔</div>
-        <p>No SOS alerts yet. Alerts will appear here in real-time when users send emergencies.</p>
-      </div>
-    </div>
-
-    <div id="tabDetail" style="display:none;" class="screen-pad">
-      <button class="btn btn-sm btn-secondary mb-2" onclick="showTab('tabAlerts')">← Back</button>
-      <div id="alertDetail"></div>
-    </div>
-
-    <div id="tabDispatch" style="display:none;" class="screen-pad">
-      <h3 style="font-size:1rem;margin-bottom:1rem;">Active Dispatch</h3>
-      <div id="dispatchContent"></div>
-    </div>
-
-    <div id="tabProfile" style="display:none;" class="screen-pad">
-      <h3 style="font-size:1rem;margin-bottom:1rem;">Provider Profile</h3>
-      <div id="profileContent"></div>
-    </div>
-
-    <div id="tabLookup" style="display:none;" class="screen-pad">
-      <h3 style="font-size:1rem;margin-bottom:0.5rem;">🔍 Decode SOS Code</h3>
-      <p class="text-xs text-muted mb-2">Enter the 8-character code from the SMS to get the driver's exact location and emergency type.</p>
-      <div style="margin-bottom:0.75rem;">
-        <input type="text" id="lookupCodeInput" class="input" maxlength="8" placeholder="e.g. K7M2N4AC" style="font-family:var(--font-mono);font-size:1.5rem;text-align:center;letter-spacing:0.15em;text-transform:uppercase;">
-        <div class="text-xs text-muted" style="text-align:center;margin-top:0.3rem;">8-character India block code with checksum</div>
-      </div>
-      <button class="btn btn-primary btn-full" onclick="lookupSOSCode()">🔍 Decode Location</button>
-      <div style="margin:0.75rem 0;text-align:center;">
-        <span class="text-xs text-muted">— or paste full SOS packet —</span>
-      </div>
-      <input type="text" id="lookupCodeInputLegacy" class="input" placeholder="NH48-B32|ACC|15:24:29|conf:87" style="font-family:var(--font-mono);font-size:0.8rem;">
-      <button class="btn btn-secondary btn-full btn-sm mt-1" onclick="lookupLegacyCode()">🔍 Decode Legacy Packet</button>
-      <div id="lookupResult" style="margin-top:1rem;"></div>
-      <div id="lookupMap" style="display:none;height:250px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:1rem;"></div>
-    </div>
-
-  </div>
+</link><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-container": "#00d4ff",
+                        "surface": "#0e1320",
+                        "surface-container-low": "#161b29",
+                        "outline-variant": "#3c494e"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    }
+                }
+            }
+        }
+        </script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>
+        .hud-glow { box-shadow: 0 0 15px 0px rgba(0, 212, 255, 0.2); }
+        .signal-wave { animation: ping 3s cubic-bezier(0, 0, 0.2, 1) infinite; }
+        .noise-bg { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); opacity: 0.03; }
+        .telemetry-dots { background-image: radial-gradient(#3c494e 1px, transparent 1px); background-size: 24px 24px; }
+        </style></head>
+<body class="bg-surface text-on-surface font-body overflow-hidden">
+<div class="fixed inset-0 z-0 telemetry-dots opacity-20 pointer-events-none"></div><div class="fixed inset-0 z-0 noise-bg pointer-events-none"></div><div class="fixed inset-0 z-0 bg-gradient-to-tr from-surface via-surface to-surface-container-low opacity-80 pointer-events-none"></div><div class="provider-app relative z-10" id="app">
+<!-- Login Screen -->
+<div class="screen active" id="screenLogin">
+<div class="login-container">
+<div class="login-box">
+<div class="login-logo">
+<div style="font-size:3rem;margin-bottom:0.5rem;">🛡️</div>
+<h1>APARA</h1>
+<p>Service Provider Dashboard</p>
 </div>
-
+<div class="login-error" id="loginError">Credentials invalid. Contact APARA Admin.</div>
+<div style="margin-bottom:1rem;">
+<label class="label">Registration ID</label>
+<input class="input" id="loginId" placeholder="RSOS-XXXX-000000" style="font-family:var(--font-mono);" type="text"/>
+</div>
+<div style="margin-bottom:1.5rem;">
+<label class="label">Password</label>
+<input class="input" id="loginPass" placeholder="Enter password" type="password"/>
+</div>
+<button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Sign In</button>
+<div class="text-center text-xs text-muted mt-2">No self-registration. Credentials provided by admin.</div>
+</div>
+</div>
+</div>
+<!-- Main Dashboard -->
+<div class="screen" id="screenMain">
+<div class="header-bar">
+<h1>🛡️ APARA</h1>
+<div class="flex-row"><span class="text-xs text-muted" id="provBadge"></span></div>
+</div>
+<div class="screen-pad" id="tabAlerts" style="display:block;">
+<div class="flex-between mb-2">
+<h3 style="font-size:1rem;">Live SOS Alerts</h3>
+<span class="badge badge-active" id="alertCount">0 active</span>
+</div>
+<div id="alertList"></div>
+<div class="empty-state" id="emptyAlerts">
+<div class="icon">🔔</div>
+<p>No SOS alerts yet. Alerts will appear here in real-time when users send emergencies.</p>
+</div>
+</div>
+<div class="screen-pad" id="tabDetail" style="display:none;">
+<button class="btn btn-sm btn-secondary mb-2" onclick="showTab('tabAlerts')">← Back</button>
+<div id="alertDetail"></div>
+</div>
+<div class="screen-pad" id="tabDispatch" style="display:none;">
+<h3 style="font-size:1rem;margin-bottom:1rem;">Active Dispatch</h3>
+<div id="dispatchContent"></div>
+</div>
+<div class="screen-pad" id="tabProfile" style="display:none;">
+<h3 style="font-size:1rem;margin-bottom:1rem;">Provider Profile</h3>
+<div id="profileContent"></div>
+</div>
+<div class="screen-pad" id="tabLookup" style="display:none;">
+<h3 style="font-size:1rem;margin-bottom:0.5rem;">🔍 Decode SOS Code</h3>
+<p class="text-xs text-muted mb-2">Enter the 8-character code from the SMS to get the driver's exact location and emergency type.</p>
+<div style="margin-bottom:0.75rem;">
+<input class="input" id="lookupCodeInput" maxlength="8" placeholder="e.g. K7M2N4AC" style="font-family:var(--font-mono);font-size:1.5rem;text-align:center;letter-spacing:0.15em;text-transform:uppercase;" type="text"/>
+<div class="text-xs text-muted" style="text-align:center;margin-top:0.3rem;">8-character India block code with checksum</div>
+</div>
+<button class="btn btn-primary btn-full" onclick="lookupSOSCode()">🔍 Decode Location</button>
+<div style="margin:0.75rem 0;text-align:center;">
+<span class="text-xs text-muted">— or paste full SOS packet —</span>
+</div>
+<input class="input" id="lookupCodeInputLegacy" placeholder="NH48-B32|ACC|15:24:29|conf:87" style="font-family:var(--font-mono);font-size:0.8rem;" type="text"/>
+<button class="btn btn-secondary btn-full btn-sm mt-1" onclick="lookupLegacyCode()">🔍 Decode Legacy Packet</button>
+<div id="lookupResult" style="margin-top:1rem;"></div>
+<div id="lookupMap" style="display:none;height:250px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:1rem;"></div>
+</div>
+</div>
+</div>
 <!-- Bottom Nav — outside .provider-app for position:fixed -->
 <nav class="mobile-nav" id="providerNav" style="display:none;">
-  <div class="mobile-nav-item active" onclick="showTab('tabAlerts')"><span class="nav-icon">🚨</span>Alerts</div>
-  <div class="mobile-nav-item" onclick="showTab('tabLookup')"><span class="nav-icon">🔍</span>Lookup</div>
-  <div class="mobile-nav-item" onclick="showTab('tabDispatch')"><span class="nav-icon">🚀</span>Dispatch</div>
-  <div class="mobile-nav-item" onclick="showTab('tabProfile')"><span class="nav-icon">👤</span>Profile</div>
+<div class="mobile-nav-item active" onclick="showTab('tabAlerts')"><span class="nav-icon">🚨</span>Alerts</div>
+<div class="mobile-nav-item" onclick="showTab('tabLookup')"><span class="nav-icon">🔍</span>Lookup</div>
+<div class="mobile-nav-item" onclick="showTab('tabDispatch')"><span class="nav-icon">🚀</span>Dispatch</div>
+<div class="mobile-nav-item" onclick="showTab('tabProfile')"><span class="nav-icon">👤</span>Profile</div>
 </nav>
-
 <!-- Firebase SDK (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>

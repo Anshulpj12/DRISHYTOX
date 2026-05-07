@@ -1,12 +1,13 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>APARA — Shop Provider</title>
-<meta name="description" content="APARA Shop Provider Dashboard — Manage menu, receive orders from highway drivers">
-<link rel="stylesheet" href="../css/shared.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<meta content="APARA Shop Provider Dashboard — Manage menu, receive orders from highway drivers" name="description"/>
+<link href="../css/shared.css" rel="stylesheet"/>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 * { -webkit-tap-highlight-color: transparent; }
@@ -46,172 +47,185 @@
 .sync-fab.hidden { display:none; }
 .sync-badge { background:rgba(0,0,0,0.2); padding:0.15rem 0.4rem; border-radius:8px; font-size:0.7rem; font-weight:600; }
 </style>
-</head>
-<body>
-<div class="shop-app" id="app">
-  <!-- Screen: Login -->
-  <div class="screen active" id="screenShopLogin">
-    <div class="login-container">
-      <div class="login-box">
-        <div class="login-logo">
-          <div style="font-size:3rem;margin-bottom:0.5rem;">🏪</div>
-          <h1>APARA Marketplace</h1>
-          <p>Shop Provider — Manage your menu & orders</p>
-        </div>
-        <div style="margin-bottom:1rem;">
-          <label class="label">Shop Registration ID</label>
-          <input class="input" type="text" id="shopLoginId" placeholder="SHOP-FOOD-000001" style="font-family:var(--font-mono);text-align:center;">
-        </div>
-        <div style="margin-bottom:1rem;">
-          <label class="label">Password</label>
-          <input class="input" type="password" id="shopLoginPw" placeholder="••••••••" style="text-align:center;">
-        </div>
-        <button class="btn btn-full btn-lg" style="background:var(--accent-market);color:#fff;" onclick="shopLogin()">Sign In</button>
-        <div class="text-center text-xs text-muted mt-2">Credentials provided by Admin. Contact admin if you don't have login details.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Screen: Main Dashboard -->
-  <div class="screen" id="screenShopMain">
-    <div class="header-bar">
-      <h1>🏪 APARA Shop</h1>
-      <span id="shopIdBadge" class="shop-id-badge">---</span>
-    </div>
-
-    <!-- Tab: Menu Manager -->
-    <div class="screen active" id="tabMenu">
-      <div class="screen-pad">
-        <div class="flex-between mb-2">
-          <h3 style="font-size:1rem;">📋 My Menu</h3>
-          <button class="btn btn-sm" style="background:var(--accent-market);color:#fff;" onclick="showAddItemForm()">+ Add Item</button>
-        </div>
-
-        <!-- Add Item Form (hidden by default) -->
-        <div id="addItemForm" class="add-item-form hidden">
-          <h4 style="margin-bottom:0.75rem;font-size:0.85rem;">Add New Item</h4>
-          <div class="form-row">
-            <input class="input" id="newItemName" placeholder="Item name (e.g. Butter Chicken)" style="font-size:0.85rem;">
-          </div>
-          <div class="form-row">
-            <input class="input" id="newItemPrice" type="number" placeholder="Price (₹)" style="font-size:0.85rem;width:50%;">
-            <select class="select" id="newItemCat" style="font-size:0.85rem;width:50%;">
-              <option value="FOOD">🍛 Food</option>
-              <option value="DRNK">🧃 Drink</option>
-              <option value="SNCK">🍿 Snack</option>
-              <option value="SRVS">🔧 Service</option>
-              <option value="OTHR">📦 Other</option>
-            </select>
-          </div>
-          <div style="display:flex;gap:0.5rem;">
-            <button class="btn btn-sm btn-full" style="background:var(--accent-market);color:#fff;" onclick="addMenuItem()">Add Item</button>
-            <button class="btn btn-sm btn-secondary btn-full" onclick="hideAddItemForm()">Cancel</button>
-          </div>
-        </div>
-
-        <div id="menuList"></div>
-        <div id="emptyMenu" class="text-center text-muted hidden" style="padding:2rem;">
-          <div style="font-size:2rem;margin-bottom:0.5rem;">📋</div>
-          <p>No items in your menu yet. Add your first item!</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab: Incoming Orders -->
-    <div class="screen" id="tabOrders">
-      <div class="screen-pad">
-        <div class="flex-between mb-2">
-          <h3 style="font-size:1rem;">📥 Incoming Orders</h3>
-          <span class="badge badge-active" id="activeOrderCount">0 active</span>
-        </div>
-        <div id="ordersList"></div>
-        <div id="emptyOrders" class="text-center text-muted" style="padding:2rem;">
-          <div style="font-size:2rem;margin-bottom:0.5rem;">📥</div>
-          <p>No incoming orders. Waiting for drivers...</p>
-        </div>
-
-        <!-- Order Detail View -->
-        <div id="orderDetailView" class="hidden">
-          <button class="btn btn-sm btn-secondary mb-2" onclick="closeOrderDetail()">← Back to Orders</button>
-          <div id="orderDetailContent"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab: Lookup Order Code -->
-    <div class="screen" id="tabLookup">
-      <div class="screen-pad">
-        <h3 style="font-size:1rem;margin-bottom:1rem;">🔍 Lookup Order Code</h3>
-        <div class="card">
-          <label class="label">Paste Order Code from SMS</label>
-          <input class="input" id="lookupInput" placeholder="NH48-B32|BG2TH1|14:23|conf:87" style="font-family:var(--font-mono);font-size:0.85rem;">
-          <button class="btn btn-full mt-2" style="background:var(--accent-market);color:#fff;" onclick="lookupOrderCode()">Decode Order</button>
-        </div>
-        <div id="lookupResult" class="hidden mt-2"></div>
-      </div>
-    </div>
-
-    <!-- Tab: Shop Profile -->
-    <div class="screen" id="tabProfile">
-      <div class="screen-pad">
-        <div class="card text-center mb-2">
-          <div style="font-size:3rem;" id="profileIcon">🏪</div>
-          <h3 id="profileName" style="margin:0.5rem 0;">---</h3>
-          <div class="text-sm text-muted" id="profileCat">---</div>
-          <div style="margin-top:0.5rem;">
-            <span id="profileStatusBadge" class="badge badge-active">Active</span>
-          </div>
-        </div>
-        <div class="card mb-2">
-          <div class="setting-row" style="border:none;padding:0.5rem 0;">
-            <div class="setting-info"><h4>Shop ID</h4><p id="profileId" style="font-family:var(--font-mono);">---</p></div>
-          </div>
-          <div class="setting-row" style="padding:0.5rem 0;">
-            <div class="setting-info"><h4>Phone</h4><p id="profilePhone">---</p></div>
-          </div>
-          <div class="setting-row" style="padding:0.5rem 0;">
-            <div class="setting-info"><h4>Location</h4><p id="profileGps" style="font-family:var(--font-mono);font-size:0.8rem;">---</p></div>
-          </div>
-          <div class="setting-row" style="padding:0.5rem 0;">
-            <div class="setting-info"><h4>Operating Hours</h4><p id="profileHours">---</p></div>
-          </div>
-        </div>
-        <div class="card mb-2">
-          <div class="flex-between">
-            <div class="setting-info"><h4>Shop Open</h4><p>Toggle availability for incoming orders</p></div>
-            <label class="toggle-switch"><input type="checkbox" checked id="shopOpenToggle" onchange="toggleShopOpen()"><span class="toggle-slider"></span></label>
-          </div>
-        </div>
-        <div class="card mb-2 text-center">
-          <div class="text-xs text-muted" style="text-transform:uppercase;">STATS</div>
-          <div class="grid-3 mt-1" style="gap:0.5rem;">
-            <div><div style="font-family:var(--font-mono);font-size:1.2rem;font-weight:700;color:var(--accent-market);" id="statTotalOrders">0</div><div class="text-xs text-muted">Total Orders</div></div>
-            <div><div style="font-family:var(--font-mono);font-size:1.2rem;font-weight:700;color:var(--success);" id="statFulfilledOrders">0</div><div class="text-xs text-muted">Fulfilled</div></div>
-            <div><div style="font-family:var(--font-mono);font-size:1.2rem;font-weight:700;color:var(--text-primary);" id="statMenuItems">0</div><div class="text-xs text-muted">Menu Items</div></div>
-          </div>
-        </div>
-        <button class="btn btn-danger btn-full btn-sm mt-2" onclick="shopLogout()">Sign Out</button>
-      </div>
-    </div>
-
-  </div>
+</link><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-container": "#00d4ff",
+                        "surface": "#0e1320",
+                        "surface-container-low": "#161b29",
+                        "outline-variant": "#3c494e"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    }
+                }
+            }
+        }
+        </script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>
+        .hud-glow { box-shadow: 0 0 15px 0px rgba(0, 212, 255, 0.2); }
+        .signal-wave { animation: ping 3s cubic-bezier(0, 0, 0.2, 1) infinite; }
+        .noise-bg { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); opacity: 0.03; }
+        .telemetry-dots { background-image: radial-gradient(#3c494e 1px, transparent 1px); background-size: 24px 24px; }
+        </style></head>
+<body class="bg-surface text-on-surface font-body overflow-hidden">
+<div class="fixed inset-0 z-0 telemetry-dots opacity-20 pointer-events-none"></div><div class="fixed inset-0 z-0 noise-bg pointer-events-none"></div><div class="fixed inset-0 z-0 bg-gradient-to-tr from-surface via-surface to-surface-container-low opacity-80 pointer-events-none"></div><div class="shop-app relative z-10" id="app">
+<!-- Screen: Login -->
+<div class="screen active" id="screenShopLogin">
+<div class="login-container">
+<div class="login-box">
+<div class="login-logo">
+<div style="font-size:3rem;margin-bottom:0.5rem;">🏪</div>
+<h1>APARA Marketplace</h1>
+<p>Shop Provider — Manage your menu &amp; orders</p>
 </div>
-
+<div style="margin-bottom:1rem;">
+<label class="label">Shop Registration ID</label>
+<input class="input" id="shopLoginId" placeholder="SHOP-FOOD-000001" style="font-family:var(--font-mono);text-align:center;" type="text"/>
+</div>
+<div style="margin-bottom:1rem;">
+<label class="label">Password</label>
+<input class="input" id="shopLoginPw" placeholder="••••••••" style="text-align:center;" type="password"/>
+</div>
+<button class="btn btn-full btn-lg" onclick="shopLogin()" style="background:var(--accent-market);color:#fff;">Sign In</button>
+<div class="text-center text-xs text-muted mt-2">Credentials provided by Admin. Contact admin if you don't have login details.</div>
+</div>
+</div>
+</div>
+<!-- Screen: Main Dashboard -->
+<div class="screen" id="screenShopMain">
+<div class="header-bar">
+<h1>🏪 APARA Shop</h1>
+<span class="shop-id-badge" id="shopIdBadge">---</span>
+</div>
+<!-- Tab: Menu Manager -->
+<div class="screen active" id="tabMenu">
+<div class="screen-pad">
+<div class="flex-between mb-2">
+<h3 style="font-size:1rem;">📋 My Menu</h3>
+<button class="btn btn-sm" onclick="showAddItemForm()" style="background:var(--accent-market);color:#fff;">+ Add Item</button>
+</div>
+<!-- Add Item Form (hidden by default) -->
+<div class="add-item-form hidden" id="addItemForm">
+<h4 style="margin-bottom:0.75rem;font-size:0.85rem;">Add New Item</h4>
+<div class="form-row">
+<input class="input" id="newItemName" placeholder="Item name (e.g. Butter Chicken)" style="font-size:0.85rem;"/>
+</div>
+<div class="form-row">
+<input class="input" id="newItemPrice" placeholder="Price (₹)" style="font-size:0.85rem;width:50%;" type="number"/>
+<select class="select" id="newItemCat" style="font-size:0.85rem;width:50%;">
+<option value="FOOD">🍛 Food</option>
+<option value="DRNK">🧃 Drink</option>
+<option value="SNCK">🍿 Snack</option>
+<option value="SRVS">🔧 Service</option>
+<option value="OTHR">📦 Other</option>
+</select>
+</div>
+<div style="display:flex;gap:0.5rem;">
+<button class="btn btn-sm btn-full" onclick="addMenuItem()" style="background:var(--accent-market);color:#fff;">Add Item</button>
+<button class="btn btn-sm btn-secondary btn-full" onclick="hideAddItemForm()">Cancel</button>
+</div>
+</div>
+<div id="menuList"></div>
+<div class="text-center text-muted hidden" id="emptyMenu" style="padding:2rem;">
+<div style="font-size:2rem;margin-bottom:0.5rem;">📋</div>
+<p>No items in your menu yet. Add your first item!</p>
+</div>
+</div>
+</div>
+<!-- Tab: Incoming Orders -->
+<div class="screen" id="tabOrders">
+<div class="screen-pad">
+<div class="flex-between mb-2">
+<h3 style="font-size:1rem;">📥 Incoming Orders</h3>
+<span class="badge badge-active" id="activeOrderCount">0 active</span>
+</div>
+<div id="ordersList"></div>
+<div class="text-center text-muted" id="emptyOrders" style="padding:2rem;">
+<div style="font-size:2rem;margin-bottom:0.5rem;">📥</div>
+<p>No incoming orders. Waiting for drivers...</p>
+</div>
+<!-- Order Detail View -->
+<div class="hidden" id="orderDetailView">
+<button class="btn btn-sm btn-secondary mb-2" onclick="closeOrderDetail()">← Back to Orders</button>
+<div id="orderDetailContent"></div>
+</div>
+</div>
+</div>
+<!-- Tab: Lookup Order Code -->
+<div class="screen" id="tabLookup">
+<div class="screen-pad">
+<h3 style="font-size:1rem;margin-bottom:1rem;">🔍 Lookup Order Code</h3>
+<div class="card">
+<label class="label">Paste Order Code from SMS</label>
+<input class="input" id="lookupInput" placeholder="NH48-B32|BG2TH1|14:23|conf:87" style="font-family:var(--font-mono);font-size:0.85rem;"/>
+<button class="btn btn-full mt-2" onclick="lookupOrderCode()" style="background:var(--accent-market);color:#fff;">Decode Order</button>
+</div>
+<div class="hidden mt-2" id="lookupResult"></div>
+</div>
+</div>
+<!-- Tab: Shop Profile -->
+<div class="screen" id="tabProfile">
+<div class="screen-pad">
+<div class="card text-center mb-2">
+<div id="profileIcon" style="font-size:3rem;">🏪</div>
+<h3 id="profileName" style="margin:0.5rem 0;">---</h3>
+<div class="text-sm text-muted" id="profileCat">---</div>
+<div style="margin-top:0.5rem;">
+<span class="badge badge-active" id="profileStatusBadge">Active</span>
+</div>
+</div>
+<div class="card mb-2">
+<div class="setting-row" style="border:none;padding:0.5rem 0;">
+<div class="setting-info"><h4>Shop ID</h4><p id="profileId" style="font-family:var(--font-mono);">---</p></div>
+</div>
+<div class="setting-row" style="padding:0.5rem 0;">
+<div class="setting-info"><h4>Phone</h4><p id="profilePhone">---</p></div>
+</div>
+<div class="setting-row" style="padding:0.5rem 0;">
+<div class="setting-info"><h4>Location</h4><p id="profileGps" style="font-family:var(--font-mono);font-size:0.8rem;">---</p></div>
+</div>
+<div class="setting-row" style="padding:0.5rem 0;">
+<div class="setting-info"><h4>Operating Hours</h4><p id="profileHours">---</p></div>
+</div>
+</div>
+<div class="card mb-2">
+<div class="flex-between">
+<div class="setting-info"><h4>Shop Open</h4><p>Toggle availability for incoming orders</p></div>
+<label class="toggle-switch"><input checked="" id="shopOpenToggle" onchange="toggleShopOpen()" type="checkbox"/><span class="toggle-slider"></span></label>
+</div>
+</div>
+<div class="card mb-2 text-center">
+<div class="text-xs text-muted" style="text-transform:uppercase;">STATS</div>
+<div class="grid-3 mt-1" style="gap:0.5rem;">
+<div><div id="statTotalOrders" style="font-family:var(--font-mono);font-size:1.2rem;font-weight:700;color:var(--accent-market);">0</div><div class="text-xs text-muted">Total Orders</div></div>
+<div><div id="statFulfilledOrders" style="font-family:var(--font-mono);font-size:1.2rem;font-weight:700;color:var(--success);">0</div><div class="text-xs text-muted">Fulfilled</div></div>
+<div><div id="statMenuItems" style="font-family:var(--font-mono);font-size:1.2rem;font-weight:700;color:var(--text-primary);">0</div><div class="text-xs text-muted">Menu Items</div></div>
+</div>
+</div>
+<button class="btn btn-danger btn-full btn-sm mt-2" onclick="shopLogout()">Sign Out</button>
+</div>
+</div>
+</div>
+</div>
 <!-- Floating Sync to Cloud Button -->
 <button class="sync-fab hidden" id="syncFab" onclick="syncMenuToCloud()">
-  <span class="sync-icon" id="syncIcon">☁️</span>
-  <span id="syncLabel">Sync to Cloud</span>
-  <span class="sync-badge" id="syncBadge">0 changes</span>
+<span class="sync-icon" id="syncIcon">☁️</span>
+<span id="syncLabel">Sync to Cloud</span>
+<span class="sync-badge" id="syncBadge">0 changes</span>
 </button>
-
 <!-- Bottom Nav — outside .shop-app for position:fixed -->
 <nav class="mobile-nav" id="shopNav" style="display:none;">
-  <div class="mobile-nav-item active" onclick="switchShopTab('tabMenu')"><span class="nav-icon">📋</span>Menu</div>
-  <div class="mobile-nav-item" onclick="switchShopTab('tabOrders')" style="position:relative;"><span class="nav-icon">📥</span>Orders<span id="navOrderBadge" class="order-count-badge hidden">0</span></div>
-  <div class="mobile-nav-item" onclick="switchShopTab('tabLookup')"><span class="nav-icon">🔍</span>Lookup</div>
-  <div class="mobile-nav-item" onclick="switchShopTab('tabProfile')"><span class="nav-icon">👤</span>Profile</div>
+<div class="mobile-nav-item active" onclick="switchShopTab('tabMenu')"><span class="nav-icon">📋</span>Menu</div>
+<div class="mobile-nav-item" onclick="switchShopTab('tabOrders')" style="position:relative;"><span class="nav-icon">📥</span>Orders<span class="order-count-badge hidden" id="navOrderBadge">0</span></div>
+<div class="mobile-nav-item" onclick="switchShopTab('tabLookup')"><span class="nav-icon">🔍</span>Lookup</div>
+<div class="mobile-nav-item" onclick="switchShopTab('tabProfile')"><span class="nav-icon">👤</span>Profile</div>
 </nav>
-
 <!-- Firebase SDK (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>

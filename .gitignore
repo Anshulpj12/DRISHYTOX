@@ -24,3 +24,13 @@ package-lock.json
 # Build artifacts
 dist/
 .cache/
+
+# Stitch/design artifacts
+stitch_*.html
+temp_designs/
+
+# Python migration scripts
+update_*.py
+
+# Blender files
+*.blend1

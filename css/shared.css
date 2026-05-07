@@ -1,29 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
 
 :root {
-  --bg-deep: #0A0E1A;
-  --bg-panel: #111827;
-  --bg-card: #1a2332;
-  --accent-alert: #F97316;
-  --accent-online: #22D3EE;
-  --accent-offline: #FACC15;
-  --accent-v2v: #A78BFA;
-  --accent-market: #10B981;
-  --text-primary: #F1F5F9;
-  --text-muted: #64748B;
-  --border: #1E293B;
-  --success: #22C55E;
-  --danger: #EF4444;
-  --info: #3B82F6;
-  --font-ui: 'DM Sans', sans-serif;
-  --font-mono: 'Space Mono', monospace;
-  --radius: 14px;
-  --radius-sm: 10px;
-  --radius-pill: 50px;
+  --bg-deep: #0e1320;
+  --bg-panel: #1a1f2d;
+  --bg-card: #252a38;
+  --accent-alert: #EF4444; /* Keep red for alert, or use #ffb4ab */
+  --accent-online: #00d4ff;
+  --accent-offline: #ffb95f;
+  --accent-v2v: #a8e8ff;
+  --accent-market: #00d4ff;
+  --text-primary: #dee2f5;
+  --text-muted: #bbc9cf;
+  --border: rgba(60, 73, 78, 0.4);
+  --success: #00d4ff;
+  --danger: #ffb4ab;
+  --info: #00d4ff;
+  --font-ui: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-pill: 9999px;
   --shadow: 0 8px 32px rgba(0,0,0,0.4);
-  --shadow-glow-alert: 0 0 20px rgba(249,115,22,0.2);
-  --shadow-glow-online: 0 0 20px rgba(34,211,238,0.2);
-  --shadow-glow-v2v: 0 0 20px rgba(167,139,250,0.2);
+  --shadow-glow-alert: 0 0 20px rgba(239, 68, 68, 0.2);
+  --shadow-glow-online: 0 0 20px rgba(0, 212, 255, 0.2);
+  --shadow-glow-v2v: 0 0 20px rgba(168, 232, 255, 0.2);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

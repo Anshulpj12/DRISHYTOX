@@ -1,37 +1,132 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>APARA — Works Where Every Other System Fails</title>
-<meta name="description" content="APARA — GPS-based emergency response platform for India's 1,750 km of highway dead zones. Offline-first, history-driven, V2V encrypted.">
-<link rel="stylesheet" href="css/shared.css">
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>APARA | Mission-Critical Emergency Response</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <style>
-/* ═══ LANDING STYLES ═══ */
-.landing { overflow-x: hidden; }
-
-/* Hero */
-.hero {
-  min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center; padding: 2rem; position: relative; overflow: hidden;
-}
-.hero::before {
-  content: ''; position: absolute; inset: 0;
-  background: radial-gradient(ellipse at 50% 120%, rgba(249,115,22,0.1) 0%, transparent 60%),
-              radial-gradient(ellipse at 20% 50%, rgba(34,211,238,0.05) 0%, transparent 50%);
-}
-.hero-content { position: relative; z-index: 2; max-width: 800px; }
-.hero h1 { font-size: 3.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; }
-.hero h1 span { color: var(--accent-alert); }
-.hero p { font-size: 1.15rem; color: var(--text-muted); max-width: 600px; margin: 0 auto 2rem; }
-.hero-ctas { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-
-/* Live counters */
-.live-counters { display: flex; gap: 2rem; justify-content: center; margin-top: 3rem; flex-wrap: wrap; }
-.live-counter { text-align: center; }
-.live-counter .num { font-family: var(--font-mono); font-size: 2rem; font-weight: 700; color: var(--accent-online); }
-.live-counter .lbl { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
-
+        body {
+            background-color: #101417;
+            color: #e0e3e7;
+            font-family: 'Inter', sans-serif;
+        }
+        .glass-panel {
+            background: rgba(28, 32, 35, 0.15);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .cyan-glow {
+            box-shadow: 0 0 20px rgba(0, 219, 231, 0.2);
+        }
+        .orange-glow {
+            box-shadow: 0 0 25px rgba(253, 139, 0, 0.4);
+        }
+        .scanline {
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 219, 231, 0.02) 50%);
+            background-size: 100% 4px;
+        }
+        .nebula-bg {
+            background: radial-gradient(circle at 50% -20%, rgba(0, 219, 231, 0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(253, 139, 0, 0.05) 0%, transparent 40%);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-tint": "#00dbe7",
+                      "tertiary-fixed": "#dce3f0",
+                      "tertiary-fixed-dim": "#c0c7d4",
+                      "primary-fixed-dim": "#00dbe7",
+                      "on-tertiary-container": "#59606b",
+                      "on-secondary-container": "#603100",
+                      "error-container": "#93000a",
+                      "surface-container": "#1c2023",
+                      "surface-bright": "#363a3d",
+                      "on-error": "#690005",
+                      "secondary-fixed-dim": "#ffb77d",
+                      "error": "#ffb4ab",
+                      "on-surface-variant": "#b9cacb",
+                      "surface-container-highest": "#313539",
+                      "secondary-container": "#fd8b00",
+                      "on-error-container": "#ffdad6",
+                      "on-tertiary-fixed": "#151c25",
+                      "outline": "#849495",
+                      "secondary": "#ffb77d",
+                      "outline-variant": "#3a494b",
+                      "tertiary-container": "#d5dbe8",
+                      "background": "#101417",
+                      "surface-variant": "#313539",
+                      "on-background": "#e0e3e7",
+                      "surface-dim": "#101417",
+                      "on-primary-fixed-variant": "#004f54",
+                      "primary-container": "#00f2ff",
+                      "on-tertiary-fixed-variant": "#404752",
+                      "on-primary": "#00363a",
+                      "on-secondary": "#4d2600",
+                      "surface": "#101417",
+                      "on-surface": "#e0e3e7",
+                      "tertiary": "#f5f7ff",
+                      "secondary-fixed": "#ffdcc3",
+                      "surface-container-low": "#181c1f",
+                      "surface-container-lowest": "#0b0f12",
+                      "on-primary-fixed": "#002022",
+                      "inverse-on-surface": "#2d3134",
+                      "on-primary-container": "#006a71",
+                      "on-tertiary": "#2a313b",
+                      "inverse-surface": "#e0e3e7",
+                      "primary-fixed": "#74f5ff",
+                      "primary": "#e1fdff",
+                      "on-secondary-fixed": "#2f1500",
+                      "surface-container-high": "#272a2e",
+                      "inverse-primary": "#00696f",
+                      "on-secondary-fixed-variant": "#6e3900"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "xl": "64px",
+                      "margin": "24px",
+                      "base": "4px",
+                      "gutter": "20px",
+                      "lg": "40px",
+                      "xs": "8px",
+                      "sm": "16px",
+                      "md": "24px"
+              },
+              "fontFamily": {
+                      "headline-sm": ["Space Grotesk"],
+                      "label-caps": ["Space Grotesk"],
+                      "headline-lg": ["Space Grotesk"],
+                      "body-md": ["Inter"],
+                      "headline-md": ["Space Grotesk"],
+                      "data-mono": ["Space Grotesk"],
+                      "body-lg": ["Inter"]
+              },
+              "fontSize": {
+                      "headline-sm": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                      "label-caps": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                      "headline-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                      "data-mono": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
 /* Animated road strip */
 .hero-road { margin-top: 2.5rem; width: 100%; max-width: 700px; position: relative; }
 .road-anim-strip { display: flex; height: 48px; background: #1a1f2e; border-radius: 8px; overflow: hidden; position: relative; }
@@ -43,309 +138,398 @@
 .road-anim-block.relay { background: rgba(167,139,250,0.15); color: var(--accent-v2v); }
 .road-signal { position: absolute; top: -24px; font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; transition: all 0.5s; }
 
-/* Sections */
-.section-wrap { padding: 5rem 2rem; max-width: 1200px; margin: 0 auto; }
-.section-wrap h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 0.5rem; }
-.section-wrap .section-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 2.5rem; }
-
-/* Problem cards */
-.problem-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
-.problem-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius); padding: 2rem; text-align: center; transition: all 0.25s; }
-.problem-card:hover { border-color: rgba(249,115,22,0.25); transform: translateY(-4px); box-shadow: 0 8px 32px rgba(249,115,22,0.08); }
-.problem-card .big-num { font-family: var(--font-mono); font-size: 2.8rem; font-weight: 700; color: var(--accent-alert); line-height: 1; }
-.problem-card .desc { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; }
-.problem-card .source { font-size: 0.62rem; color: var(--text-muted); margin-top: 0.75rem; font-style: italic; }
-
-/* How it works */
-.steps-flow { display: flex; flex-direction: column; gap: 0; position: relative; }
-.step-item { display: flex; gap: 1.5rem; align-items: flex-start; padding: 1.5rem 0; position: relative; }
-.step-num { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-mono); font-weight: 700; font-size: 1.1rem; flex-shrink: 0; border: 2px solid var(--border); transition: all 0.3s; }
-.step-item:hover .step-num { border-color: var(--accent-alert); color: var(--accent-alert); }
-.step-item::after { content: ''; position: absolute; left: 23px; top: 64px; bottom: 0; width: 2px; background: var(--border); }
-.step-item:last-child::after { display: none; }
-.step-content h4 { font-size: 1rem; margin-bottom: 0.3rem; }
-.step-content p { font-size: 0.85rem; color: var(--text-muted); }
-
-/* Corridor strips in dead zone section */
-.corridor-display { margin-bottom: 1rem; }
-.corridor-display .corridor-label { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; }
-.corridor-display .corridor-meta { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.4rem; }
-
-/* Accuracy table */
-.accuracy-table { width: 100%; border-collapse: collapse; }
-.accuracy-table th { background: var(--accent-alert); color: #fff; padding: 0.75rem 1rem; text-align: left; font-size: 0.8rem; }
-.accuracy-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
-.accuracy-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-
-/* Tech stack */
-.tech-flow { display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; margin: 2rem 0; }
-.tech-node { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; text-align: center; width: 140px; transition: all 0.3s; }
-.tech-node:hover { border-color: var(--accent-online); transform: translateY(-4px); }
-.tech-node .tech-icon { font-size: 2rem; margin-bottom: 0.3rem; }
-.tech-node .tech-label { font-size: 0.75rem; font-weight: 600; }
-.tech-node .tech-desc { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.2rem; }
-.tech-arrow { font-size: 1.5rem; color: var(--text-muted); padding: 0 0.25rem; }
-
-/* Differentiators */
-.diff-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
-.diff-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius); padding: 1.25rem; transition: all 0.25s; }
-.diff-card:hover { border-color: rgba(34,211,238,0.2); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(34,211,238,0.06); }
-.diff-card .diff-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
-.diff-card h4 { font-size: 0.85rem; margin-bottom: 0.25rem; }
-.diff-card p { font-size: 0.72rem; color: var(--text-muted); }
-
-/* V2V Explainer */
-.relay-flow { display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; margin: 2rem 0; }
-.relay-node { text-align: center; }
-.relay-node .r-icon { font-size: 2.5rem; display: block; }
-.relay-node .r-label { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.3rem; }
-.relay-arrow { font-size: 1.5rem; color: var(--accent-v2v); animation: pulse-v2v 2s infinite; }
-
-/* Ecosystem */
-.eco-diagram { display: flex; align-items: center; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin: 2rem 0; }
-.eco-box { background: var(--bg-panel); border: 2px solid var(--border); border-radius: var(--radius); padding: 1.5rem 2rem; text-align: center; min-width: 160px; }
-.eco-box.center { border-color: var(--accent-alert); background: rgba(249,115,22,0.05); }
-.eco-connector { font-size: 1.5rem; color: var(--accent-alert); }
-
-/* Footer */
-.footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 3rem 2rem; text-align: center; }
-.footer-links { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0; }
-.footer-links a { color: var(--text-muted); text-decoration: none; font-size: 0.82rem; transition: color 0.2s; }
-.footer-links a:hover { color: var(--accent-alert); }
-.footer-hackathon { font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem; }
-
-@media (max-width: 768px) {
-  .hero h1 { font-size: 2.2rem; }
-  .live-counters { gap: 1rem; }
-  .live-counter .num { font-size: 1.4rem; }
-  .tech-flow { flex-direction: column; }
-  .tech-arrow { transform: rotate(90deg); }
-  .relay-flow { flex-direction: column; }
-  .relay-arrow { transform: rotate(90deg); }
-}
 </style>
 </head>
-<body class="landing">
+<body class="bg-background nebula-bg selection:bg-surface-tint/30">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-surface/30 backdrop-blur-xl border-b border-outline-variant/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)] flex justify-between items-center px-margin py-4">
+<div class="font-headline-md text-headline-md font-bold tracking-tighter text-primary">APARA</div>
+<div class="hidden md:flex gap-lg items-center">
+<a class="font-label-caps text-label-caps text-primary border-b-2 border-primary pb-1 transition-all duration-300" href="#">SOLUTIONS</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-all duration-300" href="#">TECHNOLOGY</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-all duration-300" href="#">MISSION</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-all duration-300" href="#">NETWORK</a>
+</div>
+<button class="bg-surface-tint text-on-primary font-label-caps text-label-caps px-md py-xs rounded hover:bg-primary-container transition-all scale-95 active:scale-90">DEPLOY NOW</button>
+</nav>
+<main class="relative pt-xl">
+<!-- Hero Section -->
+<section class="min-h-screen flex flex-col justify-center px-margin relative overflow-hidden">
+<div class="absolute inset-0 pointer-events-none opacity-20 scanline"></div>
+<div class="max-w-7xl mx-auto grid md:grid-cols-2 gap-xl items-center relative z-10">
+<div class="space-y-md">
+<div class="inline-flex items-center gap-xs px-sm py-1 border border-surface-tint/30 bg-surface-tint/10 rounded-full">
+<span class="material-symbols-outlined text-[14px] text-surface-tint" style="font-variation-settings: 'FILL' 1;">radar</span>
+<span class="font-label-caps text-[10px] text-surface-tint">SYSTEM STATUS: ACTIVE</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg md:text-7xl text-primary leading-tight">Works where every other system fails.</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
+                        Ultra-reliable GPS emergency response platform. Mission-critical positioning that penetrates dead zones when traditional networks collapse.
+                    </p>
+<div class="flex flex-wrap gap-md pt-xs">
+<a href="pages/driver.html" class="px-xl py-sm bg-surface-tint text-on-primary font-label-caps text-label-caps rounded-lg orange-glow hover:brightness-110 transition-all flex items-center gap-sm" style="display:inline-flex;text-decoration:none;">DOWNLOAD APP <span class="material-symbols-outlined">download</span></a>
+<a href="pages/provider.html" class="px-xl py-sm border border-surface-tint/50 text-surface-tint font-label-caps text-label-caps rounded-lg hover:bg-surface-tint/10 transition-all" style="display:inline-flex;text-decoration:none;">REGISTER AS PROVIDER</a>
+</div>
+<!-- Counters -->
+<div id="heroRoad" class="hero-road mt-lg w-full max-w-2xl mx-auto md:mx-0" style="position:relative;z-index:20;"></div>
 
-<!-- ═══ HERO ═══ -->
-<section class="hero">
-  <div class="hero-content">
-    <h1>Works where <span>every other system</span> fails.</h1>
-    <p>GPS-based emergency response for India's 1,750 km of highway dead zones. Offline-first. History-driven. V2V encrypted.</p>
-    <div class="hero-ctas">
-      <a href="pages/driver.html" class="btn btn-primary btn-lg">Download App</a>
-      <a href="pages/provider.html" class="btn btn-secondary btn-lg">Register as Provider</a>
-    </div>
-    <div class="live-counters">
-      <div class="live-counter"><div class="num" id="ctrSOS">4,287</div><div class="lbl">SOS Events Resolved</div></div>
-      <div class="live-counter"><div class="num" id="ctrCorr">6</div><div class="lbl">Corridors Covered</div></div>
-      <div class="live-counter"><div class="num" id="ctrCross">18,472</div><div class="lbl">Community Crossings</div></div>
-    </div>
-    <div class="hero-road">
-      <div class="road-anim-strip" id="heroRoad"></div>
-    </div>
-  </div>
+<div class="grid grid-cols-3 gap-md pt-lg border-t border-outline-variant/20 mt-lg">
+<div>
+<div id="ctrSOS" class="font-headline-sm text-headline-sm text-primary">1,429</div>
+<div class="font-label-caps text-[10px] text-on-surface-variant">SOS EVENTS</div>
+</div>
+<div>
+<div id="ctrCorr" class="font-headline-sm text-headline-sm text-primary">842</div>
+<div class="font-label-caps text-[10px] text-on-surface-variant">CORRIDORS</div>
+</div>
+<div>
+<div id="ctrCross" class="font-headline-sm text-headline-sm text-primary">51,022</div>
+<div class="font-label-caps text-[10px] text-on-surface-variant">CROSSINGS</div>
+</div>
+</div>
+</div>
+<!-- HUD Visual -->
+<div class="relative hidden md:block">
+<div class="glass-panel rounded-full w-[500px] h-[500px] mx-auto flex items-center justify-center relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-tr from-surface-tint/10 to-transparent"></div>
+<img alt="Globe with digital connections" class="w-full h-full object-cover opacity-40 mix-blend-screen" data-alt="A highly detailed 3D visualization of planet Earth glowing in deep cyan and orange hues, surrounded by a complex network of satellite orbits and digital signal pulses. The background is a vast, high-resolution dark space nebula with subtle starry details. The lighting is focused and technical, emphasizing a high-tech global connectivity theme for emergency response systems." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqFY7ck9zopVoQQqIxUtnOO_s4abYT5aNFfAXFWErg5HYQo7XIuovc6qT8BvKYPnvyeocpVAo98Eg2puZiCWZEEXUVCg7iZMV7c1e_0nQPYPU0YIxdF19c4IkSUtlfdw50MVKZJc5gOOIBDgsq2V7wA7akr5HiPfDKdsKEKKlao2xnc7nuCCEN22ADqzGVcQIynzVzbI0DAbfSZ5lMl1pTMymCaWRKhE7qNotw5mRasBk2EXdmJ6CQA1_uBNXV_yq77raTQaOp5qA"/>
+<div class="absolute inset-0 border-[20px] border-surface-tint/5 rounded-full animate-pulse"></div>
+</div>
+<!-- Technical Readouts -->
+<div class="absolute top-0 right-0 font-data-mono text-data-mono text-surface-tint bg-surface-container/80 p-sm border border-surface-tint/30 glass-panel">
+                        LAT: 34.0522° N<br/>LONG: 118.2437° W
+                    </div>
+<div class="absolute bottom-10 left-0 font-data-mono text-data-mono text-secondary-container bg-surface-container/80 p-sm border border-secondary-container/30 glass-panel">
+                        SIGNAL: ENCRYPTED<br/>STRENGTH: 98.4%
+                    </div>
+</div>
+</div>
 </section>
-
-<!-- ═══ THE PROBLEM ═══ -->
-<section class="section-wrap" style="background:var(--bg-panel);max-width:100%;padding-left:0;padding-right:0;">
-  <div style="max-width:1200px;margin:0 auto;padding:0 2rem;">
-    <h2>The Problem</h2>
-    <p class="section-sub">India's highways have a silent crisis — dead zones where help can't reach.</p>
-    <div class="problem-grid">
-      <div class="problem-card"><div class="big-num">1,750 km</div><div class="desc">of confirmed dead zones across 424 locations on national highways</div><div class="source">NHAI, January 2026</div></div>
-      <div class="problem-card"><div class="big-num">29,018</div><div class="desc">highway deaths in the first half of 2025 alone</div><div class="source">TRAI / MoRTH, 2025</div></div>
-      <div class="problem-card"><div class="big-num">60+ min</div><div class="desc">average wait time for emergency help on remote stretches</div><div class="source">NHAI Survey, 2025</div></div>
-      <div class="problem-card"><div class="big-num">40–50%</div><div class="desc">die at the scene in hilly/remote regions before help arrives</div><div class="source">WHO Road Safety Report</div></div>
-    </div>
-  </div>
+<!-- Section: Live Corridors -->
+<section class="py-xl px-margin border-t border-outline-variant/20">
+<div class="max-w-7xl mx-auto">
+<div class="mb-lg">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-sm">Active Corridors</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-3xl">Live block status across the APARA network.</p>
+</div>
+<div id="corridorDisplays" class="grid grid-cols-1 md:grid-cols-2 gap-md"></div>
+</div>
 </section>
-
-<!-- ═══ HOW IT WORKS ═══ -->
-<section class="section-wrap">
-  <h2>How It Works</h2>
-  <p class="section-sub">Seven steps. Zero network required after the first.</p>
-  <div class="steps-flow">
-    <div class="step-item"><div class="step-num" style="color:var(--accent-online);border-color:var(--accent-online);">1</div><div class="step-content"><h4>🟢 Online — GPS Tracking</h4><p>GPS coordinates active, crossing history built silently in background. Under 120 bytes per crossing.</p></div></div>
-    <div class="step-item"><div class="step-num" style="color:var(--accent-offline);border-color:var(--accent-offline);">2</div><div class="step-content"><h4>🟡 Signal Drops — Dead Reckoning</h4><p>Historical dead reckoning activates. Uses personal crossings, community data, OBD-II speed, or phone sensors — in that priority.</p></div></div>
-    <div class="step-item"><div class="step-num">3</div><div class="step-content"><h4>⏸ Stop Detected</h4><p>Accelerometer or OBD-II detects vehicle stop. Block counter pauses. Stop duration excluded from distance calculation.</p></div></div>
-    <div class="step-item"><div class="step-num" style="color:var(--accent-alert);border-color:var(--accent-alert);">4</div><div class="step-content"><h4>🚨 SOS Triggered</h4><p>Ultra-compressed packet built: block code + type + time + confidence — under 50 bytes. Sent via SMS, USSD, or LoRa.</p></div></div>
-    <div class="step-item"><div class="step-num" style="color:var(--accent-v2v);border-color:var(--accent-v2v);">5</div><div class="step-content"><h4>📡 V2V Relay</h4><p>Passing vehicles carry AES-256 encrypted packets via BLE/WiFi Direct. No driver interaction. Auto-forwarded on network restore.</p></div></div>
-    <div class="step-item"><div class="step-num">6</div><div class="step-content"><h4>🖥 Server Decodes</h4><p>Packet decoded, provider matched by category + coverage zone + availability. Best provider selected automatically.</p></div></div>
-    <div class="step-item"><div class="step-num" style="color:var(--success);border-color:var(--success);">7</div><div class="step-content"><h4>✅ Provider Dispatched</h4><p>Provider receives alert, accepts dispatch, navigates to block. User gets ETA confirmation. Event tracked until resolution.</p></div></div>
-  </div>
+<!-- Section 2: The Problem -->
+<section class="py-xl px-margin">
+<div class="max-w-7xl mx-auto">
+<div class="mb-lg">
+<span class="font-label-caps text-label-caps text-surface-tint mb-xs block">CRITICAL GAP ANALYSIS</span>
+<h2 class="font-headline-md text-headline-md text-primary">Reliability in Extreme Conditions</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md">
+<!-- Card 1 -->
+<div class="glass-panel p-md rounded-xl hover:border-surface-tint/50 transition-all group">
+<div class="text-surface-tint font-headline-lg text-headline-lg mb-sm">90%</div>
+<h3 class="font-headline-sm text-headline-sm text-primary mb-xs">Highway Dead Zones</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Standard cellular infrastructure fails in remote corridors.</p>
+</div>
+<!-- Card 2 -->
+<div class="glass-panel p-md rounded-xl hover:border-surface-tint/50 transition-all border-l-4 border-l-secondary-container">
+<div class="text-secondary-container mb-sm flex items-center gap-xs">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">warning</span>
+<span class="font-label-caps text-label-caps">ALERT</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant italic font-light">"Rural network coverage collapses in critical zones where emergency response is most vital."</p>
+</div>
+<!-- Card 3 -->
+<div class="glass-panel p-md rounded-xl hover:border-surface-tint/50 transition-all group">
+<div class="text-surface-tint font-headline-lg text-headline-lg mb-sm">35%</div>
+<h3 class="font-headline-sm text-headline-sm text-primary mb-xs">Delayed Response</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Average increase in arrival time due to location inaccuracy.</p>
+</div>
+<!-- Card 4 -->
+<div class="glass-panel p-md rounded-xl hover:border-surface-tint/50 transition-all group">
+<div class="text-surface-tint font-headline-lg text-headline-lg mb-sm">12k</div>
+<h3 class="font-headline-sm text-headline-sm text-primary mb-xs">Annual Incidents</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Registered critical failures in standard GPS civilian systems.</p>
+</div>
+</div>
+</div>
 </section>
-
-<!-- ═══ DEAD ZONE MAP ═══ -->
-<section class="section-wrap" style="background:var(--bg-panel);max-width:100%;padding-left:0;padding-right:0;">
-  <div style="max-width:1200px;margin:0 auto;padding:0 2rem;">
-    <h2>Dead Zone Corridors</h2>
-    <p class="section-sub">Major highway stretches with confirmed connectivity gaps</p>
-    <div id="corridorDisplays"></div>
-  </div>
+<!-- Section 3: How It Works -->
+<section class="py-xl px-margin bg-surface-container-low/50">
+<div class="max-w-3xl mx-auto">
+<div class="text-center mb-xl">
+<span class="font-label-caps text-label-caps text-surface-tint mb-xs block">PROCESS PIPELINE</span>
+<h2 class="font-headline-md text-headline-md text-primary">Mission Critical Protocol</h2>
+</div>
+<div class="relative">
+<!-- Connecting Line -->
+<div class="absolute left-[27px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-surface-tint via-surface-tint/20 to-surface-tint"></div>
+<div class="space-y-lg">
+<!-- Step 1 -->
+<div class="flex gap-md relative">
+<div class="w-14 h-14 rounded-full glass-panel flex items-center justify-center z-10 border-surface-tint/50 cyan-glow">
+<span class="material-symbols-outlined text-surface-tint">sensors</span>
+</div>
+<div class="pt-2">
+<h4 class="font-headline-sm text-headline-sm text-primary">1. Signal Detection</h4>
+<p class="text-on-surface-variant font-body-md">Multi-constellation lock across GPS, Galileo, and GLONASS.</p>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="flex gap-md relative">
+<div class="w-14 h-14 rounded-full glass-panel flex items-center justify-center z-10 border-surface-tint/20">
+<span class="material-symbols-outlined text-surface-tint">lock</span>
+</div>
+<div class="pt-2">
+<h4 class="font-headline-sm text-headline-sm text-primary">2. Data Encryption</h4>
+<p class="text-on-surface-variant font-body-md">AES-256 tactical grade packet wrapping for secure transmission.</p>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="flex gap-md relative">
+<div class="w-14 h-14 rounded-full glass-panel flex items-center justify-center z-10 border-surface-tint/20">
+<span class="material-symbols-outlined text-surface-tint">memory</span>
+</div>
+<div class="pt-2">
+<h4 class="font-headline-sm text-headline-sm text-primary">3. Edge Processing</h4>
+<p class="text-on-surface-variant font-body-md">On-device neural engine stabilizes erratic positioning data.</p>
+</div>
+</div>
+<!-- Step 4 -->
+<div class="flex gap-md relative">
+<div class="w-14 h-14 rounded-full glass-panel flex items-center justify-center z-10 border-surface-tint/20">
+<span class="material-symbols-outlined text-surface-tint">hub</span>
+</div>
+<div class="pt-2">
+<h4 class="font-headline-sm text-headline-sm text-primary">4. V2V Handshake</h4>
+<p class="text-on-surface-variant font-body-md">Peer-to-peer mesh networking bypasses cell tower requirements.</p>
+</div>
+</div>
+<!-- Step 5 -->
+<div class="flex gap-md relative">
+<div class="w-14 h-14 rounded-full glass-panel flex items-center justify-center z-10 border-surface-tint/20">
+<span class="material-symbols-outlined text-surface-tint">settings_input_antenna</span>
+</div>
+<div class="pt-2">
+<h4 class="font-headline-sm text-headline-sm text-primary">5. Satellite Relay</h4>
+<p class="text-on-surface-variant font-body-md">Low-orbit relay engages when terrestrial links are dead.</p>
+</div>
+</div>
+<!-- Step 6 -->
+<div class="flex gap-md relative">
+<div class="w-14 h-14 rounded-full glass-panel flex items-center justify-center z-10 border-surface-tint/20">
+<span class="material-symbols-outlined text-surface-tint">terminal</span>
+</div>
+<div class="pt-2">
+<h4 class="font-headline-sm text-headline-sm text-primary">6. Engine Processing</h4>
+<p class="text-on-surface-variant font-body-md">APARA core triangulates sub-meter coordinates.</p>
+</div>
+</div>
+<!-- Step 7 -->
+<div class="flex gap-md relative">
+<div class="w-14 h-14 rounded-full glass-panel flex items-center justify-center z-10 border-secondary-container/50 orange-glow">
+<span class="material-symbols-outlined text-secondary-container">medical_services</span>
+</div>
+<div class="pt-2">
+<h4 class="font-headline-sm text-headline-sm text-primary">7. Provider Deployment</h4>
+<p class="text-on-surface-variant font-body-md">Immediate dispatch with precision navigation HUD.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
 </section>
-
-<!-- ═══ ACCURACY TABLE ═══ -->
-<section class="section-wrap">
-  <h2>Positioning Accuracy</h2>
-  <p class="section-sub">Four-tier estimation with measured error bounds</p>
-  <div class="table-wrap">
-    <table class="accuracy-table">
-      <thead><tr><th>Tier</th><th>Data Source</th><th>Error @ 5 min</th><th>Error @ 15 min</th><th>Error @ 30 min</th><th>Confidence</th></tr></thead>
-      <tbody>
-        <tr><td style="font-weight:700;color:var(--accent-online);">Tier 1</td><td>Personal History + OBD-II</td><td>±50m</td><td>±150m</td><td>±300m</td><td style="color:var(--accent-online);font-weight:700;">90–97%</td></tr>
-        <tr><td style="font-weight:700;color:var(--accent-online);">Tier 2</td><td>Community Average + OBD-II</td><td>±100m</td><td>±300m</td><td>±600m</td><td style="color:var(--accent-online);font-weight:700;">80–92%</td></tr>
-        <tr><td style="font-weight:700;color:var(--accent-offline);">Tier 3</td><td>Personal History + Phone Sensors</td><td>±200m</td><td>±600m</td><td>±1.2km</td><td style="color:var(--accent-offline);font-weight:700;">65–85%</td></tr>
-        <tr><td style="font-weight:700;color:var(--accent-alert);">Tier 4</td><td>Community Average + Phone Sensors</td><td>±400m</td><td>±1.2km</td><td>±2.5km</td><td style="color:var(--accent-alert);font-weight:700;">50–75%</td></tr>
-      </tbody>
-    </table>
-  </div>
+<!-- Section 4: Positioning Accuracy Table -->
+<section class="py-xl px-margin">
+<div class="max-w-5xl mx-auto">
+<div class="flex justify-between items-end mb-lg">
+<div>
+<span class="font-label-caps text-label-caps text-surface-tint mb-xs block">PRECISION BENCHMARK</span>
+<h2 class="font-headline-md text-headline-md text-primary">Resolution Hierarchy</h2>
+</div>
+<div class="font-data-mono text-data-mono text-on-surface-variant">Uptime: 99.9999%</div>
+</div>
+<div class="glass-panel overflow-hidden rounded-xl">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high/50 border-b border-outline-variant/30">
+<th class="p-md font-label-caps text-label-caps text-on-surface-variant">SYSTEM TYPE</th>
+<th class="p-md font-label-caps text-label-caps text-on-surface-variant">ACCURACY RADIUS</th>
+<th class="p-md font-label-caps text-label-caps text-on-surface-variant">RELIABILITY</th>
+<th class="p-md font-label-caps text-label-caps text-on-surface-variant">STATUS</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<tr>
+<td class="p-md font-body-md text-on-surface-variant">Standard GPS</td>
+<td class="p-md font-data-mono text-data-mono text-error">&gt; 10.0m</td>
+<td class="p-md text-on-surface-variant">Low (Unstable)</td>
+<td class="p-md"><span class="px-xs py-1 bg-error/10 text-error border border-error/20 text-[10px] rounded">LEGACY</span></td>
+</tr>
+<tr>
+<td class="p-md font-body-md text-on-surface-variant">Differential GPS</td>
+<td class="p-md font-data-mono text-data-mono">~ 5.0m</td>
+<td class="p-md text-on-surface-variant">Moderate</td>
+<td class="p-md"><span class="px-xs py-1 bg-on-surface-variant/10 text-on-surface-variant border border-on-surface-variant/20 text-[10px] rounded">STANDARD</span></td>
+</tr>
+<tr>
+<td class="p-md font-body-md text-on-surface-variant">RTX Positioning</td>
+<td class="p-md font-data-mono text-data-mono">~ 0.1m</td>
+<td class="p-md text-on-surface-variant">High</td>
+<td class="p-md"><span class="px-xs py-1 bg-surface-tint/10 text-surface-tint border border-surface-tint/20 text-[10px] rounded">ADVANCED</span></td>
+</tr>
+<tr class="bg-surface-tint/5">
+<td class="p-md font-body-md text-primary font-bold">APARA Engine</td>
+<td class="p-md font-data-mono text-data-mono text-surface-tint font-bold">&lt; 0.07m</td>
+<td class="p-md text-surface-tint font-bold">Mission Critical</td>
+<td class="p-md"><span class="px-xs py-1 bg-surface-tint text-on-primary text-[10px] rounded font-bold cyan-glow">OPTIMAL</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 </section>
-
-<!-- ═══ TECHNOLOGY ═══ -->
-<section class="section-wrap" style="background:var(--bg-panel);max-width:100%;padding-left:0;padding-right:0;">
-  <div style="max-width:1200px;margin:0 auto;padding:0 2rem;">
-    <h2>Technology Stack</h2>
-    <p class="section-sub">End-to-end pipeline from vehicle to verified responder</p>
-    <div class="tech-flow">
-      <div class="tech-node"><div class="tech-icon">📱</div><div class="tech-label">Mobile App</div><div class="tech-desc">Driver interface</div></div>
-      <div class="tech-arrow">→</div>
-      <div class="tech-node"><div class="tech-icon">🔌</div><div class="tech-label">OBD-II / Sensors</div><div class="tech-desc">Speed + engine data</div></div>
-      <div class="tech-arrow">→</div>
-      <div class="tech-node"><div class="tech-icon">🧠</div><div class="tech-label">Offline Engine</div><div class="tech-desc">Dead reckoning AI</div></div>
-      <div class="tech-arrow">→</div>
-      <div class="tech-node"><div class="tech-icon">📡</div><div class="tech-label">V2V BLE/WiFi</div><div class="tech-desc">Encrypted relay</div></div>
-      <div class="tech-arrow">→</div>
-      <div class="tech-node"><div class="tech-icon">🖥</div><div class="tech-label">Server</div><div class="tech-desc">Decode + match</div></div>
-      <div class="tech-arrow">→</div>
-      <div class="tech-node"><div class="tech-icon">🚑</div><div class="tech-label">Provider</div><div class="tech-desc">Verified responder</div></div>
-    </div>
-  </div>
+<!-- Section 5: Technology Stack Pipeline -->
+<section class="py-xl px-margin overflow-hidden">
+<div class="max-w-7xl mx-auto">
+<div class="text-center mb-xl">
+<span class="font-label-caps text-label-caps text-surface-tint mb-xs block">ARCHITECTURE</span>
+<h2 class="font-headline-md text-headline-md text-primary">Technical Interconnect</h2>
+</div>
+<div class="flex flex-col md:flex-row items-center justify-between gap-md relative">
+<!-- Nodes -->
+<div class="flex flex-col items-center group">
+<div class="w-16 h-16 rounded-lg glass-panel flex items-center justify-center border-surface-tint/20 group-hover:cyan-glow transition-all">
+<span class="material-symbols-outlined text-surface-tint text-3xl">smartphone</span>
+</div>
+<span class="mt-sm font-label-caps text-[10px]">MOBILE APP</span>
+</div>
+<div class="hidden md:block h-0.5 flex-1 bg-gradient-to-r from-surface-tint/50 to-surface-tint/10"></div>
+<div class="flex flex-col items-center group">
+<div class="w-16 h-16 rounded-lg glass-panel flex items-center justify-center border-surface-tint/20 group-hover:cyan-glow transition-all">
+<span class="material-symbols-outlined text-surface-tint text-3xl">stream</span>
+</div>
+<span class="mt-sm font-label-caps text-[10px]">SENSORS</span>
+</div>
+<div class="hidden md:block h-0.5 flex-1 bg-gradient-to-r from-surface-tint/10 to-surface-tint/50"></div>
+<div class="flex flex-col items-center group">
+<div class="w-24 h-24 rounded-full glass-panel flex items-center justify-center border-surface-tint border-2 cyan-glow transition-all">
+<span class="material-symbols-outlined text-surface-tint text-5xl">memory_alt</span>
+</div>
+<span class="mt-sm font-label-caps text-[12px] text-surface-tint font-bold">APARA ENGINE</span>
+</div>
+<div class="hidden md:block h-0.5 flex-1 bg-gradient-to-r from-surface-tint/50 to-surface-tint/10"></div>
+<div class="flex flex-col items-center group">
+<div class="w-16 h-16 rounded-lg glass-panel flex items-center justify-center border-surface-tint/20 group-hover:cyan-glow transition-all">
+<span class="material-symbols-outlined text-surface-tint text-3xl">router</span>
+</div>
+<span class="mt-sm font-label-caps text-[10px]">V2V MESH</span>
+</div>
+<div class="hidden md:block h-0.5 flex-1 bg-gradient-to-r from-surface-tint/10 to-secondary-container/50"></div>
+<div class="flex flex-col items-center group">
+<div class="w-16 h-16 rounded-lg glass-panel flex items-center justify-center border-secondary-container/20 group-hover:orange-glow transition-all">
+<span class="material-symbols-outlined text-secondary-container text-3xl">emergency_share</span>
+</div>
+<span class="mt-sm font-label-caps text-[10px]">PROVIDER</span>
+</div>
+</div>
+</div>
 </section>
-
-<!-- ═══ V2V RELAY EXPLAINER ═══ -->
-<section class="section-wrap">
-  <h2>V2V Relay — Silent Emergency Network</h2>
-  <p class="section-sub">Passing vehicles become invisible relay nodes. No action required. No data exposed.</p>
-  <div class="relay-flow">
-    <div class="relay-node"><span class="r-icon">🚗💥</span><span class="r-label">Distressed Vehicle<br>BLE Broadcast</span></div>
-    <div class="relay-arrow">📶→</div>
-    <div class="relay-node"><span class="r-icon">🚙</span><span class="r-label">Passing Vehicle<br>Packet Received</span></div>
-    <div class="relay-arrow">→🌐</div>
-    <div class="relay-node"><span class="r-icon">📡</span><span class="r-label">Exits Dead Zone<br>Auto-Forwards</span></div>
-    <div class="relay-arrow">→🖥</div>
-    <div class="relay-node"><span class="r-icon">🚑</span><span class="r-label">Server → Provider<br>Dispatched</span></div>
-  </div>
-  <div class="card" style="max-width:500px;margin:0 auto;text-align:center;padding:1.5rem;">
-    <p style="font-size:0.9rem;color:var(--accent-v2v);font-weight:600;">"The relay driver sees nothing."</p>
-    <p class="text-sm text-muted mt-1">AES-256 encrypted. No action required. No personal data exposed.</p>
-  </div>
+<!-- Final CTA -->
+<section class="py-xl px-margin relative">
+<div class="max-w-5xl mx-auto glass-panel p-xl rounded-2xl text-center border-surface-tint/30 relative overflow-hidden">
+<div class="absolute inset-0 bg-surface-tint/5 pointer-events-none"></div>
+<h2 class="font-headline-lg text-headline-lg text-primary mb-md">Ready to Deploy?</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto mb-lg">
+                    Join the network that saves lives when every other connection is lost. Integrated with 80+ national emergency services.
+                </p>
+<div class="flex justify-center gap-md">
+<button class="px-xl py-sm bg-surface-tint text-on-primary font-label-caps text-label-caps rounded hover:brightness-110 transition-all shadow-lg shadow-surface-tint/20">SYSTEM ACCESS</button>
+<button class="px-xl py-sm border border-outline-variant text-on-surface font-label-caps text-label-caps rounded hover:bg-surface-variant transition-all">DOCS / API</button>
+</div>
+</div>
 </section>
-
-<!-- ═══ ECOSYSTEM ═══ -->
-<section class="section-wrap" style="background:var(--bg-panel);max-width:100%;padding-left:0;padding-right:0;">
-  <div style="max-width:1200px;margin:0 auto;padding:0 2rem;">
-    <h2>Three-Window Ecosystem</h2>
-    <p class="section-sub">Interconnected applications forming a complete emergency response loop</p>
-    <div class="eco-diagram">
-      <div class="eco-box"><div style="font-size:2rem;">🛡️</div><h4>Admin Panel</h4><p class="text-xs text-muted">Manage providers, corridors, analytics</p></div>
-      <div class="eco-connector">↔</div>
-      <div class="eco-box center"><div style="font-size:2rem;">🗄️</div><h4>Central Database</h4><p class="text-xs text-muted">Providers, blocks, SOS events, crossings</p></div>
-      <div class="eco-connector">↔</div>
-      <div class="eco-box"><div style="font-size:2rem;">🚑</div><h4>Provider App</h4><p class="text-xs text-muted">Receive alerts, dispatch, resolve</p></div>
-      <div class="eco-connector">↔</div>
-      <div class="eco-box"><div style="font-size:2rem;">📱</div><h4>Driver App</h4><p class="text-xs text-muted">GPS, SOS, V2V relay, history</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ DIFFERENTIATORS ═══ -->
-<section class="section-wrap">
-  <h2>Key Differentiators</h2>
-  <p class="section-sub">What makes APARA fundamentally different</p>
-  <div class="diff-grid">
-    <div class="diff-card"><div class="diff-icon">📍</div><h4>Offline-First Positioning</h4><p>Works without GPS or network using historical dead reckoning</p></div>
-    <div class="diff-card"><div class="diff-icon">📊</div><h4>History-Driven Accuracy</h4><p>Every crossing improves the model. Personal + community data.</p></div>
-    <div class="diff-card"><div class="diff-icon">⏸</div><h4>Stop-Aware</h4><p>Binary stop detection prevents drift from accumulated error</p></div>
-    <div class="diff-card"><div class="diff-icon">🔐</div><h4>V2V Encrypted Relay</h4><p>AES-256 encrypted BLE packets carried by passing vehicles</p></div>
-    <div class="diff-card"><div class="diff-icon">✅</div><h4>Verified Responders</h4><p>Admin-registered, credential-verified service providers only</p></div>
-    <div class="diff-card"><div class="diff-icon">📦</div><h4>Ultra-Compressed Packets</h4><p>SOS data under 50 bytes — fits in a single SMS or USSD string</p></div>
-    <div class="diff-card"><div class="diff-icon">🔌</div><h4>OBD-II Integration</h4><p>Direct vehicle speed from dashboard — no GPS dependency</p></div>
-    <div class="diff-card"><div class="diff-icon">🗺️</div><h4>Block Code System</h4><p>Linear reference system for single-road corridors (not 2D maps)</p></div>
-    <div class="diff-card"><div class="diff-icon">🌐</div><h4>Community Network Effect</h4><p>More crossings = better accuracy for everyone</p></div>
-    <div class="diff-card"><div class="diff-icon">💾</div><h4>Minimal Storage</h4><p>120 bytes per crossing — thousands of records in kilobytes</p></div>
-  </div>
-</section>
-
-<!-- ═══ FOOTER ═══ -->
-<footer class="footer">
-  <div style="font-size:1.5rem;margin-bottom:0.5rem;">🛡️</div>
-  <h3 style="font-family:var(--font-mono);color:var(--accent-alert);">APARA</h3>
-  <p class="text-sm text-muted mt-1">Offline-First · History-Driven · Stop-Aware · V2V Encrypted · Verified Responders</p>
-  <div class="footer-links">
-    <a href="pages/admin.html">Admin Login</a>
-    <a href="pages/provider.html">Provider Login</a>
-    <a href="pages/driver.html">Download App</a>
-    <a href="#">GitHub</a>
-  </div>
-  <div class="footer-hackathon">National Road Safety Hackathon · IIT Madras · 2026</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-xl border-t border-outline-variant/20 bg-surface-container-lowest">
+<div class="flex flex-col md:flex-row justify-between items-center px-margin max-w-7xl mx-auto gap-md">
+<div class="font-headline-sm text-headline-sm text-primary font-bold tracking-widest uppercase">APARA</div>
+<div class="flex flex-wrap justify-center gap-md">
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-secondary transition-colors duration-300" href="#">PRIVACY PROTOCOL</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-secondary transition-colors duration-300" href="#">TERMINAL ACCESS</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-secondary transition-colors duration-300" href="#">API DOCS</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-secondary transition-colors duration-300" href="#">SYSTEM STATUS</a>
+</div>
+<div class="font-body-md text-body-md text-on-surface-variant opacity-80">
+                © 2024 APARA EMERGENCY SYSTEMS. MISSION CRITICAL PRECISION.
+            </div>
+</div>
 </footer>
 
 <script src="js/data.js"></script>
 <script>
-// ═══ HERO ROAD ANIMATION ═══
+// HERO ROAD ANIMATION
 function initHeroRoad() {
   const strip = document.getElementById('heroRoad');
+  if(!strip) return;
   const blocks = 12;
-  let html = '';
+  let html = '<div class="road-anim-strip" style="display:flex;height:48px;background:#1a1f2e;border-radius:8px;overflow:hidden;position:relative;">';
   for (let i = 0; i < blocks; i++) {
-    html += `<div class="road-anim-block" id="rb${i}">B${String(i+25).padStart(2,'0')}</div>`;
+    html += `<div class="road-anim-block" id="rb${i}" style="min-width:60px;height:48px;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:0.7rem;color:#b9cacb;border-right:1px dashed rgba(100,116,139,0.3);flex-shrink:0;transition:all 0.5s;">B${String(i+25).padStart(2,'0')}</div>`;
   }
+  html += '</div>';
   strip.innerHTML = html;
 
   let phase = 0;
   setInterval(() => {
     for (let i = 0; i < blocks; i++) {
       const el = document.getElementById(`rb${i}`);
-      el.className = 'road-anim-block';
+      if(el) {
+          el.style.background = '';
+          el.style.color = '#b9cacb';
+      }
     }
+    
+    // Inline styling for animation highlights
+    const highlightFn = (id, bg, color) => {
+        const e = document.getElementById(id);
+        if(e) { e.style.background = bg; e.style.color = color; }
+    };
+
     if (phase === 0) { // Online
-      document.getElementById('rb2').classList.add('highlight');
-      document.getElementById('rb3').classList.add('highlight');
+      highlightFn('rb2', 'rgba(0, 242, 255, 0.2)', '#00f2ff');
+      highlightFn('rb3', 'rgba(0, 242, 255, 0.2)', '#00f2ff');
     } else if (phase === 1) { // Signal drops
-      for (let i = 3; i < 8; i++) document.getElementById(`rb${i}`).classList.add('dead');
+      for (let i = 3; i < 8; i++) highlightFn(`rb${i}`, 'rgba(250,204,21,0.15)', '#facc15');
     } else if (phase === 2) { // SOS
-      for (let i = 3; i < 8; i++) document.getElementById(`rb${i}`).classList.add('dead');
-      document.getElementById('rb5').classList.remove('dead');
-      document.getElementById('rb5').classList.add('sos');
+      for (let i = 3; i < 8; i++) highlightFn(`rb${i}`, 'rgba(250,204,21,0.15)', '#facc15');
+      highlightFn('rb5', 'rgba(255, 140, 0, 0.25)', '#ff8c00');
     } else if (phase === 3) { // Relay
-      document.getElementById('rb5').classList.add('sos');
-      document.getElementById('rb7').classList.add('relay');
-      document.getElementById('rb8').classList.add('relay');
+      highlightFn('rb5', 'rgba(255, 140, 0, 0.25)', '#ff8c00');
+      highlightFn('rb7', 'rgba(167,139,250,0.15)', '#a78bfa');
+      highlightFn('rb8', 'rgba(167,139,250,0.15)', '#a78bfa');
     } else if (phase === 4) { // Resolved
-      document.getElementById('rb5').classList.add('highlight');
+      highlightFn('rb5', 'rgba(0, 242, 255, 0.2)', '#00f2ff');
     }
     phase = (phase + 1) % 5;
   }, 2000);
 }
 
-// ═══ CORRIDOR DISPLAYS ═══
+// CORRIDOR DISPLAYS
 function renderCorridorDisplays() {
   const container = document.getElementById('corridorDisplays');
+  if(!container) return;
   container.innerHTML = CORRIDORS.map(c => {
     const blocks = Array.from({ length: Math.min(c.blocks, 25) }, (_, i) =>
-      `<div class="road-block">${String(i+1).padStart(2,'0')}</div>`
+      `<div class="road-block" style="display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;font-size:10px;margin-right:2px;background:#101417;color:#b9cacb;border-radius:4px;">${String(i+1).padStart(2,'0')}</div>`
     ).join('');
-    return `<div class="corridor-display card" style="margin-bottom:0.75rem;padding:1rem;">
-      <div class="corridor-label">${c.name}</div>
-      <div class="corridor-meta">${c.code} · ${c.blocks} blocks · ${(c.length/1000).toFixed(1)} km · ${c.region}</div>
-      <div class="road-strip-line" style="background:#1a1f2e;border-radius:6px;">${blocks}</div>
+    return `<div class="glass-panel p-md border border-surface-tint/20 rounded-lg" style="background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);">
+      <div class="font-headline-sm text-primary mb-xs" style="color: #00f2ff;">${c.name}</div>
+      <div class="font-data-mono text-on-surface-variant mb-sm" style="font-family: monospace; font-size: 12px; color: #b9cacb;">${c.code} A· ${c.blocks} blocks A· ${(c.length/1000).toFixed(1)} km A· ${c.region}</div>
+      <div class="road-strip-line p-2 rounded-lg" style="background:rgba(0,0,0,0.5);">${blocks}</div>
     </div>`;
   }).join('');
 }
 
-// ═══ LIVE COUNTER ANIMATION ═══
+// LIVE COUNTER ANIMATION
 function animateCounters() {
   animateCounter('ctrSOS', 4287);
   animateCounter('ctrCorr', 6);
@@ -354,6 +538,7 @@ function animateCounters() {
 
 function animateCounter(id, target) {
   const el = document.getElementById(id);
+  if(!el) return;
   let current = 0;
   const step = Math.ceil(target / 60);
   const interval = setInterval(() => {
@@ -363,7 +548,7 @@ function animateCounter(id, target) {
   }, 30);
 }
 
-// ═══ INIT ═══
+// INIT
 initHeroRoad();
 renderCorridorDisplays();
 setTimeout(animateCounters, 500);
