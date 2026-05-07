@@ -131,6 +131,9 @@ DRISHYTOX/
 ├── CHANGELOG.md            # ⚠️ MUST UPDATE after every change
 ├── CONTRIBUTING.md         # Human contributor guidelines
 ├── AGENTS.md               # ⚠️ THIS FILE — AI agent rules
+├── CLAUDE.md               # Claude AI pointer → reads AGENTS.md
+├── GEMINI.md               # Gemini AI pointer → reads AGENTS.md
+├── .cursorrules            # Cursor AI pointer → reads AGENTS.md
 ├── css/shared.css          # Global design tokens
 ├── js/
 │   ├── firebase-config.js  # Firebase client config (committed, safe)
@@ -144,5 +147,6 @@ DRISHYTOX/
 │   └── admin.html          # Admin control panel
 └── .github/
     ├── CODEOWNERS           # @Anshulpj12 reviews everything
+    ├── copilot-instructions.md  # Copilot AI pointer → reads AGENTS.md
     └── pull_request_template.md
 ```
