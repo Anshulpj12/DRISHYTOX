@@ -1,7 +1,7 @@
 # ═══ APARA .gitignore ═══
 
-# Firebase credentials (NEVER commit)
-js/firebase-config.js
+# Firebase client config (safe to commit — security enforced via Firebase Rules)
+# js/firebase-config.js
 
 # OS files
 .DS_Store
