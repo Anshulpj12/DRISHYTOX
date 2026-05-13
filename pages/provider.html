@@ -125,6 +125,23 @@
 <div class="screen-pad" id="tabDispatch" style="display:none;">
 <h3 style="font-size:1rem;margin-bottom:1rem;">Active Dispatch</h3>
 <div id="dispatchContent"></div>
+<!-- Emergency Dispatch Panel (Phase 4) -->
+<div class="dispatch-panel" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:1rem;margin-top:1rem;">
+  <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.75rem;">
+    <span style="color:#F87171;">🚨</span>
+    <span style="font-family:var(--font-mono);font-size:0.65rem;font-weight:700;letter-spacing:0.12em;color:#F87171;">EMERGENCY DISPATCH ENGINE</span>
+    <span id="dispatchCacheStatus" style="margin-left:auto;font-family:var(--font-mono);font-size:0.55rem;color:var(--text-muted);" title="Providers cached within 100km">📡 READY</span>
+  </div>
+  <div id="engineAlertList" style="max-height:200px;overflow-y:auto;"></div>
+  <div style="margin-top:0.75rem;">
+    <div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-muted);margin-bottom:0.3rem;letter-spacing:0.08em;">DECODE BLOCK CODE</div>
+    <div style="display:flex;gap:0.4rem;">
+      <input type="text" id="bcDecodeInput" placeholder="RR-NNN-TTT" style="flex:1;padding:0.5rem 0.75rem;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--on-surface);font-family:var(--font-mono);font-size:0.78rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;outline:none;">
+      <button onclick="decodeBlockCodeInput()" style="padding:0.5rem 0.85rem;background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.3);border-radius:var(--radius-sm);color:#00D4FF;font-family:var(--font-mono);font-size:0.65rem;font-weight:700;cursor:pointer;letter-spacing:0.08em;">DECODE</button>
+    </div>
+    <div id="bcDecodeResult" style="margin-top:0.5rem;"></div>
+  </div>
+</div>
 </div>
 <div class="screen-pad" id="tabProfile" style="display:none;">
 <h3 style="font-size:1rem;margin-bottom:1rem;">Provider Profile</h3>
@@ -161,6 +178,8 @@
 <script src="../js/firebase-config.js"></script>
 <script src="../js/firebase_v2.js"></script>
 <script src="../js/data.js"></script>
+<script src="../js/block-code-encoder.js" crossorigin="anonymous"></script>
+<script src="../js/sos-provider-engine.js" crossorigin="anonymous"></script>
 <script>
 let loggedInProvider = null;
 let activeDispatch = null;
@@ -692,6 +711,55 @@ function lookupLegacyCode() {
     L.circle([lat, lng], { radius: confidence >= 85 ? 150 : 400, color: type.color, fillOpacity: 0.1 }).addTo(lookupMapInstance);
   }, 100);
   showToast(`Location decoded: ${blockCode}`);
+}
+
+// ═══ PHASE 4: BLOCK CODE DECODER + DISPATCH ENGINE ═══
+function decodeBlockCodeInput() {
+  const input = document.getElementById('bcDecodeInput').value.trim();
+  if (!input) { showToast('Enter a block code (RR-NNN-TTT)'); return; }
+  if (typeof BlockCodeEncoder === 'undefined') { showToast('Block Code Encoder not loaded'); return; }
+  if (!BlockCodeEncoder.isValid(input)) { showToast('Invalid format. Use RR-NNN-TTT'); return; }
+  const decoded = BlockCodeEncoder.decode(input);
+  if (!decoded) { showToast('Could not decode block code'); return; }
+  document.getElementById('bcDecodeResult').innerHTML = `
+    <div style="background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:var(--radius-sm);padding:0.6rem;font-family:var(--font-mono);font-size:0.72rem;">
+      <div style="margin-bottom:0.3rem;color:#00D4FF;font-weight:700;">✅ DECODED</div>
+      <div>📍 ${decoded.lat.toFixed(4)}°N, ${decoded.lng.toFixed(4)}°E</div>
+      <div>🏷️ Type: ${decoded.type} | Region: ${decoded.region}</div>
+      <div>📏 Accuracy: ~${decoded.accuracy_km}km</div>
+      <a href="https://www.google.com/maps/dir/?api=1&destination=${decoded.lat},${decoded.lng}" target="_blank" style="display:inline-block;margin-top:0.4rem;color:#00D4FF;text-decoration:underline;">📍 Navigate →</a>
+    </div>`;
+  showToast('Block code decoded successfully');
+}
+
+function renderDispatchEngine() {
+  if (typeof SOSProviderEngine === 'undefined') return;
+  const emergencies = SOSProviderEngine.getActiveEmergencies();
+  const el = document.getElementById('engineAlertList');
+  if (!el) return;
+  if (emergencies.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.75rem;">No active emergencies in dispatch queue</div>';
+    return;
+  }
+  const pColors = {P1:'#DC2626',P2:'#F97316',P3:'#EAB308',P4:'#06B6D4'};
+  el.innerHTML = emergencies.slice(0,10).map(e => {
+    const pri = e.priority || 'P2';
+    const pc = pColors[pri] || '#F97316';
+    const elapsed = Math.floor((Date.now() - e.receivedAt) / 1000);
+    return `<div style="display:flex;align-items:center;gap:0.65rem;padding:0.5rem;border-radius:var(--radius-sm);margin-bottom:0.3rem;background:${pc}10;border:1px solid ${pc}25;">
+      <span style="font-family:var(--font-mono);font-size:1rem;font-weight:900;color:${pc};min-width:28px;text-align:center;">${pri}</span>
+      <div style="flex:1;">
+        <div style="font-size:0.75rem;font-weight:700;">${e.blockCode||'---'}</div>
+        <div style="font-family:var(--font-mono);font-size:0.55rem;color:var(--text-muted);">${formatElapsed(elapsed)} | ${e.matchedProviders?.length||0} providers</div>
+      </div>
+      <span style="font-family:var(--font-mono);font-size:0.55rem;padding:0.2rem 0.5rem;border-radius:8px;background:${pc}20;color:${pc};font-weight:700;">${e.status.toUpperCase()}</span>
+    </div>`;
+  }).join('');
+}
+
+// Wire SOSProviderEngine updates
+if (typeof SOSProviderEngine !== 'undefined') {
+  SOSProviderEngine.onChange(() => renderDispatchEngine());
 }
 </script>
 </body>

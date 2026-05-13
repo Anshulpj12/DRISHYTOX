@@ -16,8 +16,8 @@
 | `css/sos.css` | Tactical Emergency Design System — dark glassmorphic HUD aesthetic |
 | `road_sos_system.json` | Master metadata: body regions, protocols, priority matrix, assessment framework, voice cues |
 | `js/data.js` | GPSTracker, BlockResolver, DeadZoneHistory, NetworkDetector, SOSPacket, Store |
-| `js/block-code-encoder.js` | [PLANNED] Block Code encode/decode for offline emergency location |
-| `js/sos-provider-engine.js` | [PLANNED] Provider emergency dispatch engine |
+| `js/block-code-encoder.js` | Block Code encode/decode for offline emergency location |
+| `js/sos-provider-engine.js` | Provider emergency dispatch engine + offline message queue |
 
 ---
 
@@ -102,21 +102,21 @@ Layout (top to bottom):
 
 ---
 
-## 🔲 PHASE 2: Dynamic Metadata Sections + Response Engine (NOT STARTED)
+## ✅ PHASE 2: Dynamic Metadata Sections + Response Engine (COMPLETED)
 
 **Goal**: Add context/detail sections between condition selection and assessment, enhance triage output
 
 ### Tasks:
-- 🔲 Add new Screen 2.5 "Context & Details" between condition select and assessment
-- 🔲 Pain Level selector — horizontal slider (0-4) with emoji + color gradient
-- 🔲 Accident Type grid — icon buttons (Head-on, Rear-end, Rollover, etc.)
-- 🔲 Contextual Flags — toggle chips (Fire/Smoke, Pregnancy, Child/Elderly, Hazmat, Weather)
-- 🔲 Passenger Count — stepper (1-6+)
-- 🔲 Vehicle Damage — 5-level visual selector
-- 🔲 Enhanced triage output: severity score (0-100), transport recommendation, risk escalation prediction
-- 🔲 Response caching in localStorage for offline access
-- 🔲 "Read Aloud" button with Web Speech Synthesis (TTS)
-- 🔲 Multi-language voice output (en, hi, ta)
+- ✅ Add new Screen 2.5 "Context & Details" between condition select and assessment
+- ✅ Pain Level selector — horizontal slider (0-4) with emoji + color gradient
+- ✅ Accident Type grid — icon buttons (Head-on, Rear-end, Rollover, etc.)
+- ✅ Contextual Flags — toggle chips (Fire/Smoke, Pregnancy, Child/Elderly, Hazmat, Weather)
+- ✅ Passenger Count — stepper (1-6+)
+- ✅ Vehicle Damage — 5-level visual selector
+- ✅ Enhanced triage output: severity score (0-100), transport recommendation, risk escalation prediction
+- ✅ Response caching in localStorage for offline access
+- ✅ "Read Aloud" button with Web Speech Synthesis (TTS)
+- ✅ Multi-language voice output (en, hi, ta)
 
 ### Dataset Required:
 Add `emergency_response_metadata` section to `road_sos_system.json` with:
@@ -130,53 +130,53 @@ Add `emergency_response_metadata` section to `road_sos_system.json` with:
 
 ---
 
-## 🔲 PHASE 3: Offline GPS + Block Code + Safety Logic (NOT STARTED)
+## ✅ PHASE 3: Offline GPS + Block Code + Safety Logic (COMPLETED)
 
 **Goal**: Block Code emergency location, location-disabled safety, immobility detection
 
 ### Tasks:
-- 🔲 Create `js/block-code-encoder.js` — encode(lat,lng,type) → max 15-char code, decode(code) → location+type
-- 🔲 Block Code format: `RR-NNN-TTT` (Region 2 + Block 3 + Type 3)
-- 🔲 Enhance GPSTracker in data.js:
-  - 🔲 Route history cache (1000 positions in localStorage)
-  - 🔲 Sync queue for reconnection
-  - 🔲 Sudden stop detection (>20km/h → 0 in 3s = potential accident)
-  - 🔲 Abnormal deceleration → auto SOS prompt
-- 🔲 Location Disabled Safety:
-  - 🔲 Monitor GPS permission continuously
-  - 🔲 If OFF >5 min → emergency popup with 60s countdown
-  - 🔲 3 buttons: "I'm Safe", "Need Help", auto-SOS on timeout
-  - 🔲 Generate Block Code from last known position + pre-fill SMS
-- 🔲 Immobility Detection:
-  - 🔲 Detect <10m movement over 5 minutes while GPS is ON
-  - 🔲 Popup: "Stationary for 5 min" with Safe/Help/auto-SOS options
-  - 🔲 Status states: driving, parked, emergency, unknown
-  - 🔲 "Start Driving" resume button
+- ✅ Create `js/block-code-encoder.js` — encode(lat,lng,type) → max 15-char code, decode(code) → location+type
+- ✅ Block Code format: `RR-NNN-TTT` (Region 2 + Block 3 + Type 3)
+- ✅ Enhance GPSTracker in data.js:
+  - ✅ Route history cache (1000 positions in localStorage)
+  - ✅ Sync queue for reconnection
+  - ✅ Sudden stop detection (>20km/h → 0 in 3s = potential accident)
+  - ✅ Abnormal deceleration → auto SOS prompt
+- ✅ Location Disabled Safety:
+  - ✅ Monitor GPS permission continuously
+  - ✅ If OFF >5 min → emergency popup with 60s countdown
+  - ✅ 3 buttons: "I'm Safe", "Need Help", auto-SOS on timeout
+  - ✅ Generate Block Code from last known position + pre-fill SMS
+- ✅ Immobility Detection:
+  - ✅ Detect <10m movement over 5 minutes while GPS is ON
+  - ✅ Popup: "Stationary for 5 min" with Safe/Help/auto-SOS options
+  - ✅ Status states: driving, parked, emergency, unknown
+  - ✅ "Start Driving" resume button
 
 ---
 
-## 🔲 PHASE 4: Provider Architecture + Communication (NOT STARTED)
+## ✅ PHASE 4: Provider Architecture + Communication (COMPLETED)
 
 **Goal**: Provider emergency dispatch, Block Code decoder, multi-channel SOS
 
 ### Tasks:
-- 🔲 Create `js/sos-provider-engine.js`:
-  - 🔲 `receiveEmergency(sosPacket)` — process incoming SOS
-  - 🔲 `decodeBlockCode(code)` — decode and display location
-  - 🔲 `getNearestProviders(lat, lng, radiusKm)` — filter within 100km
-  - 🔲 `priorityDispatch(providers, severity)` — auto-sort by distance + capability
-- 🔲 Update `pages/provider.html`:
-  - 🔲 Emergency Dispatch panel with incoming SOS alerts
-  - 🔲 Block Code decoder input
-  - 🔲 Severity viewer with color-coded priority
-  - 🔲 Emergency data cache (100km radius, stored locally)
-- 🔲 Communication module in road-sos.html:
-  - 🔲 SMS pre-fill via `sms:` URI (cannot auto-send, opens native app)
-  - 🔲 Offline message queue (localStorage)
-  - 🔲 Delayed sync batch (send when internet reconnects)
-  - 🔲 Firebase push notification to providers (when online)
-  - 🔲 V2V relay integration (uses existing data.js system)
-  - 🔲 Bluetooth mesh — UI placeholder only ("Coming in native app")
+- ✅ Create `js/sos-provider-engine.js`:
+  - ✅ `receiveEmergency(sosPacket)` — process incoming SOS
+  - ✅ `decodeBlockCode(code)` — decode and display location
+  - ✅ `getNearestProviders(lat, lng, radiusKm)` — filter within 100km
+  - ✅ `priorityDispatch(providers, severity)` — auto-sort by distance + capability
+- ✅ Update `pages/provider.html`:
+  - ✅ Emergency Dispatch panel with incoming SOS alerts
+  - ✅ Block Code decoder input
+  - ✅ Severity viewer with color-coded priority
+  - ✅ Emergency data cache (100km radius, stored locally)
+- ✅ Communication module in road-sos.html:
+  - ✅ SMS pre-fill via `sms:` URI (cannot auto-send, opens native app)
+  - ✅ Offline message queue (localStorage)
+  - ✅ Delayed sync batch (send when internet reconnects)
+  - ✅ Firebase push notification to providers (when online)
+  - ✅ V2V relay integration (uses existing data.js system)
+  - ✅ Bluetooth mesh — UI placeholder only ("Coming in native app")
 
 ### Emergency Message Format:
 ```

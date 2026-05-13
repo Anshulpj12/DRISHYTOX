@@ -7,6 +7,8 @@
 <meta name="description" content="APARA Road SOS — Intelligent emergency triage and first-aid guidance">
 <link rel="stylesheet" href="../css/sos.css">
 <script src="../js/sos-protocols.js" crossorigin="anonymous"></script>
+<script src="../js/block-code-encoder.js" crossorigin="anonymous"></script>
+<script src="../js/sos-provider-engine.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <div class="sos-app" id="sosApp">
@@ -144,7 +146,62 @@
   <!-- Navigation -->
   <div class="step-nav">
     <button class="nav-btn secondary" onclick="goScreen(1)">← BACK</button>
-    <button class="nav-btn primary" id="toAssessBtn" onclick="goScreen(3)" disabled>ASSESS →</button>
+    <button class="nav-btn primary" id="toAssessBtn" onclick="goScreen('2_5')" disabled>DETAILS →</button>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 2.5: CONTEXT & DETAILS ═══ -->
+<div class="sos-screen" id="screen2_5">
+  <div class="sos-hdr">
+    <div class="sos-hdr-title">📋 CONTEXT & DETAILS</div>
+    <button class="hdr-back" onclick="goScreen(2)">← BACK</button>
+  </div>
+  <div style="overflow-y:auto;flex:1;padding:.5rem 0">
+
+    <!-- Pain Level -->
+    <div class="ctx-section">
+      <div class="ctx-section-title">😣 PAIN LEVEL</div>
+    </div>
+    <div class="pain-slider-wrap">
+      <div class="pain-track" id="painTrack"></div>
+      <div class="pain-markers" id="painMarkers"></div>
+    </div>
+
+    <!-- Accident Type -->
+    <div class="ctx-section">
+      <div class="ctx-section-title">💥 ACCIDENT TYPE</div>
+    </div>
+    <div class="accident-grid" id="accidentGrid"></div>
+
+    <!-- Contextual Flags -->
+    <div class="ctx-section">
+      <div class="ctx-section-title">🚩 CONTEXTUAL FLAGS</div>
+    </div>
+    <div class="ctx-chips" id="ctxFlags"></div>
+
+    <!-- Passenger Count -->
+    <div class="ctx-section">
+      <div class="ctx-section-title">👥 PASSENGERS INVOLVED</div>
+    </div>
+    <div class="stepper-wrap">
+      <button class="stepper-btn" id="paxMinus" onclick="adjustPassengers(-1)">−</button>
+      <div style="text-align:center">
+        <div class="stepper-val" id="paxVal">1</div>
+        <div class="stepper-label">PERSONS</div>
+      </div>
+      <button class="stepper-btn" id="paxPlus" onclick="adjustPassengers(1)">+</button>
+    </div>
+
+    <!-- Vehicle Damage -->
+    <div class="ctx-section">
+      <div class="ctx-section-title">🚗 VEHICLE DAMAGE LEVEL</div>
+    </div>
+    <div class="damage-selector" id="damageSelector"></div>
+
+  </div>
+  <div class="step-nav">
+    <button class="nav-btn secondary" onclick="goScreen(2)">← INJURIES</button>
+    <button class="nav-btn primary" onclick="goScreen(3)">ASSESS →</button>
   </div>
 </div>
 
@@ -173,7 +230,25 @@
       <div class="pills-row" id="triPills" style="justify-content:center;margin-bottom:.5rem"></div>
       <div style="font-family:var(--mono);font-size:.7rem;color:var(--outline)" id="triDesc"></div>
     </div>
-    <div style="padding:0 1.25rem">
+    <!-- Severity Score Meter -->
+    <div class="severity-meter" id="sevMeter">
+      <div class="sev-score" id="sevScoreVal">0</div>
+      <div class="sev-bar-wrap">
+        <div class="sev-bar"><div class="sev-bar-fill" id="sevBarFill" style="width:0%"></div></div>
+        <div class="sev-label">SEVERITY SCORE (0-100)</div>
+      </div>
+    </div>
+    <!-- Transport Recommendation -->
+    <div class="transport-badge" id="transportBadge" style="display:none">
+      <span class="tb-icon" id="tbIcon">🚑</span>
+      <div class="tb-info">
+        <div class="tb-type" id="tbType">AMBULANCE</div>
+        <div class="tb-desc" id="tbDesc">Loading...</div>
+      </div>
+    </div>
+    <!-- Risk Escalation -->
+    <div class="risk-escalation" id="riskEscalation" style="display:none"></div>
+    <div style="padding:0 1.25rem;margin-top:.5rem">
       <div style="font-family:var(--mono);font-size:.65rem;color:var(--outline);letter-spacing:.12em;margin-bottom:.5rem">TREATMENT ORDER:</div>
       <div id="treatOrder"></div>
     </div>
@@ -189,9 +264,19 @@
 <div class="sos-screen" id="screen5">
   <div class="sos-hdr">
     <div class="sos-hdr-title" id="guideHdr">📋 GUIDANCE</div>
-    <span style="font-family:var(--mono);font-size:.7rem;color:var(--outline)" id="stepCtr">1/1</span>
+    <div style="display:flex;align-items:center;gap:.4rem">
+      <button class="tts-btn" id="ttsBtn" onclick="toggleTTS()">🔊 READ ALOUD</button>
+      <div class="lang-toggle">
+        <button class="lang-btn active" data-lang="en" onclick="setLang('en',this)">EN</button>
+        <button class="lang-btn" data-lang="hi" onclick="setLang('hi',this)">HI</button>
+        <button class="lang-btn" data-lang="ta" onclick="setLang('ta',this)">TA</button>
+      </div>
+    </div>
   </div>
-  <div class="led-bar" id="guideLed"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:.25rem 1.25rem">
+    <div class="led-bar" id="guideLed" style="flex:1"></div>
+    <span style="font-family:var(--mono);font-size:.65rem;color:var(--outline);margin-left:.5rem;white-space:nowrap" id="stepCtr">1/1</span>
+  </div>
   <div style="overflow-y:auto;flex:1" id="stepDisplay"></div>
   <div class="step-nav">
     <button class="nav-btn secondary" id="prevBtn" onclick="prevStep()">← PREV</button>
@@ -206,7 +291,7 @@
   </div>
   <div style="overflow-y:auto;flex:1;padding:1rem 1.25rem">
     <div class="ecode-wrap">
-      <div class="ecode-lbl">EMERGENCY CODE</div>
+      <div class="ecode-lbl">EMERGENCY BLOCK CODE</div>
       <span class="ecode-val" id="eCode">--------</span>
       <div class="ecode-lbl" id="elapsedTime" style="margin-top:.3rem">00:00 ELAPSED</div>
     </div>
@@ -218,6 +303,15 @@
     <div class="stat-row">
       <div class="stat-dot" style="background:var(--red);animation-duration:.8s"></div>
       <div class="stat-info"><div class="si-lbl">🚨 SOS BROADCAST ACTIVE</div><div class="si-val">Nearest responders notified</div></div>
+    </div>
+    <!-- Communication Channels -->
+    <div style="font-family:var(--mono);font-size:.62rem;color:var(--outline);letter-spacing:.1em;margin:.75rem 0 .4rem">📡 COMMUNICATION CHANNELS</div>
+    <div class="comm-row" id="commRow">
+      <a class="comm-chip sms" id="smsChip" href="#" onclick="sendSMSSOS(event)">📱 SMS PRE-FILL</a>
+      <span class="comm-chip v2v" onclick="triggerV2V()">📡 V2V RELAY</span>
+      <span class="comm-chip firebase" id="fbChip" onclick="triggerFirebasePush()">🔥 PUSH NOTIFY</span>
+      <span class="comm-chip bt" title="Coming in native app">📶 BT MESH (SOON)</span>
+      <span class="comm-chip queued" id="queueChip" style="display:none">📦 <span id="queueCount">0</span> QUEUED</span>
     </div>
     <div style="font-family:var(--mono);font-size:.62rem;color:var(--outline);letter-spacing:.1em;margin:.75rem 0 .4rem">FIRST-AID SUMMARY</div>
     <div id="quickReview"></div>
@@ -238,7 +332,12 @@
 const S = {
   selected:[],assessIdx:0,assessResults:{},
   triageResult:null,allSteps:[],stepIdx:0,
-  timerInterval:null,activeTimer:null,sosStart:null
+  timerInterval:null,activeTimer:null,sosStart:null,
+  // Phase 2: Context data
+  painLevel:null,accidentType:null,activeFlags:[],
+  passengerCount:1,damageLevel:null,
+  // Phase 2: TTS
+  ttsEnabled:true,ttsLang:'en'
 };
 
 // ═══ BOOT ═══
@@ -250,7 +349,6 @@ const S = {
     const pos=JSON.parse(localStorage.getItem('apara_last_pos'));
     if(pos) document.getElementById('gpsVal').textContent=`${pos.lat.toFixed(5)}°N  ${pos.lng.toFixed(5)}°E`;
   }catch(e){}
-  // Fetch live GPS
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(p=>{
       const pos={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy,timestamp:Date.now()};
@@ -258,11 +356,12 @@ const S = {
       document.getElementById('gpsVal').textContent=`${pos.lat.toFixed(5)}°N  ${pos.lng.toFixed(5)}°E`;
     },()=>{},{enableHighAccuracy:true,timeout:10000,maximumAge:30000});
   }
-  // Initialize Screen 2 components
   buildQuickChips();
   renderCondGrid();
-  // Load JSON metadata
-  fetch('../road_sos_system.json').then(r=>r.json()).then(j=>{window._rj=j;renderCondGrid();}).catch(()=>{});
+  initScreen25();
+  fetch('../road_sos_system.json').then(r=>r.json()).then(j=>{window._rj=j;renderCondGrid();initScreen25();}).catch(()=>{});
+  // Load cached triage for offline
+  try{const c=JSON.parse(localStorage.getItem('apara_sos_last_triage'));if(c)S._cachedTriage=c;}catch(e){}
 })();
 
 function goBack(){if(window.history.length>1)history.back();else location.href='driver.html';}
@@ -270,6 +369,7 @@ function goBack(){if(window.history.length>1)history.back();else location.href='
 function goScreen(n){
   document.querySelectorAll('.sos-screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen'+n).classList.add('active');
+  if(n==='2_5') initScreen25();
   if(n===3) initAssessment();
   if(n===4) renderTriage();
   if(n===6) startActiveStatus();
@@ -483,8 +583,11 @@ const KEY_MAP={unconscious_not_breathing:'unconscious',unconscious_breathing:'un
 
 function renderTriage(){
   const mapped=[...new Set(S.selected.map(k=>KEY_MAP[k]||k))];
-  S.triageResult=SOSTriageEngine.calculatePriority(mapped,S.assessResults);
+  const ctx={painLevel:S.painLevel,accidentType:S.accidentType,flags:S.activeFlags,passengerCount:S.passengerCount,damageLevel:S.damageLevel};
+  S.triageResult=SOSTriageEngine.calculatePriority(mapped,S.assessResults,ctx);
   const r=S.triageResult;
+  // Cache for offline
+  try{localStorage.setItem('apara_sos_last_triage',JSON.stringify({priority:r.priority,label:r.label,score:r.score,severityScore:r.severityScore,timestamp:Date.now()}));}catch(e){}
   const hero=document.getElementById('triageHero');
   hero.style.border=`2px solid ${r.color}`;
   hero.style.background=`linear-gradient(135deg,${r.color}14,${r.color}08)`;
@@ -496,6 +599,29 @@ function renderTriage(){
   document.getElementById('triPills').innerHTML=S.selected.slice(0,6).map(k=>`<span class="pill" style="cursor:default">${k.replace(/_/g,' ')}</span>`).join('');
   const descs={1:'LIFE-THREATENING — IMMEDIATE ACTION',2:'SERIOUS — ACT WITHIN 2 MIN',3:'STABLE — MONITOR CLOSELY',4:'MINOR — FIRST AID ADEQUATE'};
   document.getElementById('triDesc').textContent=descs[r.priority]||'';
+  // Severity score meter
+  const ss=r.severityScore||0;
+  document.getElementById('sevScoreVal').textContent=ss;
+  document.getElementById('sevScoreVal').style.color=r.color;
+  document.getElementById('sevBarFill').style.width=ss+'%';
+  document.getElementById('sevBarFill').style.background=r.color;
+  // Transport recommendation
+  if(r.transportRecommendation){
+    const tb=document.getElementById('transportBadge');
+    tb.style.display='';
+    tb.style.borderColor=r.transportRecommendation.color;
+    tb.style.background=`${r.transportRecommendation.color}12`;
+    document.getElementById('tbIcon').textContent=r.transportRecommendation.icon;
+    document.getElementById('tbType').textContent=r.transportRecommendation.label;
+    document.getElementById('tbType').style.color=r.transportRecommendation.color;
+    document.getElementById('tbDesc').textContent=r.transportRecommendation.description;
+  }
+  // Risk escalation
+  if(r.riskEscalation&&r.riskEscalation.length>0){
+    const re=document.getElementById('riskEscalation');
+    re.style.display='';
+    re.innerHTML=r.riskEscalation.map(r=>`<div style="margin-bottom:.3rem">${r}</div>`).join('');
+  }
   document.getElementById('treatOrder').innerHTML=r.treatments.map((t,i)=>`
     <div class="treat-row" style="${i===0?'border-color:'+r.color:''}">
       <div class="treat-num" style="color:${i===0?r.color:'var(--outline)'}">${i+1}</div>
@@ -560,20 +686,115 @@ function startTimer(sec){
 }
 
 function speakStep(text){
-  if(!('speechSynthesis' in window))return;
+  if(!S.ttsEnabled||!('speechSynthesis' in window))return;
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
-  u.lang='en-IN';u.rate=0.88;u.pitch=1;
+  const langMap={en:'en-IN',hi:'hi-IN',ta:'ta-IN'};
+  u.lang=langMap[S.ttsLang]||'en-IN';u.rate=0.88;u.pitch=1;
   speechSynthesis.speak(u);
 }
+function toggleTTS(){
+  S.ttsEnabled=!S.ttsEnabled;
+  const btn=document.getElementById('ttsBtn');
+  btn.textContent=S.ttsEnabled?'🔊 READ ALOUD':'🔇 MUTED';
+  btn.classList.toggle('speaking',S.ttsEnabled);
+  if(!S.ttsEnabled&&'speechSynthesis' in window) speechSynthesis.cancel();
+}
+function setLang(lang,el){
+  S.ttsLang=lang;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
 
-// ═══ S6: ACTIVE STATUS ═══
+// ═══ SCREEN 2.5: CONTEXT & DETAILS ═══
+const PAIN_LEVELS=[
+  {level:0,label:'NONE',emoji:'😊',color:'#22C55E'},
+  {level:1,label:'MILD',emoji:'😐',color:'#84CC16'},
+  {level:2,label:'MODERATE',emoji:'😣',color:'#EAB308'},
+  {level:3,label:'SEVERE',emoji:'😖',color:'#F97316'},
+  {level:4,label:'EXTREME',emoji:'😱',color:'#DC2626'}
+];
+const ACCIDENT_TYPES=[
+  {id:'AT_HEADON',label:'Head-on',icon:'💥'},
+  {id:'AT_REAREND',label:'Rear-end',icon:'🚗'},
+  {id:'AT_SIDE',label:'Side',icon:'🚙'},
+  {id:'AT_ROLLOVER',label:'Rollover',icon:'🔄'},
+  {id:'AT_PEDESTRIAN',label:'Pedestrian',icon:'🚶'},
+  {id:'AT_SINGLE',label:'Single',icon:'🚘'},
+  {id:'AT_MULTI',label:'Multi-Car',icon:'🚧'},
+  {id:'AT_MOTORCYCLE',label:'Bike',icon:'🏍️'}
+];
+const CTX_FLAGS=[
+  {id:'FLAG_FIRE',label:'Fire/Smoke',icon:'🔥'},
+  {id:'FLAG_PREGNANT',label:'Pregnancy',icon:'🤰'},
+  {id:'FLAG_CHILD',label:'Child/Elderly',icon:'👶'},
+  {id:'FLAG_HAZMAT',label:'Hazmat',icon:'☣️'},
+  {id:'FLAG_WEATHER',label:'Bad Weather',icon:'🌧️'},
+  {id:'FLAG_NIGHT',label:'Night',icon:'🌙'}
+];
+const DAMAGE_LEVELS=[
+  {level:1,label:'Minor',icon:'🟢',color:'#22C55E'},
+  {level:2,label:'Moderate',icon:'🟡',color:'#EAB308'},
+  {level:3,label:'Significant',icon:'🟠',color:'#F97316'},
+  {level:4,label:'Severe',icon:'🔴',color:'#DC2626'},
+  {level:5,label:'Total',icon:'⚫',color:'#7F1D1D'}
+];
+
+function initScreen25(){
+  // Pain markers
+  document.getElementById('painMarkers').innerHTML=PAIN_LEVELS.map(p=>
+    `<div class="pain-marker${S.painLevel===p.level?' active':''}" onclick="setPain(${p.level})" style="${S.painLevel===p.level?'border-bottom:2px solid '+p.color:''}">
+      <span class="pain-emoji">${p.emoji}</span>
+      <span class="pain-label" style="${S.painLevel===p.level?'color:'+p.color:''}">${p.label}</span>
+    </div>`).join('');
+  // Accident grid
+  document.getElementById('accidentGrid').innerHTML=ACCIDENT_TYPES.map(a=>
+    `<div class="accident-btn${S.accidentType===a.id?' selected':''}" onclick="setAccident('${a.id}',this)">
+      <span class="ab-icon">${a.icon}</span>
+      <span class="ab-label">${a.label}</span>
+    </div>`).join('');
+  // Context flags
+  document.getElementById('ctxFlags').innerHTML=CTX_FLAGS.map(f=>
+    `<span class="ctx-chip${S.activeFlags.includes(f.id)?' active':''}" onclick="toggleFlag('${f.id}',this)">${f.icon} ${f.label}</span>`
+  ).join('');
+  // Damage selector
+  document.getElementById('damageSelector').innerHTML=DAMAGE_LEVELS.map(d=>
+    `<div class="damage-level${S.damageLevel===d.level?' selected':''}" onclick="setDamage(${d.level},this)" style="${S.damageLevel===d.level?'border-color:'+d.color+';background:'+d.color+'18':''}">
+      <span class="dl-icon">${d.icon}</span>
+      <span class="dl-label">${d.label}</span>
+    </div>`).join('');
+  // Passenger stepper
+  document.getElementById('paxVal').textContent=S.passengerCount>=6?'6+':S.passengerCount;
+  document.getElementById('paxMinus').disabled=S.passengerCount<=1;
+}
+function setPain(level){
+  S.painLevel=level;if(navigator.vibrate)navigator.vibrate(20);initScreen25();
+}
+function setAccident(id,el){
+  S.accidentType=S.accidentType===id?null:id;if(navigator.vibrate)navigator.vibrate(20);initScreen25();
+}
+function toggleFlag(id,el){
+  const i=S.activeFlags.indexOf(id);
+  if(i>=0)S.activeFlags.splice(i,1);else S.activeFlags.push(id);
+  if(navigator.vibrate)navigator.vibrate(20);
+  el.classList.toggle('active');
+}
+function adjustPassengers(delta){
+  S.passengerCount=Math.max(1,Math.min(7,S.passengerCount+delta));
+  document.getElementById('paxVal').textContent=S.passengerCount>=6?'6+':S.passengerCount;
+  document.getElementById('paxMinus').disabled=S.passengerCount<=1;
+  if(navigator.vibrate)navigator.vibrate(15);
+}
+function setDamage(level,el){
+  S.damageLevel=S.damageLevel===level?null:level;if(navigator.vibrate)navigator.vibrate(20);initScreen25();
+}
+
+// ═══ S6: ACTIVE STATUS + COMMUNICATION ═══
 function startActiveStatus(){
   try{
     const pos=JSON.parse(localStorage.getItem('apara_last_pos'));
     if(pos){
       document.getElementById('locShareVal').textContent=`${pos.lat.toFixed(4)}°N, ${pos.lng.toFixed(4)}°E`;
-      // Try to generate code
       try{document.getElementById('eCode').textContent=typeof BlockCodeEncoder!=='undefined'?BlockCodeEncoder.encode(pos.lat,pos.lng,'ACC'):'SOS-'+Date.now().toString(36).toUpperCase().slice(-8);}
       catch(e){document.getElementById('eCode').textContent='SOS-'+Date.now().toString(36).toUpperCase().slice(-8);}
     }
@@ -592,11 +813,60 @@ function startActiveStatus(){
         <div class="stat-info"><div class="si-lbl">${t.title}</div><div class="si-val">${t.steps.length} STEPS — TAP TO RE-READ</div></div>
       </div>`).join('');
   }
+  // Update queue indicator
+  if(typeof SOSMessageQueue!=='undefined'){
+    const pc=SOSMessageQueue.getPendingCount();
+    const qc=document.getElementById('queueChip');
+    if(pc>0){qc.style.display='';document.getElementById('queueCount').textContent=pc;}
+  }
+  // Build SMS link
+  buildSMSLink();
+}
+
+function buildSMSLink(){
+  try{
+    const pos=JSON.parse(localStorage.getItem('apara_last_pos'));
+    if(pos&&typeof BlockCodeEncoder!=='undefined'){
+      const pri=S.triageResult?'P'+S.triageResult.priority:'SOS';
+      const conds=S.selected.slice(0,5).map(k=>k.replace(/_/g,' ')).join(', ');
+      const msg=BlockCodeEncoder.buildSMSMessage(pos.lat,pos.lng,'ACC',pri,conds);
+      const uri=BlockCodeEncoder.buildSMSUri('112',msg);
+      document.getElementById('smsChip').href=uri;
+    }
+  }catch(e){}
+}
+
+function sendSMSSOS(e){
+  // Also queue for offline sync
+  if(typeof SOSMessageQueue!=='undefined'){
+    SOSMessageQueue.enqueue({type:'sms_prefill',payload:{conditions:S.selected,priority:S.triageResult?.priority,timestamp:Date.now()}});
+  }
+}
+function triggerV2V(){
+  if(typeof Store!=='undefined'){
+    try{
+      const pos=JSON.parse(localStorage.getItem('apara_last_pos'));
+      const code=document.getElementById('eCode').textContent;
+      Store.saveV2VRelay({id:'V2V-'+Date.now(),blockCode:code,lat:pos?.lat,lng:pos?.lng,priority:S.triageResult?'P'+S.triageResult.priority:'SOS',timestamp:new Date().toISOString(),type:'emergency'});
+      alert('📡 V2V relay broadcast sent');
+    }catch(e){alert('V2V relay queued');}
+  }else{alert('📡 V2V relay queued for transmission');}
+}
+function triggerFirebasePush(){
+  if(typeof SOSMessageQueue!=='undefined'){
+    SOSMessageQueue.enqueue({type:'sos_alert',payload:{conditions:S.selected,priority:S.triageResult?.priority,blockCode:document.getElementById('eCode').textContent,timestamp:Date.now()}});
+    const pc=SOSMessageQueue.getPendingCount();
+    const qc=document.getElementById('queueChip');
+    qc.style.display='';document.getElementById('queueCount').textContent=pc;
+    alert(navigator.onLine?'🔥 Push notification sent to providers':'📦 Queued — will send when online');
+  }else{alert('🔥 Push notification queued');}
 }
 
 function endSOS(){
   if(confirm('End this emergency session?')){
-    clearInterval(S.activeTimer);clearInterval(S.timerInterval);speechSynthesis.cancel();goBack();
+    clearInterval(S.activeTimer);clearInterval(S.timerInterval);
+    if('speechSynthesis' in window)speechSynthesis.cancel();
+    goBack();
   }
 }
 </script>
