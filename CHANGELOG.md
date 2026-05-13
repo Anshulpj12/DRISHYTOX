@@ -70,6 +70,27 @@ All notable changes to this project will be documented in this file.
 
 <!-- Add new changes here ABOVE the latest release -->
 
+### 📝 Fixed & improved AI agent config files — 2026-05-07
+
+**Contributor:** TejaswiniKhelkar
+**AI Assistant:** Gemini Antigravity (Claude Opus 4.6 Thinking)
+
+| Category | Before | After |
+|---|---|---|
+| GEMINI.md | Missing — Gemini CLI/Studio wouldn't pick up rules | ✅ Created, points to AGENTS.md |
+| AI config file format | Used `#` comment syntax (unreliable as Markdown) | Proper Markdown prose with ⚠️ alert |
+| AGENTS.md project structure | Missing CLAUDE.md, GEMINI.md, .cursorrules, copilot-instructions.md | All AI config files listed |
+
+**Why:** AI config files (`.cursorrules`, `CLAUDE.md`, `copilot-instructions.md`) were using `#` comment syntax which some tools might skip. Also, `GEMINI.md` was missing entirely, so Gemini CLI/Studio wouldn't auto-read the rules. Project structure in AGENTS.md didn't document these files.
+
+**Files Changed:**
+- `GEMINI.md` — [NEW] Gemini AI pointer to AGENTS.md
+- `.cursorrules` — Rewritten as proper Markdown prose
+- `CLAUDE.md` — Rewritten as proper Markdown prose
+- `.github/copilot-instructions.md` — Rewritten as proper Markdown prose
+- `AGENTS.md` — Updated project structure to list all AI config files
+- `CHANGELOG.md` — This entry
+
 ---
 
 ## [1.2.0] — 2026-05-07
