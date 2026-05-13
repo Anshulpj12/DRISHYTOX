@@ -9,6 +9,65 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 Road SOS — Full Triage Coverage + Multi-Injury Combos — 2026-05-12
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity (Claude Opus)
+
+| Category | Before | After |
+|---|---|---|
+| Combo Rules | 20 rules, 5 orphaned conditions | 72 rules — every condition + 50 multi-injury pairs |
+| Treatment Protocols | 11 protocols | 14 protocols (added eye injury, allergic reaction, crush injury) |
+| Coverage Gaps | crush_injury, trapped, dizziness, eye_injury, allergic had 0 treatments | 100% coverage — every selectable condition produces guidance |
+| Multi-Injury | Only 6 two-condition combos | 6 triple-combos + 44 two-condition combos for real road accidents |
+
+**Why:** Users selecting conditions like eye injury, allergic reaction, crush injury, or dizziness got an empty triage result with 0 treatments. Now every condition and common multi-injury combination produces correct prioritized first-aid guidance.
+
+**Files Changed:**
+- `js/sos-protocols.js` — Added 3 new treatment protocols, expanded combo rules from 20 to 72, added orphan conditions to existing treatment forConditions
+
+
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Stitch Design Coverage | Screen 1 (Activation) only | All 6 screens designed (Activation, Condition Selection, Assessment, Triage Result, Step Guidance, Active Status) |
+| Design Assets | Single activation screen | Full cinematic HUD flow with glassmorphic cards, LED progress bars, and red volumetric glows |
+
+**Why:** Completed the full Stitch Tactical Emergency Design System reference set for all 6 Road SOS screens so developers and stakeholders can see the complete UI flow before implementation.
+
+**Files Changed:**
+- `pages/road-sos.html` — Reference implementation for all 6 screens (existing)
+- Stitch Project `3251675908950809849` — 5 new screens added: Screen 2 (Condition Selection), Screen 3 (Assessment), Screen 4 (Triage P1), Screen 5 (CPR Step Guidance), Screen 6 (Active SOS Status)
+
+
+
+### 📝 Road SOS — Intelligent Emergency Response & First-Aid System — 2026-05-11
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Emergency Flow | Simple SOS: select category → hold → send SMS | Full 6-screen triage: activate → select injuries → assessment → priority → step-by-step guidance → active status |
+| Medical Guidance | None — just sends location to provider | Rule-based first-aid engine with 22 conditions, 11 treatment protocols, DO NOT warnings |
+| Injury Selection | Single category (Accident/Tow/Tyre/Fuel) | Multi-select with body-region categories, severity indicators, 30+ conditions from JSON |
+| Assessment | None | ABCDE-based triage: consciousness, breathing, pulse, bleeding, movement checks |
+| First Aid Steps | None | Step-by-step cards with timers, voice readout (TTS), warnings, and progress tracking |
+| Offline Support | SOS required GPS only | Full protocol engine embedded — works 100% offline, no LLM dependency |
+| UI Design | N/A | Stitch Tactical Emergency Design System — sonar SOS button, LED bars, JetBrains Mono, glassmorphic HUD |
+| Auto-open | N/A | Road SOS auto-opens 4s after SOS SMS sent with countdown banner + cancel option |
+
+**Why:** Accident victims and bystanders need guided first-aid instructions, not just location sharing. This system provides deterministic, medically-reviewed protocols (AHA/Red Cross/ILCOR) with panic-optimized large-button UI. Auto-open ensures first-aid begins immediately after SOS dispatch.
+
+**Files Changed:**
+- `js/sos-protocols.js` — [NEW] Rule-based medical guidance engine (conditions, assessments, priority scoring, treatments)
+- `css/sos.css` — [NEW] Stitch Tactical Emergency Design System — sonar button, LED progress bars, volumetric bg glow
+- `pages/road-sos.html` — [NEW] Full 6-screen emergency interface — redesigned with Stitch design tokens
+- `pages/driver.html` — Added "Road SOS" button + openRoadSOS() + auto-open countdown banner after SOS send + cancelRoadSosAuto()
+
 <!-- Add new changes here ABOVE the latest release -->
 
 ---
