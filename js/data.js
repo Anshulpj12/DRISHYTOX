@@ -2231,3 +2231,276 @@ const OrderStore = {
 // Init network detector
 NetworkDetector.init();
 
+// ═══ GPS Route History Cache (Phase 3) ═══
+const GPSRouteCache = {
+  _KEY: 'apara_route_history',
+  _MAX: 1000,
+
+  save(pos) {
+    try {
+      const cache = JSON.parse(localStorage.getItem(this._KEY)) || [];
+      cache.push({ lat: pos.lat, lng: pos.lng, speed: pos.speed, ts: Date.now() });
+      if (cache.length > this._MAX) cache.splice(0, cache.length - this._MAX);
+      localStorage.setItem(this._KEY, JSON.stringify(cache));
+    } catch (e) {}
+  },
+
+  getAll() {
+    try { return JSON.parse(localStorage.getItem(this._KEY)) || []; }
+    catch (e) { return []; }
+  },
+
+  getLast(n) {
+    const all = this.getAll();
+    return all.slice(-n);
+  },
+
+  clear() { localStorage.removeItem(this._KEY); },
+};
+
+// ═══ GPS Sync Queue (Phase 3) ═══
+const GPSSyncQueue = {
+  _KEY: 'apara_gps_sync_queue',
+
+  enqueue(pos) {
+    try {
+      const q = JSON.parse(localStorage.getItem(this._KEY)) || [];
+      q.push({ lat: pos.lat, lng: pos.lng, ts: Date.now(), speed: pos.speed });
+      if (q.length > 200) q.shift();
+      localStorage.setItem(this._KEY, JSON.stringify(q));
+    } catch (e) {}
+  },
+
+  flush() {
+    if (!NetworkDetector.isOnline()) return 0;
+    const q = this.getQueue();
+    // In a real app, this would batch-upload to server
+    localStorage.removeItem(this._KEY);
+    console.log(`[GPSSync] Flushed ${q.length} positions`);
+    return q.length;
+  },
+
+  getQueue() {
+    try { return JSON.parse(localStorage.getItem(this._KEY)) || []; }
+    catch (e) { return []; }
+  },
+};
+
+// ═══ Sudden Stop Detection (Phase 3) ═══
+const SuddenStopDetector = {
+  _speedHistory: [],
+  _listeners: [],
+  _MAX_SAMPLES: 10,
+
+  recordSpeed(speedKmh, timestamp) {
+    this._speedHistory.push({ speed: speedKmh, ts: timestamp || Date.now() });
+    if (this._speedHistory.length > this._MAX_SAMPLES) this._speedHistory.shift();
+    this._check();
+  },
+
+  _check() {
+    if (this._speedHistory.length < 3) return;
+    const recent = this._speedHistory.slice(-3);
+    const oldest = recent[0];
+    const newest = recent[recent.length - 1];
+    const timeDelta = (newest.ts - oldest.ts) / 1000; // seconds
+
+    // >20km/h → 0 in ≤3 seconds = potential accident
+    if (oldest.speed > 20 && newest.speed < 2 && timeDelta <= 3) {
+      console.warn(`[SuddenStop] Detected! ${oldest.speed.toFixed(0)} → ${newest.speed.toFixed(0)} km/h in ${timeDelta.toFixed(1)}s`);
+      this._notify({ fromSpeed: oldest.speed, toSpeed: newest.speed, duration: timeDelta });
+    }
+  },
+
+  onSuddenStop(fn) { this._listeners.push(fn); },
+  _notify(data) { this._listeners.forEach(fn => fn(data)); },
+};
+
+// ═══ Safety Monitor — GPS Permission + Location Disabled Detection (Phase 3) ═══
+const SafetyMonitor = {
+  _gpsOffSince: null,
+  _countdownTimer: null,
+  _checkInterval: null,
+  _GPS_OFF_THRESHOLD_MS: 5 * 60 * 1000, // 5 minutes
+  _COUNTDOWN_SECONDS: 60,
+  _overlayEl: null,
+  _active: false,
+
+  start() {
+    if (this._active) return;
+    this._active = true;
+    // Check GPS permission periodically
+    this._checkInterval = setInterval(() => this._checkGPS(), 30000); // every 30s
+    this._checkGPS();
+    console.log('[SafetyMonitor] Started');
+  },
+
+  stop() {
+    this._active = false;
+    if (this._checkInterval) clearInterval(this._checkInterval);
+    if (this._countdownTimer) clearInterval(this._countdownTimer);
+    this._dismissOverlay();
+  },
+
+  async _checkGPS() {
+    if (!navigator.permissions) return;
+    try {
+      const result = await navigator.permissions.query({ name: 'geolocation' });
+      if (result.state === 'denied' || result.state === 'prompt') {
+        if (!this._gpsOffSince) {
+          this._gpsOffSince = Date.now();
+          console.log('[SafetyMonitor] GPS appears OFF');
+        } else if (Date.now() - this._gpsOffSince > this._GPS_OFF_THRESHOLD_MS) {
+          this._showEmergencyPopup('gps_off');
+        }
+      } else {
+        this._gpsOffSince = null;
+      }
+      // Watch for changes
+      result.addEventListener('change', () => {
+        if (result.state === 'granted') {
+          this._gpsOffSince = null;
+          this._dismissOverlay();
+        }
+      });
+    } catch (e) {}
+  },
+
+  _showEmergencyPopup(reason) {
+    if (this._overlayEl) return; // Already showing
+    let remaining = this._COUNTDOWN_SECONDS;
+    const overlay = document.createElement('div');
+    overlay.className = 'safety-overlay';
+    overlay.id = 'safetyOverlay';
+    overlay.innerHTML = `
+      <div class="safety-card">
+        <div class="safety-icon">${reason === 'gps_off' ? '📍' : '⏸️'}</div>
+        <div class="safety-title">${reason === 'gps_off' ? 'LOCATION DISABLED' : 'STATIONARY DETECTED'}</div>
+        <div class="safety-desc">${reason === 'gps_off'
+          ? 'Your GPS has been off for over 5 minutes. For your safety, we need to confirm you are okay.'
+          : 'You have been stationary for over 5 minutes. Are you safe?'}</div>
+        <div class="safety-countdown" id="safetyCountdown">${remaining}</div>
+        <div style="font-family:var(--mono);font-size:.6rem;color:var(--outline);margin-bottom:.75rem;letter-spacing:.08em">AUTO-SOS IN ${remaining} SECONDS</div>
+        <div class="safety-actions">
+          <button class="safety-btn safe" onclick="SafetyMonitor.respond('safe')">✅ I'M SAFE</button>
+          <button class="safety-btn help" onclick="SafetyMonitor.respond('help')">🆘 NEED HELP</button>
+          <button class="safety-btn dismiss" onclick="SafetyMonitor.respond('dismiss')">DISMISS</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    this._overlayEl = overlay;
+    if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 400]);
+
+    this._countdownTimer = setInterval(() => {
+      remaining--;
+      const el = document.getElementById('safetyCountdown');
+      if (el) el.textContent = remaining;
+      if (remaining <= 0) {
+        clearInterval(this._countdownTimer);
+        this.respond('auto_sos');
+      }
+    }, 1000);
+  },
+
+  respond(action) {
+    clearInterval(this._countdownTimer);
+    this._dismissOverlay();
+    this._gpsOffSince = null;
+
+    if (action === 'help' || action === 'auto_sos') {
+      // Trigger SOS
+      console.warn(`[SafetyMonitor] ${action} — triggering SOS`);
+      window.location.href = 'road-sos.html?src=safety&auto=1';
+    } else {
+      console.log(`[SafetyMonitor] User responded: ${action}`);
+    }
+  },
+
+  _dismissOverlay() {
+    if (this._overlayEl) {
+      this._overlayEl.remove();
+      this._overlayEl = null;
+    }
+  },
+};
+
+// ═══ Immobility Detector (Phase 3) ═══
+const ImmobilityDetector = {
+  _positions: [],
+  _checkInterval: null,
+  _MOVEMENT_THRESHOLD_M: 10,
+  _TIME_THRESHOLD_MS: 5 * 60 * 1000, // 5 minutes
+  _status: 'unknown', // driving, parked, emergency, unknown
+  _listeners: [],
+  _alerted: false,
+
+  start() {
+    this._checkInterval = setInterval(() => this._check(), 30000); // every 30s
+    console.log('[ImmobilityDetector] Started');
+  },
+
+  stop() {
+    if (this._checkInterval) clearInterval(this._checkInterval);
+  },
+
+  recordPosition(pos) {
+    this._positions.push({ lat: pos.lat, lng: pos.lng, ts: Date.now() });
+    if (this._positions.length > 20) this._positions.shift();
+
+    // Update status based on speed
+    if (pos.speed && pos.speed > 2) {
+      this._status = 'driving';
+      this._alerted = false;
+    }
+  },
+
+  _check() {
+    if (this._positions.length < 3) return;
+    const now = Date.now();
+    const fiveMinAgo = now - this._TIME_THRESHOLD_MS;
+    const oldPositions = this._positions.filter(p => p.ts <= fiveMinAgo);
+    const newPositions = this._positions.filter(p => p.ts > fiveMinAgo);
+
+    if (oldPositions.length === 0 || newPositions.length === 0) return;
+
+    const oldest = oldPositions[oldPositions.length - 1];
+    const newest = newPositions[newPositions.length - 1];
+
+    const dist = Utils.haversine(oldest.lat, oldest.lng, newest.lat, newest.lng);
+
+    if (dist < this._MOVEMENT_THRESHOLD_M && !this._alerted) {
+      this._status = 'parked';
+      this._alerted = true;
+      console.warn(`[ImmobilityDetector] Stationary for 5+ min (${dist.toFixed(1)}m movement)`);
+      SafetyMonitor._showEmergencyPopup('stationary');
+      this._notify('stationary');
+    }
+  },
+
+  getStatus() { return this._status; },
+
+  resume() {
+    this._status = 'driving';
+    this._alerted = false;
+    this._positions = [];
+    console.log('[ImmobilityDetector] Resumed driving');
+  },
+
+  onChange(fn) { this._listeners.push(fn); },
+  _notify(event) { this._listeners.forEach(fn => fn(event, this._status)); },
+};
+
+// Wire GPS tracker to route cache, sync queue, sudden stop, and immobility
+GPSTracker.onChange(pos => {
+  if (!pos) return;
+  GPSRouteCache.save(pos);
+  if (!NetworkDetector.isOnline()) GPSSyncQueue.enqueue(pos);
+  SuddenStopDetector.recordSpeed(GPSTracker.getSpeedKmh(), Date.now());
+  ImmobilityDetector.recordPosition(pos);
+});
+
+// Auto-flush sync queue on reconnect
+NetworkDetector.onChange((online) => {
+  if (online) GPSSyncQueue.flush();
+});
+

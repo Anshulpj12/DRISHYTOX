@@ -9,6 +9,34 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 Road SOS — Phases 2, 3 & 4: Context Screen, GPS Safety, Provider Dispatch — 2026-05-13
+
+**Contributor:** TejaswiniKhelkar
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Injury Context | Conditions selected, no additional context | Screen 2.5 with pain level (0–4), accident type grid, contextual flags, passenger count stepper, vehicle damage selector |
+| Triage Output | Priority P1-P4 + treatment list | + Severity score (0–100), transport recommendation (ALS/BLS/Self), risk escalation predictions |
+| Voice Guidance | Auto-speak in English only | Toggleable TTS with EN/HI/TA language selector |
+| Location Encoding | Basic SOS code | Block Code Encoder (RR-NNN-TTT format) with encode/decode + SMS pre-fill |
+| GPS Safety | Basic GPS tracking | Route history cache (1000 pts), sync queue, sudden stop detection (>20→0 km/h in 3s), immobility detector (5 min stationary), GPS-off monitor with 60s countdown popup |
+| Communication | SOS broadcast only | SMS pre-fill (`sms:` URI), V2V relay, Firebase push notification, offline message queue, Bluetooth mesh placeholder |
+| Provider Dispatch | Manual alert review only | SOSProviderEngine with automatic nearest-provider matching (100km), priority dispatch scoring, Block Code decoder panel |
+| Offline Support | Basic localStorage | Response caching, offline message queue with auto-flush on reconnect, GPS sync queue |
+
+**Why:** To complete the ROADMAP_SOS.md remaining phases — giving emergency responders richer context data for better triage decisions, ensuring driver safety through automated GPS monitoring, and enabling multi-channel emergency communication including offline scenarios.
+
+**Files Changed:**
+- `road_sos_system.json` — Added `emergency_response_metadata` section (symptoms, pain levels, accident types, flags, transport recommendations)
+- `css/sos.css` — Added 550+ lines: Screen 2.5 components, safety overlays, provider dispatch panel, communication chips
+- `js/sos-protocols.js` — Enhanced `SOSTriageEngine.calculatePriority()` with context data; added `calculateSeverityScore()`, `getTransportRecommendation()`, `getRiskEscalation()`
+- `js/block-code-encoder.js` — [NEW] Block Code Encoder/Decoder (RR-NNN-TTT format) with SMS message builder
+- `js/sos-provider-engine.js` — [NEW] Emergency dispatch engine with provider matching, priority dispatch, offline message queue
+- `js/data.js` — Added GPSRouteCache, GPSSyncQueue, SuddenStopDetector, SafetyMonitor, ImmobilityDetector modules
+- `pages/road-sos.html` — Added Screen 2.5 HTML/JS, enhanced Screen 4 triage, TTS + language toggle on Screen 5, communication module on Screen 6
+- `pages/provider.html` — Added Emergency Dispatch panel with Block Code decoder, dispatch engine alert list
+
 ### 📝 Phase 1: Interactive Body Map & Search UI — 2026-05-13
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)

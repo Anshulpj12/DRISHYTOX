@@ -2137,5 +2137,72 @@
       "publisher": "American Heart Association",
       "url": "https://cpr.heart.org/en/resuscitation-science/high-quality-cpr"
     }
-  ]
+  ],
+
+  "emergency_response_metadata": {
+    "description": "Dynamic metadata for Screen 2.5 — Context & Details. Provides structured selectors for pain, accident type, contextual flags, and transport recommendations.",
+
+    "symptoms": [
+      {"id": "SYM_DIZZY", "label": "Dizziness", "icon": "💫"},
+      {"id": "SYM_NAUSEA", "label": "Nausea", "icon": "🤢"},
+      {"id": "SYM_BLUR", "label": "Blurred Vision", "icon": "👁️"},
+      {"id": "SYM_NUMB", "label": "Numbness", "icon": "🫠"},
+      {"id": "SYM_TIGHT", "label": "Chest Tightness", "icon": "😤"},
+      {"id": "SYM_CONFUSE", "label": "Confusion", "icon": "😵‍💫"},
+      {"id": "SYM_RINGING", "label": "Ringing in Ears", "icon": "🔔"},
+      {"id": "SYM_WEAK", "label": "Weakness", "icon": "😩"}
+    ],
+
+    "pain_levels": [
+      {"level": 0, "label": "No Pain", "emoji": "😊", "color": "#22C55E", "description": "Comfortable, no discomfort"},
+      {"level": 1, "label": "Mild", "emoji": "😐", "color": "#84CC16", "description": "Slight discomfort, bearable"},
+      {"level": 2, "label": "Moderate", "emoji": "😣", "color": "#EAB308", "description": "Noticeable pain, distracting"},
+      {"level": 3, "label": "Severe", "emoji": "😖", "color": "#F97316", "description": "Intense pain, hard to focus"},
+      {"level": 4, "label": "Extreme", "emoji": "😱", "color": "#DC2626", "description": "Worst possible, unbearable"}
+    ],
+
+    "consciousness_levels": [
+      {"id": "ALERT", "label": "Alert", "code": "A", "score": 0, "color": "#22C55E"},
+      {"id": "VOICE", "label": "Responds to Voice", "code": "V", "score": 2, "color": "#EAB308"},
+      {"id": "PAIN", "label": "Responds to Pain", "code": "P", "score": 4, "color": "#F97316"},
+      {"id": "UNRESPONSIVE", "label": "Unresponsive", "code": "U", "score": 5, "color": "#DC2626"}
+    ],
+
+    "accident_types": [
+      {"id": "AT_HEADON", "label": "Head-on", "icon": "💥", "severity_modifier": 2},
+      {"id": "AT_REAREND", "label": "Rear-end", "icon": "🚗", "severity_modifier": 1},
+      {"id": "AT_SIDE", "label": "Side Impact", "icon": "🚙", "severity_modifier": 1.5},
+      {"id": "AT_ROLLOVER", "label": "Rollover", "icon": "🔄", "severity_modifier": 2},
+      {"id": "AT_PEDESTRIAN", "label": "Pedestrian", "icon": "🚶", "severity_modifier": 2},
+      {"id": "AT_SINGLE", "label": "Single Vehicle", "icon": "🚘", "severity_modifier": 1},
+      {"id": "AT_MULTI", "label": "Multi-Vehicle", "icon": "🚧", "severity_modifier": 1.5},
+      {"id": "AT_MOTORCYCLE", "label": "Motorcycle", "icon": "🏍️", "severity_modifier": 1.5}
+    ],
+
+    "contextual_flags": [
+      {"id": "FLAG_FIRE", "label": "Fire / Smoke", "icon": "🔥", "priority_boost": 1, "color": "#F97316"},
+      {"id": "FLAG_PREGNANT", "label": "Pregnancy", "icon": "🤰", "priority_boost": 1, "color": "#EC4899"},
+      {"id": "FLAG_CHILD", "label": "Child / Elderly", "icon": "👶", "priority_boost": 1, "color": "#8B5CF6"},
+      {"id": "FLAG_HAZMAT", "label": "Hazmat / Chemical", "icon": "☣️", "priority_boost": 1, "color": "#FACC15"},
+      {"id": "FLAG_WEATHER", "label": "Bad Weather", "icon": "🌧️", "priority_boost": 0, "color": "#06B6D4"},
+      {"id": "FLAG_NIGHT", "label": "Night / Low Visibility", "icon": "🌙", "priority_boost": 0, "color": "#6366F1"}
+    ],
+
+    "passenger_count_options": [1, 2, 3, 4, 5, "6+"],
+
+    "vehicle_damage_levels": [
+      {"level": 1, "label": "Minor Dents", "icon": "🟢", "color": "#22C55E", "description": "Cosmetic damage only"},
+      {"level": 2, "label": "Moderate", "icon": "🟡", "color": "#EAB308", "description": "Broken lights, cracked windshield"},
+      {"level": 3, "label": "Significant", "icon": "🟠", "color": "#F97316", "description": "Door crushed, airbags deployed"},
+      {"level": 4, "label": "Severe", "icon": "🔴", "color": "#DC2626", "description": "Major structural damage, cabin intrusion"},
+      {"level": 5, "label": "Catastrophic", "icon": "⚫", "color": "#7F1D1D", "description": "Unrecognizable, rollover, fire"}
+    ],
+
+    "transport_recommendations": {
+      "P1": {"type": "ALS Ambulance", "label": "ADVANCED LIFE SUPPORT", "icon": "🚑", "color": "#DC2626", "description": "Immediate paramedic-staffed ambulance with ALS equipment"},
+      "P2": {"type": "BLS Ambulance", "label": "BASIC LIFE SUPPORT", "icon": "🚑", "color": "#F97316", "description": "Ambulance with basic emergency equipment and trained EMT"},
+      "P3": {"type": "Self-drive / Escort", "label": "PRIVATE TRANSPORT", "icon": "🚗", "color": "#EAB308", "description": "Can be driven to hospital by companion if stable"},
+      "P4": {"type": "Self-care", "label": "ON-SITE FIRST AID", "icon": "🩹", "color": "#06B6D4", "description": "First aid on scene, hospital visit optional"}
+    }
+  }
 }

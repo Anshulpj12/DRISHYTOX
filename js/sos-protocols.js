@@ -285,8 +285,8 @@ const SOS_COMBO_RULES = [
 
 // ═══ TRIAGE ENGINE ═══
 const SOSTriageEngine = {
-  // Calculate priority from selected conditions + assessments
-  calculatePriority(selectedConditions, assessmentResults) {
+  // Calculate priority from selected conditions + assessments + context
+  calculatePriority(selectedConditions, assessmentResults, contextData) {
     let maxPriority = 4;
     let treatmentSequence = [];
     let matchedRules = [];
@@ -302,6 +302,43 @@ const SOSTriageEngine = {
       const c = SOS_CONDITIONS.find(x => x.id === cId);
       if (c) totalScore += c.severity;
     });
+
+    // ═══ PHASE 2: Context modifiers ═══
+    if (contextData) {
+      // Pain level adds 0-4 to score
+      if (typeof contextData.painLevel === 'number') {
+        totalScore += contextData.painLevel;
+      }
+      // Accident type severity modifier
+      if (contextData.accidentType) {
+        const accidentModifiers = {
+          'AT_HEADON': 3, 'AT_ROLLOVER': 3, 'AT_PEDESTRIAN': 3,
+          'AT_SIDE': 2, 'AT_MULTI': 2, 'AT_MOTORCYCLE': 2,
+          'AT_REAREND': 1, 'AT_SINGLE': 1
+        };
+        totalScore += accidentModifiers[contextData.accidentType] || 0;
+      }
+      // Contextual flags — priority boosters
+      if (contextData.flags && contextData.flags.length > 0) {
+        const flagBoosts = {
+          'FLAG_FIRE': 3, 'FLAG_PREGNANT': 2, 'FLAG_CHILD': 2,
+          'FLAG_HAZMAT': 3, 'FLAG_WEATHER': 0, 'FLAG_NIGHT': 0
+        };
+        contextData.flags.forEach(f => { totalScore += flagBoosts[f] || 0; });
+        // Fire/Hazmat auto-boost to P1
+        if (contextData.flags.includes('FLAG_FIRE') || contextData.flags.includes('FLAG_HAZMAT')) {
+          if (maxPriority > 1) maxPriority = 1;
+        }
+      }
+      // Vehicle damage level (1-5) adds 0-3
+      if (contextData.damageLevel && contextData.damageLevel >= 4) {
+        totalScore += contextData.damageLevel - 2;
+      }
+      // Multiple passengers increase urgency
+      if (contextData.passengerCount && contextData.passengerCount > 3) {
+        totalScore += 1;
+      }
+    }
 
     // Match combination rules (most specific first)
     const sorted = [...SOS_COMBO_RULES].sort((a, b) => b.conditions.length - a.conditions.length);
@@ -340,10 +377,98 @@ const SOSTriageEngine = {
       label: labels[maxPriority],
       color: colors[maxPriority],
       score: totalScore,
+      severityScore: this.calculateSeverityScore(totalScore, maxPriority, contextData),
+      transportRecommendation: this.getTransportRecommendation(maxPriority),
+      riskEscalation: this.getRiskEscalation(selectedConditions, contextData),
       treatmentSequence,
       matchedRules,
       treatments: treatmentSequence.map(id => SOS_TREATMENTS[id]).filter(Boolean)
     };
+  },
+
+  /**
+   * Calculate a 0-100 severity score from raw score + priority + context.
+   * Higher = more severe.
+   */
+  calculateSeverityScore(rawScore, priority, contextData) {
+    // Base: priority weight (P1=70, P2=50, P3=30, P4=15)
+    const priorityBase = {1: 70, 2: 50, 3: 30, 4: 15};
+    let score = priorityBase[priority] || 15;
+
+    // Add raw score contribution (capped at 30 points)
+    score += Math.min(30, rawScore * 1.5);
+
+    // Context boosts
+    if (contextData) {
+      if (contextData.painLevel >= 4) score += 5;
+      if (contextData.damageLevel >= 4) score += 5;
+      if (contextData.flags?.includes('FLAG_FIRE')) score += 5;
+      if (contextData.flags?.includes('FLAG_HAZMAT')) score += 5;
+      if (contextData.passengerCount > 4) score += 3;
+    }
+
+    return Math.min(100, Math.max(0, Math.round(score)));
+  },
+
+  /**
+   * Get transport recommendation based on priority.
+   */
+  getTransportRecommendation(priority) {
+    const recs = {
+      1: { type: 'ALS Ambulance', label: 'ADVANCED LIFE SUPPORT', icon: '🚑', color: '#DC2626', description: 'Immediate paramedic-staffed ambulance with ALS equipment' },
+      2: { type: 'BLS Ambulance', label: 'BASIC LIFE SUPPORT', icon: '🚑', color: '#F97316', description: 'Ambulance with basic emergency equipment and trained EMT' },
+      3: { type: 'Self-drive / Escort', label: 'PRIVATE TRANSPORT', icon: '🚗', color: '#EAB308', description: 'Can be driven to hospital by companion if stable' },
+      4: { type: 'Self-care', label: 'ON-SITE FIRST AID', icon: '🩹', color: '#06B6D4', description: 'First aid on scene, hospital visit optional' },
+    };
+    return recs[priority] || recs[4];
+  },
+
+  /**
+   * Predict risk escalation based on conditions and context.
+   */
+  getRiskEscalation(conditions, contextData) {
+    const risks = [];
+
+    // Condition-based escalation risks
+    if (conditions.includes('head_injury')) {
+      risks.push('⚠️ Head injuries can deteriorate rapidly — monitor consciousness every 2 min');
+    }
+    if (conditions.includes('heavy_bleeding') || conditions.includes('bleeding')) {
+      risks.push('⚠️ Uncontrolled bleeding leads to shock within 10-15 minutes');
+    }
+    if (conditions.includes('chest_pain')) {
+      risks.push('⚠️ Chest pain may indicate cardiac arrest — be ready for CPR');
+    }
+    if (conditions.includes('burns') || conditions.includes('severe_burns')) {
+      risks.push('⚠️ Burns cause progressive fluid loss — shock risk increases over time');
+    }
+    if (conditions.includes('spine_injury')) {
+      risks.push('⚠️ Any movement without immobilization risks permanent paralysis');
+    }
+    if (conditions.includes('unconscious') && conditions.includes('vomiting')) {
+      risks.push('⚠️ Aspiration risk — keep in recovery position at all times');
+    }
+
+    // Context-based risks
+    if (contextData) {
+      if (contextData.flags?.includes('FLAG_FIRE')) {
+        risks.push('🔥 Fire present — evacuate if safe, risk of explosion');
+      }
+      if (contextData.flags?.includes('FLAG_HAZMAT')) {
+        risks.push('☣️ Hazmat exposure — move upwind, decontaminate if possible');
+      }
+      if (contextData.flags?.includes('FLAG_PREGNANT')) {
+        risks.push('🤰 Pregnant victim — position on LEFT side, monitor for complications');
+      }
+      if (contextData.damageLevel >= 4) {
+        risks.push('🚗 Severe vehicle damage — assume hidden injuries, check for trapped occupants');
+      }
+      if (contextData.accidentType === 'AT_ROLLOVER') {
+        risks.push('🔄 Rollover — assume spinal injury until proven otherwise');
+      }
+    }
+
+    return risks.length > 0 ? risks : ['Monitor vitals and condition continuously until help arrives'];
   },
 
   // Get all steps flattened in order
