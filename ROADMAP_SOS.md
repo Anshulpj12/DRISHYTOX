@@ -51,7 +51,7 @@
 
 ---
 
-## 🔄 PHASE 1: Body Map + Injury Selection UI (IN PROGRESS)
+## ✅ PHASE 1: Body Map + Injury Selection UI (COMPLETED)
 
 **Goal**: Replace flat condition grid with interactive SVG body map + searchable condition selector
 
@@ -69,15 +69,15 @@
   - `BodyMapEngine` — region-to-condition mapping, multi-select, front/back view toggle
   - `SearchEngine` — fuzzy substring search across condition labels, IDs, and categories
 
-- 🔄 **HTML** — Screen 2 overhaul in `pages/road-sos.html` (NEEDS IMPLEMENTATION):
-  - 🔲 Inline SVG body figure with tappable regions (front view)
-  - 🔲 Inline SVG body figure (back view) with toggle
-  - 🔲 Search bar with real-time filtering
-  - 🔲 Category quick-filter chips (neuro, airway, cardiac, trauma, bleeding, etc.)
-  - 🔲 Enhanced condition grid using `.cond-btn-v2` cards
-  - 🔲 Region filter indicator bar showing selected body parts
-  - 🔲 Selected conditions pill display
-  - 🔲 JavaScript: wire body map clicks → filter grid, search input → filter, chip toggles
+- ✅ **HTML** — Screen 2 overhaul in `pages/road-sos.html`:
+  - ✅ Inline SVG body figure with tappable regions (front view)
+  - ✅ Inline SVG body figure (back view) with toggle
+  - ✅ Search bar with real-time filtering
+  - ✅ Category quick-filter chips (neuro, airway, cardiac, trauma, bleeding, etc.)
+  - ✅ Enhanced condition grid using `.cond-btn-v2` cards
+  - ✅ Region filter indicator bar showing selected body parts
+  - ✅ Selected conditions pill display
+  - ✅ JavaScript: wired body map clicks → filter grid, search input → filter, chip toggles
 
 ### Implementation Details for Screen 2:
 ```
