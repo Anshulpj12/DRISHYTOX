@@ -9,6 +9,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 Phase 1: Interactive Body Map & Search UI — 2026-05-13
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Injury Selection | Flat static grid of 22 conditions | Interactive SVG body map with 11 regions |
+| Filtering | Hardcoded category tabs | Search bar (fuzzy match) + category chips |
+| Visuals | Basic cards | Enhanced cards with severity indicators (P1-P4) |
+| Architecture | Basic UI mapping | Added `BodyMapEngine` and `SearchEngine` |
+
+**Why:** To allow users to select injuries faster during panic situations by visually tapping the affected body area rather than reading through a long list.
+
+**Files Changed:**
+- `ROADMAP_SOS.md` — [NEW] Added master roadmap file for AI agents
+- `css/sos.css` — Added body map, search, and enhanced card styles
+- `js/sos-protocols.js` — Added `BodyMapEngine` and `SearchEngine`
+- `pages/road-sos.html` — Replaced Screen 2 with new 3-panel layout (body map, search, grid)
+
+
 ### 📝 Road SOS — Full Triage Coverage + Multi-Injury Combos — 2026-05-12
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)
