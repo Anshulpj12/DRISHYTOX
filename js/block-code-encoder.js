@@ -149,12 +149,110 @@ const BlockCodeEncoder = {
   },
 
   /**
-   * Validate a block code format.
+   * Validate a block code format (supports both 11-char and 15-char).
    * @param {string} code - Code to validate
    * @returns {boolean}
    */
   isValid(code) {
     if (!code || typeof code !== 'string') return false;
-    return /^[A-Z]{2}-\d{3}-[A-Z]{3}$/.test(code.toUpperCase().trim());
+    const upper = code.toUpperCase().trim();
+    // Match RR-NNN-TTT or RR-NNN-TTT-RRRR
+    return /^[A-Z]{2}-\d{3}-[A-Z]{3}(-[A-Z]{4})?$/.test(upper);
+  },
+
+  // ═══ REASON-ENHANCED ENCODING (15-char format) ═══
+
+  /**
+   * Reason codes for auto-SOS triggers.
+   */
+  _REASON_CODES: {
+    'NRSP': 'No Response',
+    'STAT': 'Stationary too long',
+    'GOFF': 'GPS turned off',
+    'FALL': 'Fall detected',
+    'MANU': 'Manual SOS',
+    'AUTO': 'Auto-triggered',
+  },
+
+  /**
+   * Encode lat/lng + type + reason into 15-char block code.
+   * @param {number} lat - Latitude
+   * @param {number} lng - Longitude
+   * @param {string} type - Emergency type code (ACC, MED, SOS, etc.)
+   * @param {string} reason - 4-char reason code (GOFF, STAT, NRSP, etc.)
+   * @returns {string} Block code "RR-NNN-TTT-RRRR" (max 15 chars)
+   */
+  encodeWithReason(lat, lng, type, reason) {
+    const base = this.encode(lat, lng, type);
+    const reasonCode = (reason || 'AUTO').substring(0, 4).toUpperCase().padEnd(4, 'X');
+    return `${base}-${reasonCode}`;
+  },
+
+  /**
+   * Decode a 15-char block code back to lat/lng + type + reason.
+   * Also handles legacy 11-char codes (no reason).
+   * @param {string} code - Block code "RR-NNN-TTT" or "RR-NNN-TTT-RRRR"
+   * @returns {object|null} {lat, lng, type, reason, reasonLabel, ...} or null
+   */
+  decodeWithReason(code) {
+    if (!code || typeof code !== 'string') return null;
+    const parts = code.toUpperCase().trim().split('-');
+    if (parts.length < 3 || parts.length > 4) return null;
+
+    // Decode base location (first 3 parts)
+    const baseCode = parts.slice(0, 3).join('-');
+    const decoded = this.decode(baseCode);
+    if (!decoded) return null;
+
+    // Add reason if present
+    if (parts.length === 4) {
+      decoded.reason = parts[3];
+      decoded.reasonLabel = this._REASON_CODES[parts[3]] || parts[3];
+    } else {
+      decoded.reason = null;
+      decoded.reasonLabel = 'Unknown';
+    }
+    decoded.fullCode = code.toUpperCase().trim();
+    return decoded;
+  },
+
+  /**
+   * Generate a block code using offline estimated position.
+   * Uses last known GPS + community/driver averages when GPS is off.
+   * @param {string} type - Emergency type code
+   * @param {string} reason - Reason code
+   * @returns {string} Block code (best-effort position)
+   */
+  getOfflineEstimatedCode(type, reason) {
+    let lat = 0, lng = 0;
+
+    // Try GPSTracker's estimated position (dead reckoning)
+    if (typeof GPSTracker !== 'undefined') {
+      const estimated = GPSTracker.getEstimatedPosition();
+      if (estimated) { lat = estimated.lat; lng = estimated.lng; }
+
+      // Fallback to last known position
+      if (lat === 0 && GPSTracker.lastPosition) {
+        lat = GPSTracker.lastPosition.lat;
+        lng = GPSTracker.lastPosition.lng;
+      }
+
+      // Fallback to last online position
+      if (lat === 0 && GPSTracker.lastOnlinePosition) {
+        lat = GPSTracker.lastOnlinePosition.lat;
+        lng = GPSTracker.lastOnlinePosition.lng;
+      }
+    }
+
+    // Last resort: use stored position from localStorage
+    if (lat === 0) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('apara_last_known_pos'));
+        if (saved) { lat = saved.lat; lng = saved.lng; }
+      } catch (e) { /* ignore */ }
+    }
+
+    if (lat === 0) return `XX-000-${(type || 'SOS').substring(0,3)}-${(reason || 'AUTO').substring(0,4)}`;
+    return this.encodeWithReason(lat, lng, type || 'SOS', reason || 'AUTO');
   },
 };

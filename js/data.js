@@ -244,6 +244,14 @@ const GPSTracker = {
   _driverSpeedHistory: [],     // Recent speed samples for driver average
   _driverAvgSpeedKmh: 0,      // Rolling average
 
+  // ═══ GPS STATE TRACKING (for LocationWatchdog) ═══
+  _isGPSActive: true,          // Is GPS currently providing positions?
+  _gpsLostTime: null,          // Timestamp when GPS was lost
+  _gpsStateListeners: [],      // Callbacks for GPS state changes
+  _lastMovementPos: null,      // Position at last significant movement
+  _lastMovementTime: Date.now(), // Timestamp of last significant movement
+  _MOVEMENT_THRESHOLD_M: 50,   // Minimum distance (meters) to count as "moved"
+
   start() {
     if (!navigator.geolocation) { console.warn('Geolocation not available'); return; }
 
@@ -252,8 +260,17 @@ const GPSTracker = {
     if (savedAvg) this._driverAvgSpeedKmh = parseFloat(savedAvg) || 0;
 
     this.watchId = navigator.geolocation.watchPosition(
-      (pos) => { this._processRawPosition(pos); },
-      (err) => { console.warn('GPS error:', err.message); },
+      (pos) => {
+        this._processRawPosition(pos);
+        this._emitGPSState(true);
+      },
+      (err) => {
+        console.warn('GPS error:', err.message);
+        // GPS errors mean GPS is not working (permission denied, timeout, etc.)
+        if (err.code === 1 || err.code === 3) {
+          this._emitGPSState(false);
+        }
+      },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
 
@@ -328,6 +345,28 @@ const GPSTracker = {
 
     // Smooth position if accuracy is poor
     this.lastPosition = this._getSmoothedPosition(raw);
+
+    // ═══ MOVEMENT DETECTION (for LocationWatchdog) ═══
+    if (this._lastMovementPos) {
+      const moveDist = Utils.haversine(
+        this._lastMovementPos.lat, this._lastMovementPos.lng,
+        raw.lat, raw.lng
+      );
+      if (moveDist > this._MOVEMENT_THRESHOLD_M) {
+        this._lastMovementPos = { lat: raw.lat, lng: raw.lng };
+        this._lastMovementTime = Date.now();
+      }
+    } else {
+      this._lastMovementPos = { lat: raw.lat, lng: raw.lng };
+      this._lastMovementTime = Date.now();
+    }
+
+    // ═══ SAVE LAST KNOWN POSITION (for offline block code fallback) ═══
+    try {
+      localStorage.setItem('apara_last_known_pos', JSON.stringify({
+        lat: this.lastPosition.lat, lng: this.lastPosition.lng, time: Date.now()
+      }));
+    } catch (e) { /* quota exceeded, ignore */ }
 
     if (NetworkDetector.isOnline()) {
       this.lastOnlinePosition = { ...this.lastPosition };
@@ -442,6 +481,50 @@ const GPSTracker = {
 
   onChange(fn) { this._listeners.push(fn); },
   _notify() { this._listeners.forEach(fn => fn(this.lastPosition)); },
+
+  // ═══ GPS STATE API (for LocationWatchdog) ═══
+
+  /**
+   * Register callback for GPS on/off state changes.
+   * @param {function} fn - Called with (isActive: boolean)
+   */
+  onGPSStateChange(fn) { this._gpsStateListeners.push(fn); },
+
+  /**
+   * Emit GPS state change. Deduplicates — only fires on actual change.
+   */
+  _emitGPSState(active) {
+    if (this._isGPSActive !== active) {
+      this._isGPSActive = active;
+      this._gpsLostTime = active ? null : Date.now();
+      console.log(`[GPSTracker] GPS state: ${active ? 'ACTIVE' : 'LOST'}`);
+      this._gpsStateListeners.forEach(fn => fn(active));
+    }
+  },
+
+  /**
+   * Get time in ms since the driver last moved >50m.
+   * @returns {number} Milliseconds since last significant movement
+   */
+  getTimeSinceLastMovement() {
+    return Date.now() - this._lastMovementTime;
+  },
+
+  /**
+   * Check if the driver is currently stationary (hasn't moved >50m in 5 min).
+   * @returns {boolean}
+   */
+  isStationary() {
+    return this.getTimeSinceLastMovement() > 5 * 60 * 1000;
+  },
+
+  /**
+   * Check if GPS is currently active.
+   * @returns {boolean}
+   */
+  isGPSActive() {
+    return this._isGPSActive;
+  },
 };
 
 // ═══ Block Code Resolver ═══

@@ -9,6 +9,57 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 AI Agent Handoff Document + Location Watchdog Implementation Plan — 2026-05-16
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| AI Context | No handoff document for AI agents | Full 400-line AI_AGENT_CONTEXT.md with architecture, file docs, and pending specs |
+| Location Watchdog | No auto-SOS safety system planned | Complete 5-component implementation plan with state machines and data flows |
+
+**Why:** Created a comprehensive handoff document so any AI agent can continue development without losing context. Documented the entire project architecture, file structure, completed work, and detailed specifications for the pending Location Watchdog + Block Code Emergency system.
+
+**Files Changed:**
+- `AI_AGENT_CONTEXT.md` — [NEW] Complete AI agent handoff document with project context, architecture, and pending work specs
+
+### 📝 Fixed Condition Grid Not Rendering — Temporal Dead Zone Bug — 2026-05-16
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Condition Cards | 0 cards visible — grid completely empty | All 22 injury conditions render correctly |
+| Quick Chips | Not showing (ALL, BRAIN, AIRWAY, etc.) | 9 category filter chips render and function |
+| Screen 2.5 (Context) | PAIN_LEVELS error — context screen broken | Pain, accident type, and damage selectors work |
+| Root Cause | `const`/`let` declarations AFTER boot IIFE — temporal dead zone | All constants moved BEFORE boot IIFE |
+
+**Why:** The boot function was an IIFE (Immediately Invoked Function Expression) that ran at script parse time. It called `buildQuickChips()`, `renderCondGrid()`, and `initScreen25()`, which all referenced `const`/`let` variables (`CHIP_CATS`, `searchQuery`, `PAIN_LEVELS`, `ACCIDENT_TYPES`, `CTX_FLAGS`, `DAMAGE_LEVELS`) that were declared AFTER the IIFE. JavaScript's temporal dead zone prevents accessing `const`/`let` before their declaration line, causing silent `ReferenceError`s that crashed all three functions.
+
+**Files Changed:**
+- `pages/road-sos.html` — Moved all `const`/`let` variable declarations (CHIP_CATS, activeChip, searchQuery, PAIN_LEVELS, ACCIDENT_TYPES, CTX_FLAGS, DAMAGE_LEVELS) from after the boot IIFE to before it, resolving the temporal dead zone
+
+### 📝 Road SOS — Instant Condition Detail Panel + Body Map Fix — 2026-05-14
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Condition Selection | Selecting a condition only added a checkmark — no info shown | Selecting a condition instantly shows a rich detail panel with protocol steps, DO NOT warnings, timers, and medical source citations |
+| Body Map Size | Body map was 340px tall, pushing condition grid off-screen on mobile | Reduced to 200px — conditions are now visible without scrolling |
+| Protocol Data | JSON dataset protocols were loaded but never displayed to the user | Protocols from `road_sos_system.json` are now rendered with step-by-step cards when any condition is tapped |
+| CSS Bug | `~` sibling selector colored ALL body region labels when one was selected | Fixed to `+` adjacent sibling selector — only the selected region's label is highlighted |
+| Comm Chips | SMS chip `<a>` tag had underline decoration | Added `text-decoration: none` to `.comm-chip` |
+
+**Why:** Users could not see any treatment details, prevention info, or "what to do" steps after selecting body parts and conditions. The full dataset was being loaded but never displayed. Now tapping any condition immediately shows the complete protocol.
+
+**Files Changed:**
+- `pages/road-sos.html` — Added `#condDetail` panel div, `showCondDetail()` function that renders JSON protocol data with steps/warnings/sources
+- `css/sos.css` — Added `.cond-detail-panel` styles (header, steps, DO NOT warnings, source citations), reduced body map height, fixed CSS sibling selector bug
+
 ### 📝 Road SOS — Phases 2, 3 & 4: Context Screen, GPS Safety, Provider Dispatch — 2026-05-13
 
 **Contributor:** TejaswiniKhelkar

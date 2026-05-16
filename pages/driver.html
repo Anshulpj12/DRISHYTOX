@@ -315,6 +315,59 @@ html { scroll-behavior: smooth; }
   border-top-color: var(--accent-alert); border-radius: 50%; animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── WATCHDOG WARNING MODAL ─── */
+.watchdog-modal {
+  position: fixed; inset: 0; z-index: 999999;
+  background: rgba(0,0,0,0.92); backdrop-filter: blur(24px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+}
+.watchdog-modal.active { opacity: 1; pointer-events: all; }
+.watchdog-content {
+  background: rgba(17,24,39,0.95); border: 2px solid rgba(239,68,68,0.4);
+  border-radius: 20px; padding: 2rem 1.5rem; max-width: 340px; width: 90%;
+  text-align: center; box-shadow: 0 0 60px rgba(239,68,68,0.15);
+  animation: watchdogPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes watchdogPop { from { opacity:0; transform:scale(0.85); } to { opacity:1; transform:scale(1); } }
+.watchdog-content .wd-icon { font-size: 3.5rem; margin-bottom: 0.75rem; }
+.watchdog-content .wd-title { font-size: 1.3rem; font-weight: 800; color: #F87171; margin-bottom: 0.5rem; }
+.watchdog-content .wd-message { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1rem; }
+.watchdog-content .wd-timer {
+  font-family: var(--font-mono); font-size: 3rem; font-weight: 800;
+  color: var(--accent-alert); margin-bottom: 0.3rem;
+  text-shadow: 0 0 20px rgba(249,115,22,0.4);
+}
+.watchdog-content .wd-timer-sub { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+.watchdog-content .wd-actions { display: flex; gap: 0.6rem; }
+.watchdog-content .wd-btn {
+  flex: 1; padding: 0.9rem; border: none; border-radius: 14px;
+  font-size: 0.85rem; font-weight: 700; cursor: pointer;
+  transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.watchdog-content .wd-btn:active { transform: scale(0.96); }
+.wd-btn.wd-safe { background: rgba(34,197,94,0.15); color: #22C55E; border: 1px solid rgba(34,197,94,0.3); }
+.wd-btn.wd-sos { background: linear-gradient(135deg,#DC2626,#EF4444); color: #fff; box-shadow: 0 4px 20px rgba(239,68,68,0.3); }
+
+/* ─── PARKED MODE BANNER ─── */
+.parked-banner {
+  position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px; z-index: 99998;
+  background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.1));
+  border-bottom: 1px solid rgba(139,92,246,0.3);
+  padding: 0.75rem 1rem; display: flex; align-items: center;
+  justify-content: space-between; gap: 0.5rem;
+  backdrop-filter: blur(16px);
+}
+.parked-banner span { font-size: 0.78rem; font-weight: 600; color: #A78BFA; }
+.parked-banner button {
+  background: rgba(34,197,94,0.15); color: #22C55E; border: 1px solid rgba(34,197,94,0.3);
+  padding: 0.45rem 1rem; border-radius: 10px; font-size: 0.78rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.parked-banner button:active { transform: scale(0.95); }
+.parked-banner.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -720,6 +773,28 @@ html { scroll-behavior: smooth; }
   </div>
   <button class="vsos-cancel-btn" onclick="voiceSosCancel()">✕ Cancel — I'm OK</button>
 </div>
+
+<!-- ═══ WATCHDOG WARNING MODAL ═══ -->
+<div class="watchdog-modal" id="watchdogModal">
+  <div class="watchdog-content">
+    <div class="wd-icon" id="wdIcon">⚠️</div>
+    <div class="wd-title" id="wdTitle">ARE YOU SAFE?</div>
+    <div class="wd-message" id="wdMessage">Your GPS has been off for 5 minutes.</div>
+    <div class="wd-timer" id="wdTimer">0:60</div>
+    <div class="wd-timer-sub">SOS will auto-send when timer reaches 0</div>
+    <div class="wd-actions" id="wdActions">
+      <button class="wd-btn wd-safe" id="wdSafeBtn" onclick="watchdogSafe()">✅ I'M OK</button>
+      <button class="wd-btn wd-sos" onclick="watchdogSOS()">🆘 SEND SOS</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PARKED MODE BANNER ═══ -->
+<div class="parked-banner hidden" id="parkedBanner">
+  <span>🅿️ PARKED MODE — Safety monitoring paused</span>
+  <button onclick="resumeDriving()">▶ START</button>
+</div>
+
 <nav class="mobile-nav" id="mainNav" style="display:none;">
   <div class="mobile-nav-item active" onclick="switchScreen('screenHome')"><span class="nav-icon">🏠</span>Home</div>
   <div class="mobile-nav-item" onclick="switchScreen('screenMarketplace')"><span class="nav-icon">🍽️</span>Market</div>
@@ -735,6 +810,9 @@ html { scroll-behavior: smooth; }
 <script src="../js/firebase-config.js"></script>
 <script src="../js/firebase.js"></script>
 <script src="../js/data.js"></script>
+<script src="../js/block-code-encoder.js" crossorigin="anonymous"></script>
+<script src="../js/sos-provider-engine.js" crossorigin="anonymous"></script>
+<script src="../js/location-watchdog.js" crossorigin="anonymous"></script>
 <script>
 // ═══ STATE ═══
 let state = {
@@ -780,6 +858,8 @@ function driverLogin() {
   // Init config push listener
   ConfigPush.onChange(onConfigPushUpdate);
   ConfigPush.init();
+  // ═══ START LOCATION WATCHDOG ═══
+  initWatchdog();
   showToast(`Welcome! Your ID: ${driver.id}`);
   // ═══ FIREBASE INIT — Download zone data from cloud ═══
   FirebaseSync.init().then(ready => {
@@ -2837,6 +2917,109 @@ function voiceSosSelect(num) {
   if (map[num]) VoiceSOS._executeVoiceSOS(map[num]);
 }
 function voiceSosCancel() { VoiceSOS.cancel(); }
+
+// ═══ LOCATION WATCHDOG — UI Integration ═══
+
+function initWatchdog() {
+  if (typeof LocationWatchdog === 'undefined') {
+    console.warn('[Driver] LocationWatchdog not loaded');
+    return;
+  }
+
+  LocationWatchdog.setCallbacks({
+    onShowWarning: function(type, message, countdown) {
+      const modal = document.getElementById('watchdogModal');
+      const icon = document.getElementById('wdIcon');
+      const title = document.getElementById('wdTitle');
+      const msg = document.getElementById('wdMessage');
+      const safeBtn = document.getElementById('wdSafeBtn');
+
+      if (type === 'STATIONARY') {
+        icon.textContent = '🚗';
+        title.textContent = 'ARE YOU PARKED?';
+        safeBtn.textContent = '🅿️ STAY';
+      } else {
+        icon.textContent = '⚠️';
+        title.textContent = 'ARE YOU SAFE?';
+        safeBtn.textContent = '✅ I\'M OK';
+      }
+      msg.textContent = message;
+      document.getElementById('wdTimer').textContent = '0:' + String(countdown).padStart(2, '0');
+      modal.classList.add('active');
+
+      // Vibrate to alert driver
+      if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+    },
+
+    onHideWarning: function() {
+      document.getElementById('watchdogModal').classList.remove('active');
+    },
+
+    onUpdateCountdown: function(seconds) {
+      const min = Math.floor(seconds / 60);
+      const sec = seconds % 60;
+      document.getElementById('wdTimer').textContent = min + ':' + String(sec).padStart(2, '0');
+
+      // Intensify vibration in last 10 seconds
+      if (seconds <= 10 && seconds > 0 && navigator.vibrate) {
+        navigator.vibrate(300);
+      }
+    },
+
+    onShowParked: function() {
+      document.getElementById('parkedBanner').classList.remove('hidden');
+      showToast('🅿️ Parked mode — tap START when you drive');
+    },
+
+    onHideParked: function() {
+      document.getElementById('parkedBanner').classList.add('hidden');
+    },
+
+    onTriggerSOS: function(blockCode, smsUri, smsBody, providers) {
+      showToast('🆘 AUTO-SOS SENT — Emergency alert dispatched');
+      // Update SOS banner on home screen
+      if (state.activeSOS) {
+        state.activeSOS.blockCode = blockCode;
+        state.activeSOS.autoTriggered = true;
+      } else {
+        state.activeSOS = {
+          id: 'SOS-' + Date.now(),
+          blockCode: blockCode,
+          autoTriggered: true,
+          timestamp: Date.now(),
+          providers: providers || [],
+        };
+      }
+      updateSOSBanner();
+    },
+  });
+
+  LocationWatchdog.start();
+  console.log('[Driver] LocationWatchdog initialized');
+}
+
+function watchdogSafe() {
+  if (typeof LocationWatchdog === 'undefined') return;
+  const wdState = LocationWatchdog.getState();
+  if (wdState === 'STAT_WARN') {
+    // Stationary warning — STAY button pressed
+    LocationWatchdog.pressStay();
+  } else {
+    // GPS off warning — OK button pressed
+    LocationWatchdog.pressOK();
+  }
+}
+
+function watchdogSOS() {
+  if (typeof LocationWatchdog === 'undefined') return;
+  LocationWatchdog.pressNO();
+}
+
+function resumeDriving() {
+  if (typeof LocationWatchdog === 'undefined') return;
+  LocationWatchdog.pressStart();
+  showToast('▶ Driving mode resumed — safety monitoring active');
+}
 
 init();
 // Start shock detection after init

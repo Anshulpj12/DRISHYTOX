@@ -141,6 +141,8 @@
     <div id="noResults" style="display:none;text-align:center;padding:2rem 1rem;font-family:var(--mono);font-size:.72rem;color:var(--outline)">
       No conditions found. Try a different search or body region.
     </div>
+    <!-- Detail Panel: shows when condition is selected -->
+    <div id="condDetail" style="display:none"></div>
   </div>
 
   <!-- Navigation -->
@@ -340,6 +342,54 @@ const S = {
   ttsEnabled:true,ttsLang:'en'
 };
 
+// ═══ CONSTANTS (must be before boot IIFE) ═══
+const CHIP_CATS = [
+  {id:'ALL',label:'ALL',icon:'🔍'},
+  {id:'neuro',label:'BRAIN',icon:'🧠'},
+  {id:'airway',label:'AIRWAY',icon:'🫁'},
+  {id:'bleeding',label:'BLEED',icon:'🩸'},
+  {id:'trauma',label:'TRAUMA',icon:'🦴'},
+  {id:'cardiac',label:'HEART',icon:'❤️'},
+  {id:'fracture',label:'BONES',icon:'💪'},
+  {id:'burns',label:'BURNS',icon:'🔥'},
+  {id:'systemic',label:'OTHER',icon:'➕'}
+];
+let activeChip = 'ALL';
+let searchQuery = '';
+
+const PAIN_LEVELS=[
+  {level:0,label:'NONE',emoji:'😊',color:'#22C55E'},
+  {level:1,label:'MILD',emoji:'😐',color:'#84CC16'},
+  {level:2,label:'MODERATE',emoji:'😣',color:'#EAB308'},
+  {level:3,label:'SEVERE',emoji:'😖',color:'#F97316'},
+  {level:4,label:'EXTREME',emoji:'😱',color:'#DC2626'}
+];
+const ACCIDENT_TYPES=[
+  {id:'AT_HEADON',label:'Head-on',icon:'💥'},
+  {id:'AT_REAREND',label:'Rear-end',icon:'🚗'},
+  {id:'AT_SIDE',label:'Side',icon:'🚙'},
+  {id:'AT_ROLLOVER',label:'Rollover',icon:'🔄'},
+  {id:'AT_PEDESTRIAN',label:'Pedestrian',icon:'🚶'},
+  {id:'AT_SINGLE',label:'Single',icon:'🚘'},
+  {id:'AT_MULTI',label:'Multi-Car',icon:'🚧'},
+  {id:'AT_MOTORCYCLE',label:'Bike',icon:'🏍️'}
+];
+const CTX_FLAGS=[
+  {id:'FLAG_FIRE',label:'Fire/Smoke',icon:'🔥'},
+  {id:'FLAG_PREGNANT',label:'Pregnancy',icon:'🤰'},
+  {id:'FLAG_CHILD',label:'Child/Elderly',icon:'👶'},
+  {id:'FLAG_HAZMAT',label:'Hazmat',icon:'☣️'},
+  {id:'FLAG_WEATHER',label:'Bad Weather',icon:'🌧️'},
+  {id:'FLAG_NIGHT',label:'Night',icon:'🌙'}
+];
+const DAMAGE_LEVELS=[
+  {level:1,label:'Minor',icon:'🟢',color:'#22C55E'},
+  {level:2,label:'Moderate',icon:'🟡',color:'#EAB308'},
+  {level:3,label:'Significant',icon:'🟠',color:'#F97316'},
+  {level:4,label:'Severe',icon:'🔴',color:'#DC2626'},
+  {level:5,label:'Total',icon:'⚫',color:'#7F1D1D'}
+];
+
 // ═══ BOOT ═══
 (function boot(){
   const p=new URLSearchParams(location.search);
@@ -383,19 +433,6 @@ function activateSOS(){
 }
 
 // ═══ S2: INJURY & CONDITION SELECTION (Body Map + Search + Grid) ═══
-const CHIP_CATS = [
-  {id:'ALL',label:'ALL',icon:'🔍'},
-  {id:'neuro',label:'BRAIN',icon:'🧠'},
-  {id:'airway',label:'AIRWAY',icon:'🫁'},
-  {id:'bleeding',label:'BLEED',icon:'🩸'},
-  {id:'trauma',label:'TRAUMA',icon:'🦴'},
-  {id:'cardiac',label:'HEART',icon:'❤️'},
-  {id:'fracture',label:'BONES',icon:'💪'},
-  {id:'burns',label:'BURNS',icon:'🔥'},
-  {id:'systemic',label:'OTHER',icon:'➕'}
-];
-let activeChip = 'ALL';
-let searchQuery = '';
 
 function buildQuickChips() {
   document.getElementById('quickChips').innerHTML = CHIP_CATS.map(c =>
@@ -518,13 +555,119 @@ function toggleCond(key, el) {
     S.selected.splice(i, 1);
     el.classList.remove('selected');
     el.querySelector('.check-mark').textContent = '';
+    // Hide detail if this was the one shown
+    if (S._detailKey === key) { document.getElementById('condDetail').style.display = 'none'; S._detailKey = null; }
   } else {
     S.selected.push(key);
     el.classList.add('selected');
     el.querySelector('.check-mark').textContent = '✓';
+    // Show detail panel for this condition
+    showCondDetail(key);
   }
   if (navigator.vibrate) navigator.vibrate(20);
   updateSelUI();
+}
+
+function showCondDetail(key) {
+  S._detailKey = key;
+  const panel = document.getElementById('condDetail');
+  // Find condition info
+  const cond = SOS_CONDITIONS.find(c => c.id === key);
+  if (!cond) { panel.style.display = 'none'; return; }
+  const sevMap = s => s >= 5 ? 'P1' : s >= 4 ? 'P2' : s >= 3 ? 'P3' : 'P4';
+  const sev = sevMap(cond.severity);
+  const sevLabels = {P1:'IMMEDIATE — LIFE THREATENING',P2:'URGENT — SERIOUS',P3:'DELAYED — MODERATE',P4:'MINIMAL'};
+
+  // Find matching treatment from SOS_TREATMENTS
+  let treat = null;
+  for (const t of Object.values(SOS_TREATMENTS)) {
+    if (t.forConditions && t.forConditions.includes(key)) { treat = t; break; }
+  }
+
+  // Also try to find protocol from JSON dataset
+  let jsonProto = null;
+  let jsonCond = null;
+  try {
+    const j = window._rj;
+    if (j && j.injury_conditions) {
+      for (const cat of Object.values(j.injury_conditions.categories)) {
+        for (const c of cat.conditions) {
+          if (c.key === key || c.id === key) { jsonCond = c; break; }
+        }
+        if (jsonCond) break;
+      }
+    }
+    if (jsonCond && j.protocols && jsonCond.auto_trigger_protocol) {
+      jsonProto = j.protocols[jsonCond.auto_trigger_protocol];
+    }
+  } catch(e) {}
+
+  // Build detail HTML
+  let html = `<div class="cond-detail-panel">`;
+  // Header
+  html += `<div class="cdp-header">
+    <span class="cdp-icon">${cond.icon}</span>
+    <span class="cdp-title">${jsonCond ? jsonCond.label : cond.label}</span>
+    <span class="cdp-severity ${sev.toLowerCase()}">${sev} ${sevLabels[sev] || ''}</span>
+  </div>`;
+
+  // Protocol from JSON (rich version)
+  if (jsonProto) {
+    html += `<div class="cdp-proto-name">📋 PROTOCOL: ${jsonProto.name}</div>`;
+    html += `<div class="cdp-steps">`;
+    jsonProto.steps.forEach(s => {
+      html += `<div class="cdp-step">
+        <span class="cdp-step-num">${s.step_number}</span>
+        <div class="cdp-step-body">
+          <div class="cdp-step-action">${s.action}</div>
+          <div class="cdp-step-detail">${s.detail}</div>
+          ${s.duration_seconds && s.duration_seconds > 0 ? `<span class="cdp-step-timer">⏱ ${s.duration_seconds >= 60 ? Math.floor(s.duration_seconds/60) + ' min' : s.duration_seconds + 's'}</span>` : ''}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+    // DO NOT warnings
+    if (jsonProto.do_not && jsonProto.do_not.length) {
+      html += `<div class="cdp-donot"><div class="cdp-donot-title">⚠️ DO NOT</div>`;
+      jsonProto.do_not.forEach(d => { html += `<div class="cdp-donot-item">${d}</div>`; });
+      html += `</div>`;
+    }
+    // Source
+    if (jsonProto.source) {
+      html += `<div class="cdp-source">📚 Source: ${jsonProto.source}</div>`;
+    }
+  }
+  // Fallback to SOS_TREATMENTS (hardcoded)
+  else if (treat) {
+    html += `<div class="cdp-proto-name">📋 PROTOCOL: ${treat.title}</div>`;
+    html += `<div class="cdp-steps">`;
+    treat.steps.forEach((s, i) => {
+      html += `<div class="cdp-step">
+        <span class="cdp-step-num">${i + 1}</span>
+        <div class="cdp-step-body">
+          <div class="cdp-step-action">${s.text}</div>
+          <div class="cdp-step-detail">${s.detail || ''}</div>
+          ${s.timer ? `<span class="cdp-step-timer">⏱ ${s.timer >= 60 ? Math.floor(s.timer/60) + ' min' : s.timer + 's'}</span>` : ''}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+    if (treat.donts && treat.donts.length) {
+      html += `<div class="cdp-donot"><div class="cdp-donot-title">⚠️ DO NOT</div>`;
+      treat.donts.forEach(d => { html += `<div class="cdp-donot-item">${d}</div>`; });
+      html += `</div>`;
+    }
+  } else {
+    html += `<div class="cdp-proto-name">ℹ️ Select more conditions or proceed to assessment for detailed guidance</div>`;
+  }
+
+  html += `<button class="cdp-collapse-btn" onclick="document.getElementById('condDetail').style.display='none';S._detailKey=null">▲ COLLAPSE DETAILS</button>`;
+  html += `</div>`;
+
+  panel.innerHTML = html;
+  panel.style.display = '';
+  // Auto-scroll to detail panel
+  setTimeout(() => panel.scrollIntoView({behavior:'smooth', block:'nearest'}), 100);
 }
 
 function updateSelUI() {
@@ -542,7 +685,7 @@ function updateSelUI() {
     return `<span class="pill" onclick="removeCond('${k}')">${c.icon} ${c.label} <span class="px">✕</span></span>`;
   }).join('');
 }
-function removeCond(key) {S.selected = S.selected.filter(k => k !== key); updateSelUI(); renderCondGrid();}
+function removeCond(key) {S.selected = S.selected.filter(k => k !== key); updateSelUI(); renderCondGrid(); if(S._detailKey===key){document.getElementById('condDetail').style.display='none';S._detailKey=null;}}
 
 // ═══ S3: ASSESSMENT ═══
 function initAssessment(){S.assessIdx=0;S.assessResults={};renderAssessQ();}
@@ -707,39 +850,6 @@ function setLang(lang,el){
 }
 
 // ═══ SCREEN 2.5: CONTEXT & DETAILS ═══
-const PAIN_LEVELS=[
-  {level:0,label:'NONE',emoji:'😊',color:'#22C55E'},
-  {level:1,label:'MILD',emoji:'😐',color:'#84CC16'},
-  {level:2,label:'MODERATE',emoji:'😣',color:'#EAB308'},
-  {level:3,label:'SEVERE',emoji:'😖',color:'#F97316'},
-  {level:4,label:'EXTREME',emoji:'😱',color:'#DC2626'}
-];
-const ACCIDENT_TYPES=[
-  {id:'AT_HEADON',label:'Head-on',icon:'💥'},
-  {id:'AT_REAREND',label:'Rear-end',icon:'🚗'},
-  {id:'AT_SIDE',label:'Side',icon:'🚙'},
-  {id:'AT_ROLLOVER',label:'Rollover',icon:'🔄'},
-  {id:'AT_PEDESTRIAN',label:'Pedestrian',icon:'🚶'},
-  {id:'AT_SINGLE',label:'Single',icon:'🚘'},
-  {id:'AT_MULTI',label:'Multi-Car',icon:'🚧'},
-  {id:'AT_MOTORCYCLE',label:'Bike',icon:'🏍️'}
-];
-const CTX_FLAGS=[
-  {id:'FLAG_FIRE',label:'Fire/Smoke',icon:'🔥'},
-  {id:'FLAG_PREGNANT',label:'Pregnancy',icon:'🤰'},
-  {id:'FLAG_CHILD',label:'Child/Elderly',icon:'👶'},
-  {id:'FLAG_HAZMAT',label:'Hazmat',icon:'☣️'},
-  {id:'FLAG_WEATHER',label:'Bad Weather',icon:'🌧️'},
-  {id:'FLAG_NIGHT',label:'Night',icon:'🌙'}
-];
-const DAMAGE_LEVELS=[
-  {level:1,label:'Minor',icon:'🟢',color:'#22C55E'},
-  {level:2,label:'Moderate',icon:'🟡',color:'#EAB308'},
-  {level:3,label:'Significant',icon:'🟠',color:'#F97316'},
-  {level:4,label:'Severe',icon:'🔴',color:'#DC2626'},
-  {level:5,label:'Total',icon:'⚫',color:'#7F1D1D'}
-];
-
 function initScreen25(){
   // Pain markers
   document.getElementById('painMarkers').innerHTML=PAIN_LEVELS.map(p=>
