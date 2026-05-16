@@ -136,10 +136,11 @@
   <div style="margin-top:0.75rem;">
     <div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-muted);margin-bottom:0.3rem;letter-spacing:0.08em;">DECODE BLOCK CODE</div>
     <div style="display:flex;gap:0.4rem;">
-      <input type="text" id="bcDecodeInput" placeholder="RR-NNN-TTT" style="flex:1;padding:0.5rem 0.75rem;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--on-surface);font-family:var(--font-mono);font-size:0.78rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;outline:none;">
+      <input type="text" id="bcDecodeInput" placeholder="RR-NNN-TTT-RRRR" maxlength="15" style="flex:1;padding:0.5rem 0.75rem;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--on-surface);font-family:var(--font-mono);font-size:0.78rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;outline:none;">
       <button onclick="decodeBlockCodeInput()" style="padding:0.5rem 0.85rem;background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.3);border-radius:var(--radius-sm);color:#00D4FF;font-family:var(--font-mono);font-size:0.65rem;font-weight:700;cursor:pointer;letter-spacing:0.08em;">DECODE</button>
     </div>
     <div id="bcDecodeResult" style="margin-top:0.5rem;"></div>
+    <div id="bcDecodeMap" style="display:none;height:180px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:0.5rem;"></div>
   </div>
 </div>
 </div>
@@ -151,8 +152,8 @@
 <h3 style="font-size:1rem;margin-bottom:0.5rem;">🔍 Decode SOS Code</h3>
 <p class="text-xs text-muted mb-2">Enter the 8-character code from the SMS to get the driver's exact location and emergency type.</p>
 <div style="margin-bottom:0.75rem;">
-<input class="input" id="lookupCodeInput" maxlength="8" placeholder="e.g. K7M2N4AC" style="font-family:var(--font-mono);font-size:1.5rem;text-align:center;letter-spacing:0.15em;text-transform:uppercase;" type="text"/>
-<div class="text-xs text-muted" style="text-align:center;margin-top:0.3rem;">8-character India block code with checksum</div>
+<input class="input" id="lookupCodeInput" maxlength="15" placeholder="K7M2N4AC or RR-NNN-TTT-RRRR" style="font-family:var(--font-mono);font-size:1.3rem;text-align:center;letter-spacing:0.12em;text-transform:uppercase;" type="text"/>
+<div class="text-xs text-muted" style="text-align:center;margin-top:0.3rem;">8-char code, 11-char block code, or 15-char emergency code</div>
 </div>
 <button class="btn btn-primary btn-full" onclick="lookupSOSCode()">🔍 Decode Location</button>
 <div style="margin:0.75rem 0;text-align:center;">
@@ -607,10 +608,20 @@ let lookupMapInstance = null;
 
 function lookupSOSCode() {
   let input = document.getElementById('lookupCodeInput').value.trim().toUpperCase();
-  if (!input) { showToast('Enter an 8-character SOS code'); return; }
+  if (!input) { showToast('Enter an SOS code'); return; }
 
   // Handle SMS format: "SOS K7M2N4AC" or just "K7M2N4AC"
   if (input.startsWith('SOS ')) input = input.substring(4).trim();
+
+  // Detect new 15-char or 11-char block code format (contains dashes)
+  if (input.includes('-') && BlockCodeEncoder && BlockCodeEncoder.isValid(input)) {
+    // Route to enhanced decoder
+    document.getElementById('bcDecodeInput').value = input;
+    decodeBlockCodeInput();
+    showTab('tabDispatch');
+    return;
+  }
+
   input = input.replace(/[^0-9A-Z]/g, '');
 
   if (input.length !== 8) {
@@ -713,23 +724,71 @@ function lookupLegacyCode() {
   showToast(`Location decoded: ${blockCode}`);
 }
 
-// ═══ PHASE 4: BLOCK CODE DECODER + DISPATCH ENGINE ═══
+// ═══ PHASE 4: BLOCK CODE DECODER + DISPATCH ENGINE (Enhanced with Reason Codes) ═══
+let bcDecodeMapInstance = null;
+
 function decodeBlockCodeInput() {
   const input = document.getElementById('bcDecodeInput').value.trim();
-  if (!input) { showToast('Enter a block code (RR-NNN-TTT)'); return; }
+  if (!input) { showToast('Enter a block code (RR-NNN-TTT or RR-NNN-TTT-RRRR)'); return; }
   if (typeof BlockCodeEncoder === 'undefined') { showToast('Block Code Encoder not loaded'); return; }
-  if (!BlockCodeEncoder.isValid(input)) { showToast('Invalid format. Use RR-NNN-TTT'); return; }
-  const decoded = BlockCodeEncoder.decode(input);
+  if (!BlockCodeEncoder.isValid(input)) { showToast('Invalid format. Use RR-NNN-TTT or RR-NNN-TTT-RRRR'); return; }
+
+  // Try enhanced decode first (15-char with reason)
+  let decoded = null;
+  let reason = null;
+  let reasonLabel = null;
+
+  if (BlockCodeEncoder.decodeWithReason) {
+    decoded = BlockCodeEncoder.decodeWithReason(input);
+    if (decoded) {
+      reason = decoded.reason;
+      reasonLabel = decoded.reasonLabel;
+    }
+  }
+  if (!decoded) {
+    decoded = BlockCodeEncoder.decode(input);
+  }
   if (!decoded) { showToast('Could not decode block code'); return; }
+
+  const reasonColors = { 'GOFF': '#F87171', 'STAT': '#FBBF24', 'NRSP': '#EF4444', 'MANU': '#F97316', 'AUTO': '#EF4444', 'FALL': '#DC2626' };
+  const reasonColor = reasonColors[reason] || '#00D4FF';
+
+  // Check for matching SOS event
+  const events = Store.getSOSEvents();
+  const matchingEvent = events.find(e => e.blockCode === input || e.blockCode8 === input) ||
+    events.find(e => {
+      if (!e.lat || !e.lng || !decoded.lat || !decoded.lng) return false;
+      return Utils.haversine(e.lat, e.lng, decoded.lat, decoded.lng) < 2000;
+    });
+
   document.getElementById('bcDecodeResult').innerHTML = `
-    <div style="background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:var(--radius-sm);padding:0.6rem;font-family:var(--font-mono);font-size:0.72rem;">
+    <div style="background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:var(--radius-sm);padding:0.75rem;font-family:var(--font-mono);font-size:0.72rem;">
       <div style="margin-bottom:0.3rem;color:#00D4FF;font-weight:700;">✅ DECODED</div>
       <div>📍 ${decoded.lat.toFixed(4)}°N, ${decoded.lng.toFixed(4)}°E</div>
-      <div>🏷️ Type: ${decoded.type} | Region: ${decoded.region}</div>
-      <div>📏 Accuracy: ~${decoded.accuracy_km}km</div>
-      <a href="https://www.google.com/maps/dir/?api=1&destination=${decoded.lat},${decoded.lng}" target="_blank" style="display:inline-block;margin-top:0.4rem;color:#00D4FF;text-decoration:underline;">📍 Navigate →</a>
+      <div>🏷️ Type: ${decoded.type} | Region: ${decoded.region || 'N/A'}</div>
+      <div>📏 Accuracy: ~${decoded.accuracy_km || 10}km</div>
+      ${reason ? `<div style="margin-top:0.3rem;color:${reasonColor};font-weight:700;">⚠️ Reason: ${reasonLabel} (${reason})</div>` : ''}
+      <div style="display:flex;gap:0.4rem;margin-top:0.5rem;">
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${decoded.lat},${decoded.lng}" target="_blank" style="flex:1;display:block;text-align:center;padding:0.4rem;background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.3);border-radius:6px;color:#00D4FF;text-decoration:none;font-size:0.65rem;font-weight:700;">📍 Navigate</a>
+        ${matchingEvent ? `<button onclick="acceptDispatch('${matchingEvent.id}')" style="flex:1;padding:0.4rem;background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.3);border-radius:6px;color:#F97316;font-size:0.65rem;font-weight:700;cursor:pointer;">🚀 Dispatch</button>` : ''}
+      </div>
     </div>`;
-  showToast('Block code decoded successfully');
+
+  // Show map
+  const mapEl = document.getElementById('bcDecodeMap');
+  if (mapEl) {
+    mapEl.style.display = 'block';
+    setTimeout(() => {
+      if (bcDecodeMapInstance) bcDecodeMapInstance.remove();
+      bcDecodeMapInstance = L.map('bcDecodeMap').setView([decoded.lat, decoded.lng], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(bcDecodeMapInstance);
+      const markerLabel = reason ? `⚠️ ${reasonLabel}` : `🚨 ${decoded.type}`;
+      L.marker([decoded.lat, decoded.lng]).addTo(bcDecodeMapInstance)
+        .bindPopup(`<b>${markerLabel}</b><br>Code: ${input}<br>${decoded.lat.toFixed(5)}°, ${decoded.lng.toFixed(5)}°`).openPopup();
+      L.circle([decoded.lat, decoded.lng], { radius: 500, color: reasonColor, fillOpacity: 0.1 }).addTo(bcDecodeMapInstance);
+    }, 100);
+  }
+  showToast('Block code decoded — location on map');
 }
 
 function renderDispatchEngine() {

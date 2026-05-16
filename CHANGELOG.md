@@ -9,20 +9,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### 📝 AI Agent Handoff Document + Location Watchdog Implementation Plan — 2026-05-16
+### 📝 Location Watchdog + Auto-SOS Emergency System — 2026-05-16
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)
 **AI Assistant:** Gemini Antigravity
 
 | Category | Before | After |
 |---|---|---|
-| AI Context | No handoff document for AI agents | Full 400-line AI_AGENT_CONTEXT.md with architecture, file docs, and pending specs |
-| Location Watchdog | No auto-SOS safety system planned | Complete 5-component implementation plan with state machines and data flows |
+| Auto-SOS | No automatic emergency detection | Full watchdog: GPS-off detection (5min) + stationary detection (5min) + 60s countdown → auto-SMS |
+| Block Code Format | 11-char `RR-NNN-TTT` only | 15-char `RR-NNN-TTT-RRRR` with reason codes (GOFF, STAT, NRSP, MANU, AUTO, FALL) |
+| Driver UI | No safety warning modals | Glassmorphic warning modal with countdown timer + STAY/START parked mode banner |
+| Provider Decode | Basic 11-char decoder, no map | Enhanced decoder supports 15-char codes, shows reason labels, map pin, and one-tap dispatch |
+| GPS Tracking | No state change events | GPSTracker emits GPS on/off events, tracks movement >50m, saves last position to localStorage |
+| SMS Target | No auto-SMS dispatch | Auto-sends SOS to nearest provider phone numbers from locally-cached data |
 
-**Why:** Created a comprehensive handoff document so any AI agent can continue development without losing context. Documented the entire project architecture, file structure, completed work, and detailed specifications for the pending Location Watchdog + Block Code Emergency system.
+**Why:** Drivers on Indian highways can become unconscious, unresponsive, or lose GPS in dead zones. This watchdog system autonomously detects danger and auto-dispatches emergency SMS to nearby providers — even when offline.
 
 **Files Changed:**
-- `AI_AGENT_CONTEXT.md` — [NEW] Complete AI agent handoff document with project context, architecture, and pending work specs
+- `js/location-watchdog.js` — [NEW] Core watchdog engine: state machine (DRIVING→STAT_WARN→PARKED/SOS_SENT), GPS-off and stationary detection, auto-SMS dispatch
+- `js/block-code-encoder.js` — Added `encodeWithReason()`, `decodeWithReason()`, `getOfflineEstimatedCode()`, 15-char format support, reason code dictionary
+- `js/data.js` — Added GPSTracker: `_isGPSActive`, `_gpsLostTime`, `_gpsStateListeners`, `_lastMovementPos/Time`, `onGPSStateChange()`, `isStationary()`, `isGPSActive()`, movement detection in `_processRawPosition()`, localStorage position save
+- `pages/driver.html` — Added watchdog modal HTML/CSS, parked banner, script imports (block-code-encoder, sos-provider-engine, location-watchdog), `initWatchdog()`, `watchdogSafe()`, `watchdogSOS()`, `resumeDriving()`
+- `pages/provider.html` — Enhanced block decoder: 15-char support, reason labels, inline map with Leaflet, one-tap dispatch, updated Lookup tab to route dash-codes to enhanced decoder
+- `AI_AGENT_CONTEXT.md` — [NEW] Complete AI agent handoff document
 
 ### 📝 Fixed Condition Grid Not Rendering — Temporal Dead Zone Bug — 2026-05-16
 
