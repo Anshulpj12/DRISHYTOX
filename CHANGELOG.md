@@ -9,6 +9,38 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 Premium Problem-Focused Landing Page Redesign — 2026-05-17
+
+**Contributor:** Soniya Meena (@SoniyaMeena)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Focus | Technical specs (hashes, latency) | Problem-solving scenarios (Dead zones, lost hikers) |
+| UI Interactivity | Basic glowing cards | Deeply scrollable, cinematic 3D feel with reveal-on-scroll |
+| Feature Cards | Static | Hover-tilt animations with expandable `<details>` views |
+| Visual Depth | Flat blurs | Advanced optical refraction, 1px ghost borders, dynamic gradients |
+
+**Why:** To create a highly immersive, premium AI startup aesthetic that focuses on the human impact of the DRISHYTOX platform rather than raw technical jargon.
+
+**Files Changed:**
+- `index.html` — Fully regenerated with Stitch MCP for a deeply futuristic layout, integrated reveal-on-scroll Javascript, and re-added live counter IDs.
+### 📝 Redesigned Landing Page with Stitch MCP — 2026-05-17
+
+**Contributor:** Soniya Meena (@SoniyaMeena)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Landing Page UI | Basic HTML/CSS with standard styling | Fully redesigned, highly futuristic, 3D interactive, glassmorphic layout |
+| Design Assets | No centralized design system for index | Migrated to APARA Tactical Design System (Stitch MCP) with dark multiverse theme |
+| Visual Components | Static counters and simple hero section | Animated 3D HUD radar, glowing cards, pipeline timeline, and dynamic tech readouts |
+
+**Why:** To ensure the landing page reflects the mission-critical, high-tech nature of the APARA DRISHYTOX platform and wows users with a premium, animated, and professional experience, matching the brand's aesthetic.
+
+**Files Changed:**
+- `index.html` — Completely replaced the UI structure with the Stitch-generated HTML/CSS while preserving the `js/data.js` script and live counter logic.
+
 ### 📝 Location Watchdog + Auto-SOS Emergency System — 2026-05-16
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)
