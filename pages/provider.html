@@ -150,17 +150,12 @@
 </div>
 <div class="screen-pad" id="tabLookup" style="display:none;">
 <h3 style="font-size:1rem;margin-bottom:0.5rem;">🔍 Decode SOS Code</h3>
-<p class="text-xs text-muted mb-2">Enter the 8-character code from the SMS to get the driver's exact location and emergency type.</p>
+<p class="text-xs text-muted mb-2">Paste the SOS code from SMS to get the driver's exact location and emergency type.</p>
 <div style="margin-bottom:0.75rem;">
-<input class="input" id="lookupCodeInput" maxlength="15" placeholder="K7M2N4AC or RR-NNN-TTT-RRRR" style="font-family:var(--font-mono);font-size:1.3rem;text-align:center;letter-spacing:0.12em;text-transform:uppercase;" type="text"/>
-<div class="text-xs text-muted" style="text-align:center;margin-top:0.3rem;">8-char code, 11-char block code, or 15-char emergency code</div>
+<input class="input" id="lookupCodeInput" maxlength="80" placeholder="Paste SOS code or packet here..." style="font-family:var(--font-mono);font-size:0.85rem;text-align:center;letter-spacing:0.04em;" type="text"/>
+<div class="text-xs text-muted" style="text-align:center;margin-top:0.3rem;">Accepts block code (RR-NNN-TTT), 8-char code, or full SOS packet with coordinates</div>
 </div>
 <button class="btn btn-primary btn-full" onclick="lookupSOSCode()">🔍 Decode Location</button>
-<div style="margin:0.75rem 0;text-align:center;">
-<span class="text-xs text-muted">— or paste full SOS packet —</span>
-</div>
-<input class="input" id="lookupCodeInputLegacy" placeholder="NH48-B32|ACC|15:24:29|conf:87" style="font-family:var(--font-mono);font-size:0.8rem;" type="text"/>
-<button class="btn btn-secondary btn-full btn-sm mt-1" onclick="lookupLegacyCode()">🔍 Decode Legacy Packet</button>
 <div id="lookupResult" style="margin-top:1rem;"></div>
 <div id="lookupMap" style="display:none;height:250px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:1rem;"></div>
 </div>
@@ -316,7 +311,7 @@ function renderAlerts() {
         <div class="alert-type" style="color:${type.color}">${type.icon} ${type.label}</div>
         <div class="alert-time">${formatElapsed(elapsed)}</div>
       </div>
-      <div class="alert-block">${a.blockCode}</div>
+      <div class="alert-block" style="font-size:0.72rem;letter-spacing:0.04em;">${a.packet || a.blockCode}</div>
       <div class="alert-meta">
         <span><span class="conf-dot" style="background:${confColor}"></span> Conf: ${a.confidence}%</span>
         <span class="badge ${tx.badge}">${tx.code}</span>
@@ -355,9 +350,9 @@ function showAlertDetail(id) {
         <div class="alert-type" style="color:${type.color};font-size:1.2rem;">${type.icon} ${type.label}</div>
         <span class="badge ${tx.badge}">${tx.code}</span>
       </div>
-      <div style="font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--accent-online);margin:0.5rem 0;">${alert.blockCode}</div>
-      <div class="packet-display">${alert.packet}</div>
+      <div class="packet-display" style="font-size:0.85rem;font-weight:700;margin:0.5rem 0;padding:0.6rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:8px;word-break:break-all;">${alert.packet}</div>
       ${hasRealLocation ? `<div class="text-xs text-muted mt-1">📍 ${alert.lat.toFixed(5)}°, ${alert.lng.toFixed(5)}°</div>` : '<div class="text-xs" style="color:var(--accent-alert);" >⚠️ Driver GPS coordinates not available — showing approximate block location</div>'}
+      ${hasRealLocation ? `<a href="https://www.google.com/maps/dir/?api=1&destination=${alert.lat},${alert.lng}" target="_blank" class="btn btn-sm btn-secondary mt-1" style="display:inline-block;text-decoration:none;font-size:0.72rem;">📍 Open in Google Maps</a>` : ''}
     </div>
 
     <div style="margin-bottom:1rem;">
@@ -367,7 +362,6 @@ function showAlertDetail(id) {
 
     <div style="margin-bottom:1rem;">
       <h4 style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.5rem;">Details</h4>
-      <div class="detail-field"><span class="label">Block Code</span><span style="font-family:var(--font-mono);">${alert.blockCode}</span></div>
       <div class="detail-field"><span class="label">Confidence</span><span style="color:${confColor};font-weight:700;">${alert.confidence}%</span></div>
       <div class="detail-field"><span class="label">Time</span><span>${alert.timeStr || new Date(alert.timestamp).toLocaleTimeString()}</span></div>
       <div class="detail-field"><span class="label">Transmission</span><span class="badge ${tx.badge}">${tx.code}</span></div>
@@ -438,8 +432,8 @@ function renderDispatch() {
     <div class="card mb-2">
       <div class="flex-between mb-1">
         <span class="alert-type" style="color:${type.color}">${type.icon} ${type.label}</span>
-        <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent-online);">${d.blockCode}</span>
       </div>
+      <div class="packet-display" style="font-size:0.72rem;font-weight:700;margin:0.3rem 0;padding:0.4rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:6px;word-break:break-all;">${d.packet || d.blockCode}</div>
       <div class="text-xs text-muted">📍 ${d.lat ? d.lat.toFixed(5) + '°, ' + d.lng.toFixed(5) + '°' : 'Location unknown'}</div>
     </div>
     <div id="dispatchMap"></div>
@@ -603,125 +597,181 @@ function showToast(msg) {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 3500);
 }
 
-// ═══ LOOKUP 8-CHAR SOS CODE (NEW SYSTEM) ═══
+// ═══ UNIFIED SOS CODE LOOKUP ═══
+// Handles all formats: pipe-separated packets, block codes, 8-char codes
 let lookupMapInstance = null;
 
 function lookupSOSCode() {
-  let input = document.getElementById('lookupCodeInput').value.trim().toUpperCase();
-  if (!input) { showToast('Enter an SOS code'); return; }
+  let input = document.getElementById('lookupCodeInput').value.trim();
+  if (!input) { showToast('Enter or paste an SOS code'); return; }
 
-  // Handle SMS format: "SOS K7M2N4AC" or just "K7M2N4AC"
-  if (input.startsWith('SOS ')) input = input.substring(4).trim();
+  // Strip SMS prefixes
+  if (input.toUpperCase().startsWith('SOS ')) input = input.substring(4).trim();
+  if (input.includes('APARA EMERGENCY:')) {
+    const m = input.match(/APARA EMERGENCY:\s*([^\\n]+)/);
+    if (m) input = m[1].trim();
+  }
 
-  // Detect new 15-char or 11-char block code format (contains dashes)
-  if (input.includes('-') && BlockCodeEncoder && BlockCodeEncoder.isValid(input)) {
-    // Route to enhanced decoder
-    document.getElementById('bcDecodeInput').value = input;
+  let lat = null, lng = null, typeCode = null, typeName = null, confidence = 0;
+  let blockCode = null, pin = null, time = null;
+  let type = null, matchingEvent = null;
+
+  // ── FORMAT 1: Pipe-separated packet (new or legacy) ──
+  // New: CE-512-ACC|19.0522,72.8734|15:24:29|conf:87
+  // Legacy: NH48-B32|ACC|15:24:29|conf:87
+  if (input.includes('|')) {
+    const parts = input.split('|').map(s => s.trim());
+
+    blockCode = parts[0];
+    // Detect which part contains coordinates (N.NNNN,N.NNNN)
+    const coordPattern = /^-?\d+\.\d+,-?\d+\.\d+$/;
+    let coordIdx = -1;
+    for (let i = 1; i < parts.length; i++) {
+      if (coordPattern.test(parts[i])) { coordIdx = i; break; }
+    }
+
+    if (coordIdx >= 0) {
+      // New format with coordinates
+      const [latStr, lngStr] = parts[coordIdx].split(',');
+      lat = parseFloat(latStr);
+      lng = parseFloat(lngStr);
+      // Type is right after blockCode
+      typeCode = parts[1] && !coordPattern.test(parts[1]) ? parts[1] : null;
+      // Time: look for HH:MM:SS pattern
+      for (const p of parts) {
+        if (/^\d{1,2}:\d{2}:\d{2}$/.test(p)) { time = p; break; }
+      }
+      // Confidence
+      for (const p of parts) {
+        if (p.startsWith('conf:')) { confidence = parseInt(p.replace('conf:', '')) || 0; break; }
+      }
+    } else {
+      // Legacy format: blockCode|typeCode|time|conf:N
+      typeCode = parts[1] || null;
+      time = parts[2] || null;
+      for (const p of parts) {
+        if (p.startsWith('conf:')) { confidence = parseInt(p.replace('conf:', '')) || 0; break; }
+      }
+    }
+
+    // Also check for PIN and Loc in SMS body
+    const pinMatch = input.match(/PIN:(\d+)/);
+    if (pinMatch) pin = pinMatch[1];
+    const locMatch = input.match(/Loc:([\d.]+),([\d.]+)/);
+    if (locMatch && !lat) { lat = parseFloat(locMatch[1]); lng = parseFloat(locMatch[2]); }
+
+    // Try to decode blockCode if it's a valid BlockCodeEncoder format
+    if (blockCode && typeof BlockCodeEncoder !== 'undefined' && BlockCodeEncoder.isValid(blockCode)) {
+      const decoded = BlockCodeEncoder.decodeWithReason ? BlockCodeEncoder.decodeWithReason(blockCode) : BlockCodeEncoder.decode(blockCode);
+      if (decoded) {
+        if (!lat || !lng) { lat = decoded.lat; lng = decoded.lng; }
+        if (!typeCode) typeCode = decoded.type;
+      }
+    }
+
+    // Match SOS event from Store
+    const events = Store.getSOSEvents();
+    matchingEvent = events.find(e => e.blockCode === blockCode && e.packet?.includes(typeCode || ''));
+    if (!matchingEvent && lat && lng) {
+      matchingEvent = events.find(e => e.lat && e.lng && Utils.haversine(e.lat, e.lng, lat, lng) < 2000);
+    }
+    if (matchingEvent) {
+      if (!lat || !lng) { lat = matchingEvent.lat; lng = matchingEvent.lng; }
+      if (!pin) pin = matchingEvent.resolutionPin;
+    }
+
+    type = EMERGENCY_TYPES.find(t => t.code === typeCode) || { icon: '🚨', label: typeCode || 'Unknown', color: '#F87171' };
+    if (!lat || !lng) { lat = 20.5937; lng = 78.9629; }
+    const confColor = confidence >= 85 ? 'var(--accent-online)' : confidence >= 60 ? 'var(--accent-offline)' : 'var(--accent-alert)';
+
+    document.getElementById('lookupResult').innerHTML = `
+      <div class="card card-glow-alert mb-2">
+        <div class="flex-between">
+          <div class="alert-type" style="color:${type.color};font-size:1.1rem;">${type.icon} ${type.label}</div>
+          <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-muted);">${time || ''}</span>
+        </div>
+        <div class="packet-display" style="font-size:0.8rem;font-weight:700;margin:0.5rem 0;padding:0.5rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:8px;word-break:break-all;">${input}</div>
+        <div style="margin-top:0.5rem;display:flex;gap:1rem;flex-wrap:wrap;">
+          <span class="text-xs">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</span>
+          <span class="text-xs" style="color:${confColor};font-weight:700;">Conf: ${confidence}%</span>
+          ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
+        </div>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📍 Navigate to Location</a>
+      </div>
+      ${matchingEvent ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${matchingEvent.id}')">🚀 Accept & Dispatch</button>` : ''}
+    `;
+
+    // Show map
+    document.getElementById('lookupMap').style.display = 'block';
+    setTimeout(() => {
+      if (lookupMapInstance) lookupMapInstance.remove();
+      lookupMapInstance = L.map('lookupMap').setView([lat, lng], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
+      L.marker([lat, lng]).addTo(lookupMapInstance)
+        .bindPopup(`<b>${type.icon} ${type.label}</b><br>${blockCode}<br>📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`).openPopup();
+      L.circle([lat, lng], { radius: confidence >= 85 ? 150 : 400, color: type.color, fillOpacity: 0.1 }).addTo(lookupMapInstance);
+    }, 100);
+    showToast(`✅ Location decoded: ${type.icon} ${type.label}`);
+    return;
+  }
+
+  // ── FORMAT 2: Block code (RR-NNN-TTT or RR-NNN-TTT-RRRR) ──
+  const upper = input.toUpperCase();
+  if (upper.includes('-') && typeof BlockCodeEncoder !== 'undefined' && BlockCodeEncoder.isValid(upper)) {
+    document.getElementById('bcDecodeInput').value = upper;
     decodeBlockCodeInput();
     showTab('tabDispatch');
     return;
   }
 
-  input = input.replace(/[^0-9A-Z]/g, '');
+  // ── FORMAT 3: 8-char code ──
+  const cleanInput = upper.replace(/[^0-9A-Z]/g, '');
+  if (cleanInput.length === 8) {
+    const decoded = BlockCodeEncoder.decode(cleanInput);
+    if (!decoded || !decoded.valid) {
+      showToast(`❌ ${decoded?.error || 'Invalid code'}`); return;
+    }
+    lat = decoded.lat; lng = decoded.lng;
+    type = decoded.sosType || { icon: '🚨', label: decoded.sosTypeCode || 'Unknown', color: '#F87171' };
 
-  if (input.length !== 8) {
-    showToast(`Code must be 8 characters (got ${input.length})`); return;
+    const events = Store.getSOSEvents();
+    matchingEvent = events.find(e => e.blockCode8 === cleanInput) || events.find(e => {
+      if (!e.lat || !e.lng) return false;
+      return Utils.haversine(e.lat, e.lng, lat, lng) < 1500;
+    });
+    pin = matchingEvent?.resolutionPin || null;
+
+    document.getElementById('lookupResult').innerHTML = `
+      <div class="card card-glow-alert mb-2">
+        <div class="flex-between">
+          <div class="alert-type" style="color:${type.color};font-size:1.1rem;">${type.icon} ${type.label}</div>
+          <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent-online);">8-CHAR CODE</span>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:2.5rem;font-weight:800;color:var(--accent-alert);margin:0.5rem 0;text-align:center;letter-spacing:0.12em;">${cleanInput}</div>
+        <div style="margin-top:0.5rem;display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
+          <span class="text-xs">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</span>
+          <span class="text-xs" style="font-family:var(--font-mono);color:var(--text-muted);">Block: ${decoded.blockId}</span>
+          ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
+        </div>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📍 Navigate to Location</a>
+      </div>
+      ${matchingEvent ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${matchingEvent.id}')">🚀 Accept & Dispatch</button>` : ''}
+    `;
+
+    document.getElementById('lookupMap').style.display = 'block';
+    setTimeout(() => {
+      if (lookupMapInstance) lookupMapInstance.remove();
+      lookupMapInstance = L.map('lookupMap').setView([lat, lng], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
+      L.marker([lat, lng]).addTo(lookupMapInstance)
+        .bindPopup(`<b>${type.icon} ${type.label}</b><br>Code: ${cleanInput}<br>${lat.toFixed(5)}°, ${lng.toFixed(5)}°`).openPopup();
+      L.circle([lat, lng], { radius: 500, color: type.color, fillOpacity: 0.1 }).addTo(lookupMapInstance);
+    }, 100);
+    showToast(`✅ Location decoded: ${type.icon} ${type.label}`);
+    return;
   }
 
-  const decoded = BlockCodeEncoder.decode(input);
-  if (!decoded.valid) {
-    showToast(`❌ ${decoded.error}`); return;
-  }
-
-  const type = decoded.sosType || { icon: '🚨', label: decoded.sosTypeCode || 'Unknown', color: '#F87171' };
-  const lat = decoded.lat;
-  const lng = decoded.lng;
-
-  // Find matching SOS event (by blockCode8)
-  const events = Store.getSOSEvents();
-  const matchingEvent = events.find(e => e.blockCode8 === input) || events.find(e => {
-    if (!e.lat || !e.lng) return false;
-    return Utils.haversine(e.lat, e.lng, lat, lng) < 1500; // within 1.5km
-  });
-  const pin = matchingEvent?.resolutionPin || null;
-
-  document.getElementById('lookupResult').innerHTML = `
-    <div class="card card-glow-alert mb-2">
-      <div class="flex-between">
-        <div class="alert-type" style="color:${type.color};font-size:1.1rem;">${type.icon} ${type.label}</div>
-        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent-online);">8-CHAR CODE</span>
-      </div>
-      <div style="font-family:var(--font-mono);font-size:2.5rem;font-weight:800;color:var(--accent-alert);margin:0.5rem 0;text-align:center;letter-spacing:0.12em;">${input}</div>
-      <div style="margin-top:0.5rem;display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
-        <span class="text-xs">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</span>
-        <span class="text-xs" style="font-family:var(--font-mono);color:var(--text-muted);">Block: ${decoded.blockId}</span>
-        ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
-      </div>
-      <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📍 Navigate to Location</a>
-    </div>
-    ${matchingEvent ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${matchingEvent.id}')">🚀 Accept & Dispatch</button>` : ''}
-  `;
-
-  // Show map
-  document.getElementById('lookupMap').style.display = 'block';
-  setTimeout(() => {
-    if (lookupMapInstance) lookupMapInstance.remove();
-    lookupMapInstance = L.map('lookupMap').setView([lat, lng], 14);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
-    L.marker([lat, lng]).addTo(lookupMapInstance)
-      .bindPopup(`<b>${type.icon} ${type.label}</b><br>Code: ${input}<br>${lat.toFixed(5)}°, ${lng.toFixed(5)}°`).openPopup();
-    L.circle([lat, lng], { radius: 500, color: type.color, fillOpacity: 0.1 }).addTo(lookupMapInstance);
-  }, 100);
-
-  showToast(`✅ Location decoded: ${type.icon} ${type.label}`);
-}
-
-// ═══ LEGACY LOOKUP (old packet format) ═══
-function lookupLegacyCode() {
-  const input = (document.getElementById('lookupCodeInputLegacy')?.value || '').trim();
-  if (!input) { showToast('Paste an SOS packet'); return; }
-  let packet = input, pin = null, lat = null, lng = null;
-  if (input.includes('APARA EMERGENCY:')) {
-    const m = input.match(/APARA EMERGENCY:\s*([^|]+\|[^|]+\|[^|]+\|[^|]+)/);
-    if (m) packet = m[1].trim();
-    const pm = input.match(/PIN:(\d+)/); if (pm) pin = pm[1];
-    const lm = input.match(/Loc:([\d.]+),([\d.]+)/); if (lm) { lat = parseFloat(lm[1]); lng = parseFloat(lm[2]); }
-  }
-  const parts = packet.split('|').map(s => s.trim());
-  if (parts.length < 3) { showToast('Invalid SOS code format'); return; }
-  const blockCode = parts[0], typeCode = parts[1], time = parts[2], confPart = parts[3];
-  const confidence = confPart ? parseInt(confPart.replace('conf:', '')) : 0;
-  const type = EMERGENCY_TYPES.find(t => t.code === typeCode) || { icon: '🚨', label: typeCode, color: '#F87171' };
-  const events = Store.getSOSEvents();
-  const me = events.find(e => e.blockCode === blockCode && e.packet?.includes(typeCode));
-  if (me) { lat = me.lat || lat; lng = me.lng || lng; pin = me.resolutionPin || pin; }
-  if (!lat || !lng) { lat = 20.5937; lng = 78.9629; }
-  const confColor = confidence >= 85 ? 'var(--accent-online)' : confidence >= 60 ? 'var(--accent-offline)' : 'var(--accent-alert)';
-  document.getElementById('lookupResult').innerHTML = `
-    <div class="card card-glow-alert mb-2">
-      <div class="flex-between">
-        <div class="alert-type" style="color:${type.color};font-size:1.1rem;">${type.icon} ${type.label}</div>
-        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted);">${time}</span>
-      </div>
-      <div style="font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--accent-online);margin:0.5rem 0;">${blockCode}</div>
-      <div class="packet-display">${packet}</div>
-      <div style="margin-top:0.5rem;display:flex;gap:1rem;flex-wrap:wrap;">
-        <span class="text-xs">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</span>
-        <span class="text-xs" style="color:${confColor};font-weight:700;">Conf: ${confidence}%</span>
-        ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
-      </div>
-    </div>
-    ${me ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${me.id}')">🚀 Accept & Dispatch</button>` : ''}
-  `;
-  document.getElementById('lookupMap').style.display = 'block';
-  setTimeout(() => {
-    if (lookupMapInstance) lookupMapInstance.remove();
-    lookupMapInstance = L.map('lookupMap').setView([lat, lng], 14);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
-    L.marker([lat, lng]).addTo(lookupMapInstance).bindPopup(`<b>${type.icon} ${type.label}</b><br>${blockCode}`).openPopup();
-    L.circle([lat, lng], { radius: confidence >= 85 ? 150 : 400, color: type.color, fillOpacity: 0.1 }).addTo(lookupMapInstance);
-  }, 100);
-  showToast(`Location decoded: ${blockCode}`);
+  showToast(`❌ Unrecognized code format (${input.length} chars). Paste the full SOS code from SMS.`);
 }
 
 // ═══ PHASE 4: BLOCK CODE DECODER + DISPATCH ENGINE (Enhanced with Reason Codes) ═══

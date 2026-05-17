@@ -586,7 +586,8 @@ const SOSPacket = {
   build(blockCode, typeCode, confidence, lat, lng) {
     const now = new Date();
     const time = now.toLocaleTimeString('en-IN', { hour12: false });
-    const packet = `${blockCode}|${typeCode}|${time}|conf:${confidence}`;
+    const coords = (lat && lng) ? `${lat.toFixed(4)},${lng.toFixed(4)}` : '0,0';
+    const packet = `${blockCode}|${typeCode}|${time}|${coords}|conf:${confidence}`;
     return {
       id: `SOS-${Date.now()}`,
       packet,

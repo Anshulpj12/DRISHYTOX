@@ -1623,12 +1623,16 @@ function sendSOS() {
     ? GPSTracker.getEstimatedPosition()?.speed || 0 : 0;
   const speedInfo = SpeedEstimator.estimateSpeed(pos.lat, pos.lng, gpsSpeed, state.driverId);
 
+  // Build unified packet string with coordinates for SMS
+  const sosPacket = state.pendingSOS.packet || `${blockCode8}|${sosTypeCode}|${new Date().toLocaleTimeString('en-IN',{hour12:false})}|${pos.lat.toFixed(4)},${pos.lng.toFixed(4)}|conf:${conf}`;
+
   function buildSOSMessage(providerName) {
-    return `APARA SOS ${blockCode8}\n${sosTypeInfo.icon} ${sosTypeInfo.label}\nLoc: ${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}\nSpeed: ${Math.round(speedInfo.speed)}km/h\nConf: ${conf}%\nPIN: ${state.pendingSOS.resolutionPin}\nMaps: https://maps.google.com/?q=${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`;
+    return `APARA SOS\n${sosPacket}\n${sosTypeInfo.icon} ${sosTypeInfo.label}\nLoc: ${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}\nSpeed: ${Math.round(speedInfo.speed)}km/h\nPIN: ${state.pendingSOS.resolutionPin}\nMaps: https://maps.google.com/?q=${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`;
   }
 
   // ═══ FIND TOP 5 PROVIDERS WITHIN 10KM ═══
   const SOS_SEARCH_RADIUS = 10000; // 10km
+  const SOS_EXTENDED_RADIUS = 100000; // 100km fallback
   const sosProviderMap = { 'ACC': ['HOSP','TOW','MECH'], 'MED': ['HOSP','PHAR'], 'TYR': ['PUNC','MECH'], 'FUL': ['FUEL'], 'TOW': ['TOW','MECH'] };
   const relevantCats = sosProviderMap[sosTypeCode] || [];
   
@@ -1663,11 +1667,58 @@ function sendSOS() {
     });
   });
 
+  // ═══ EXTENDED SEARCH: If none within 10km, search 100km zone bundle ═══
+  if (allNearby.length === 0) {
+    console.log('[SOS] No providers within 10km — extending search to 100km zone bundle...');
+    ZoneManager.getCachedZoneIds().forEach(zId => {
+      const zone = ZoneManager.getZoneData(zId);
+      if (!zone) return;
+      // Search providers in 100km
+      if (zone.providers) {
+        zone.providers.forEach(p => {
+          if (p.status !== 'Active') return;
+          const dist = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
+          if (dist <= SOS_EXTENDED_RADIUS) {
+            const catMatch = relevantCats.includes(p.cat);
+            allNearby.push({ ...p, distance: dist, catMatch });
+          }
+        });
+      }
+      // Search shops in 100km
+      if (zone.shops) {
+        zone.shops.forEach(s => {
+          if (!s.phone) return;
+          const dist = Utils.haversine(pos.lat, pos.lng, s.lat, s.lng);
+          if (dist <= SOS_EXTENDED_RADIUS) {
+            const catMatch = relevantCats.includes(s.catCode);
+            allNearby.push({ name: s.name, phone: s.phone, cat: s.catCode || 'GEN', catIcon: SHOP_CATEGORIES.find(c => c.code === s.catCode)?.icon || '🏪', catLabel: SHOP_CATEGORIES.find(c => c.code === s.catCode)?.label || 'Shop', lat: s.lat, lng: s.lng, distance: dist, catMatch, isShop: true });
+          }
+        });
+      }
+    });
+    // Also search locally registered providers
+    Store.getProviders().filter(p => p.status === 'Active' && p.lat && p.lng).forEach(p => {
+      const dist = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
+      if (dist <= SOS_EXTENDED_RADIUS) {
+        const catMatch = relevantCats.includes(p.cat);
+        allNearby.push({ ...p, distance: dist, catMatch, catIcon: p.category?.icon || '🏥', catLabel: p.category?.label || 'Provider' });
+      }
+    });
+  }
+
   // Sort: category matches first, then by distance
   allNearby.sort((a, b) => {
     if (a.catMatch && !b.catMatch) return -1;
     if (!a.catMatch && b.catMatch) return 1;
     return a.distance - b.distance;
+  });
+
+  // Deduplicate by phone number
+  const seen = new Set();
+  allNearby = allNearby.filter(p => {
+    if (!p.phone || seen.has(p.phone)) return false;
+    seen.add(p.phone);
+    return true;
   });
 
   // Take top 5
@@ -1706,13 +1757,14 @@ function sendSOS() {
       const srcStyle = srcColors[speedSrc] || srcColors['default'];
 
       const smsBody = encodeURIComponent(buildSOSMessage(p.name));
-      const smsHref = `sms:${p.phone || '112'}?body=${smsBody}`;
+      const smsHref = `sms:${p.phone}?body=${smsBody}`;
       const matchBadge = p.catMatch ? '<span style="background:rgba(34,197,94,0.15);color:#22C55E;font-size:0.55rem;padding:0.1rem 0.3rem;border-radius:4px;margin-left:0.3rem;">MATCH</span>' : '';
+      const distBadge = p.distance > SOS_SEARCH_RADIUS ? '<span style="background:rgba(251,191,36,0.12);color:#FBBF24;font-size:0.5rem;padding:0.05rem 0.2rem;border-radius:3px;margin-left:0.2rem;">EXTENDED</span>' : '';
       return `
         <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:0.75rem;margin-bottom:0.5rem;${i === 0 ? 'border-color:rgba(249,115,22,0.3);background:rgba(249,115,22,0.05);' : ''}">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div style="flex:1;">
-              <div style="font-size:0.85rem;font-weight:600;">${p.catIcon || '🏥'} ${p.name}${matchBadge}</div>
+              <div style="font-size:0.85rem;font-weight:600;">${p.catIcon || '🏥'} ${p.name}${matchBadge}${distBadge}</div>
               <div class="text-xs text-muted" style="margin-top:0.15rem;">${p.catLabel || ''} · ${distKm} km · ETA <b style="color:var(--accent-alert);">~${eta} min</b></div>
               <div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.15rem;">
                 <span style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-muted);">📞 ${p.phone || '---'}</span>
@@ -1732,38 +1784,21 @@ function sendSOS() {
       nearbyCount: top5.length,
     });
   } else {
-    // No providers — show 112 fallback
+    // Absolute last resort — no providers found even in 100km
     listEl.innerHTML = '';
     noProvEl.classList.remove('hidden');
     const sms112Body = encodeURIComponent(buildSOSMessage('Emergency'));
     document.getElementById('sos112Link').href = `sms:112?body=${sms112Body}`;
-
-    // Also try old-style fallback
-    const fallback = Store.getProviders().filter(p => p.status === 'Active');
-    if (fallback.length > 0) {
-      listEl.innerHTML = fallback.slice(0, 3).map(p => {
-        const provPhone = p.phone || '112';
-        const smsBody = encodeURIComponent(buildSOSMessage(p.name));
-        return `
-          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:0.75rem;margin-bottom:0.5rem;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <div><div style="font-size:0.85rem;font-weight:600;">${p.category?.icon || '🏥'} ${p.name}</div><div class="text-xs text-muted">${p.category?.label || ''}</div></div>
-              <a href="sms:${provPhone}?body=${smsBody}" style="background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:0.5rem 0.75rem;border-radius:10px;font-size:0.72rem;font-weight:700;text-decoration:none;">📱 SMS</a>
-            </div>
-          </div>`;
-      }).join('');
-      noProvEl.classList.add('hidden');
-    }
   }
 
-  // ═══ AUTO-OPEN ROAD SOS FIRST AID GUIDE ═══
+  // ═══ FIRST AID GUIDE — Optional (manual open only) ═══
   // Save GPS for road-sos.html to pick up
   if (state.lastKnownPos) {
     localStorage.setItem('apara_last_pos', JSON.stringify(state.lastKnownPos));
   }
   localStorage.setItem('apara_sos_type', sosTypeCode);
 
-  // Inject Road SOS banner into step 4
+  // Inject Road SOS banner into step 4 — manual open only, no auto-countdown
   const roadSosBanner = document.createElement('div');
   roadSosBanner.id = 'roadSosAutoBanner';
   roadSosBanner.style.cssText = `
@@ -1780,46 +1815,21 @@ function sendSOS() {
   `;
   roadSosBanner.innerHTML = `
     <div style="flex:1">
-      <div style="font-size:0.9rem;font-weight:800;color:#fca5a5">🩺 First Aid Guide Opening...</div>
-      <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;font-family:var(--font-mono)" id="roadSosCountdown">Opening in 4s — tap to open now</div>
+      <div style="font-size:0.9rem;font-weight:800;color:#fca5a5">🩺 First Aid Guide Available</div>
+      <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;font-family:var(--font-mono)">Tap to open emergency triage & first-aid steps</div>
     </div>
-    <div style="display:flex;gap:0.4rem">
-      <button onclick="openRoadSOS()" style="background:linear-gradient(135deg,#b91c1c,#dc2626);color:#fff;border:none;border-radius:10px;padding:0.55rem 0.85rem;font-size:0.78rem;font-weight:800;cursor:pointer;white-space:nowrap">Open Now</button>
-      <button onclick="cancelRoadSosAuto()" style="background:rgba(255,255,255,0.06);color:#94a3b8;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:0.55rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer">✕</button>
-    </div>`;
+    <button onclick="openRoadSOS()" style="background:linear-gradient(135deg,#b91c1c,#dc2626);color:#fff;border:none;border-radius:10px;padding:0.55rem 0.85rem;font-size:0.78rem;font-weight:800;cursor:pointer;white-space:nowrap">Open →</button>`;
 
   const step4 = document.getElementById('sosStep4');
   if (step4) step4.prepend(roadSosBanner);
-
-  // Countdown + auto-open
-  let countdown = 4;
-  state._roadSosAutoTimer = setInterval(() => {
-    countdown--;
-    const el = document.getElementById('roadSosCountdown');
-    if (el) el.textContent = countdown > 0 ? `Opening in ${countdown}s — tap to open now` : 'Opening...';
-    if (countdown <= 0) {
-      clearInterval(state._roadSosAutoTimer);
-      openRoadSOS();
-    }
-  }, 1000);
 
   // Update the persistent banner
   updateSOSBanner();
 }
 
 function cancelRoadSosAuto() {
-  clearInterval(state._roadSosAutoTimer);
   const b = document.getElementById('roadSosAutoBanner');
   if (b) b.remove();
-  // Keep a manual link visible in step 4
-  const step4 = document.getElementById('sosStep4');
-  if (step4) {
-    const manualLink = document.createElement('div');
-    manualLink.style.cssText = 'margin:.5rem;padding:.6rem 1rem;background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2);border-radius:10px;display:flex;justify-content:space-between;align-items:center;';
-    manualLink.innerHTML = `<span style="font-size:.8rem;color:#fca5a5;font-weight:700">🩺 First Aid Guide available</span>
-      <button onclick="openRoadSOS()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:.4rem .8rem;font-size:.75rem;font-weight:800;cursor:pointer">Open →</button>`;
-    step4.prepend(manualLink);
-  }
 }
 
 // ═══ SOS CANCEL ═══
@@ -1856,14 +1866,14 @@ function updateSOSBanner() {
 
   if (state.activeSOS) {
     banner.classList.remove('hidden');
-    // Show 8-char code if available, else fallback to packet
-    document.getElementById('bannerSosCode').textContent = state.activeSOS.blockCode8 || state.activeSOS.packet;
+    // Show unified packet code (with coordinates)
+    document.getElementById('bannerSosCode').textContent = state.activeSOS.packet || state.activeSOS.blockCode8 || state.activeSOS.blockCode;
     document.getElementById('bannerSosPin').textContent = state.activeSOS.resolutionPin;
-    // Rich SMS link for banner
-    const code8 = state.activeSOS.blockCode8 || state.activeSOS.packet;
+    // Rich SMS link for banner — use nearest provider, not 112
+    const sosPos = state.lastKnownPos || { lat: state.activeSOS.lat || 0, lng: state.activeSOS.lng || 0 };
     const provPhone = state.activeSOS.nearestProvider?.phone || '112';
-    const sosPos = state.lastKnownPos || { lat: 0, lng: 0 };
-    const bannerSmsBody = encodeURIComponent(`APARA SOS ${code8}\nLoc: ${sosPos.lat.toFixed(5)},${sosPos.lng.toFixed(5)}\nPIN: ${state.activeSOS.resolutionPin}\nMaps: https://maps.google.com/?q=${sosPos.lat.toFixed(5)},${sosPos.lng.toFixed(5)}`);
+    const bannerPacket = state.activeSOS.packet || `${state.activeSOS.blockCode8}|${state.activeSOS.typeCode || 'SOS'}|${sosPos.lat.toFixed(4)},${sosPos.lng.toFixed(4)}`;
+    const bannerSmsBody = encodeURIComponent(`APARA SOS\n${bannerPacket}\nLoc: ${sosPos.lat.toFixed(5)},${sosPos.lng.toFixed(5)}\nPIN: ${state.activeSOS.resolutionPin}\nMaps: https://maps.google.com/?q=${sosPos.lat.toFixed(5)},${sosPos.lng.toFixed(5)}`);
     document.getElementById('bannerSmsLink').href = `sms:${provPhone}?body=${bannerSmsBody}`;
   } else {
     banner.classList.add('hidden');

@@ -9,6 +9,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 SOS System Refinements — Unified Block Code, Provider SMS, First Aid UX — 2026-05-17
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| First Aid Auto-Open | Auto-opens with 4s countdown after SOS sent | Manual "Open →" button only — no forced auto-open |
+| First Aid Navigation | No back button on Guidance (Screen 5) and Active Status (Screen 6) | ← BACK buttons added on both screens |
+| Provider Block Code | Shows two separate codes: raw `blockCode` + `packet` | Shows ONE unified packet with embedded coordinates |
+| SOS Packet Format | `blockCode\|typeCode\|time\|conf:N` (no coordinates) | `blockCode\|typeCode\|time\|lat,lng\|conf:N` (coordinates embedded) |
+| SMS Target | Falls back to 112 when no provider within 10km | Extends search to 100km zone bundle; 112 is absolute last resort |
+| Provider Lookup | Two separate inputs (8-char code + legacy packet) | Single unified input accepts ALL formats: pipe packets, block codes, 8-char codes |
+| Provider Lookup Parse | Could not extract coordinates from pasted packets | Auto-detects and extracts embedded coordinates from any format |
+| SMS Body | Sends 8-char code only | Sends full unified packet with coordinates + Google Maps link |
+| Provider Dispatch | Shows duplicate `blockCode` in multiple places | Shows only the unified packet code everywhere consistently |
+
+**Why:** Emergency providers were confused by seeing multiple code formats. Drivers could not find nearby providers when none were within 10km. First aid auto-opening was disruptive during SOS triage. These changes unify the code format, improve provider lookup, and give drivers control over the first aid flow.
+
+**Files Changed:**
+- `js/data.js` — SOSPacket.build() now embeds GPS coordinates in packet string as 4th field
+- `pages/driver.html` — Removed first aid auto-open countdown; added 100km extended provider search; updated SMS body to include unified packet with coordinates; banner SMS uses nearest provider phone
+- `pages/road-sos.html` — Added ← BACK buttons on Screen 5 (Guidance) and Screen 6 (Active Status) headers
+- `pages/provider.html` — Alert list shows unified packet; detail view shows ONE code format with Google Maps link; removed separate `blockCode` display; dispatch card shows packet; unified lookup function handles all formats (pipe packets, block codes, 8-char); removed legacy lookup input/button
+
+
+
 ### 📝 Premium Problem-Focused Landing Page Redesign — 2026-05-17
 
 **Contributor:** Soniya Meena (@SoniyaMeena)
