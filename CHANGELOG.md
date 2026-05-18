@@ -9,6 +9,57 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 Apex Tactical HUD — Full Driver App Visual Redesign — 2026-05-19
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Background | Flat `var(--bg-deep)` solid color | Volumetric lighting with radial cyan spotlight + orange glow + subtle scanline overlay |
+| Glass Panels | Basic `rgba(255,255,255,0.03)` flat cards | Heavy glassmorphism with `blur(12-32px)`, inner bevel `border-top`, radial gradient overlays |
+| Color Palette | CSS variable-based (muted tones) | Direct neon palette: `#00e5ff` cyan, `#F97316` orange, `#fbbf24` amber, `#00e5ff` glow halos |
+| Text Shadows | Minimal | Multi-layer neon text-shadow on block IDs, speed, SOS codes, countdown timers |
+| SOS Button | Basic pulsing box-shadow | Sonar ripple halo animation with inner glass shine overlay (`::before`) |
+| Login Screen | Flat card with basic gradient | Volumetric spotlight cone + heavy blur card (32px) + gradient border-top bevel |
+| GPS Coordinates | Static muted pill | Pulsing cyan border animation (`coordsPulse`) with neon cyan text |
+| Speed Display | 3.5rem weight 800 | 4rem weight 900 with subtle white text-shadow glow |
+| Nav Bar | Flat active state | Radial gradient glow + animated dot indicator + icon drop-shadow on active |
+| SOS Categories | Flat cards | Glass cards with `::before` radial overlay + inner glow on selection |
+| Voice SOS | Basic overlay | Cinematic overlay with saturated blur (120%) + larger mic (110px) + 100px outer glow |
+| Watchdog Modal | Basic alert | Cinematic glass panel with 80px red glow halo + enhanced timer text-shadow |
+| Toast | Basic glass | Elevated glass with cyan border tint + deeper shadow |
+| Batch Progress | Basic cyan-green gradient | Tri-color gradient (cyan → teal → purple) with glow shadow |
+
+**Why:** Complete visual overhaul to achieve a premium $1M sci-fi tactical HUD aesthetic. Every panel uses heavy glassmorphism with backdrop blur, inner bevels, and volumetric light effects. The design creates a cockpit/command center feel while preserving 100% of existing functionality.
+
+**Files Changed:**
+- `pages/driver.html` — Complete CSS rewrite (350+ lines): new background effects with volumetric gradients and scanlines, glassmorphic info boxes with radial overlays, neon text-shadow system, sonar pulse SOS animation, upgraded login/nav/overlay/watchdog styles. All class names and JS hooks preserved — zero functional changes.
+
+### 📝 Road SOS Provider Search + Provider Map Fix — 2026-05-19
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Road SOS Button | Opens `road-sos.html` (full first-aid triage) | Opens inline provider search with radius control |
+| Provider Search | No local provider search for drivers | Searches cached zones + local providers within adjustable radius (10-100km) |
+| Provider Sorting | N/A | Shows user's SOS type matches FIRST (green "MATCH" badge), then others by distance |
+| Pagination | N/A | Shows 5 providers at a time with Next/Prev buttons |
+| SMS Pre-fill | Manual SMS composition | One-tap "📱 SMS" opens native SMS with pre-filled SOS code + coordinates + Maps link |
+| Radius Control | No UI control | ± buttons to adjust: 10km → 25km → 50km → 100km |
+| Provider Map (provider.html) | Falls back to India center (20.5937, 78.9629) when coords missing | Shows "LOCATION NOT FOUND" error with guidance instead of wrong location |
+| Provider Lookup (8-char codes) | Could not decode 8-char codes in pipe-packets | Now decodes 8-char block codes + extracts coords from Google Maps links |
+| First Aid Access | Only via Road SOS button | Accessible from "🩺 Need First Aid? → Open" banner inside Road SOS screen |
+| Call 112 | Hidden | Always visible as fixed bottom button on Road SOS screen |
+
+**Why:** Drivers needed a quick way to find and SMS nearby emergency providers without navigating away from the app. The provider dashboard was showing incorrect locations (India center) when coordinates were missing from pasted codes. This change adds full local provider search with category-priority sorting, pagination, and one-tap SMS dispatch.
+
+**Files Changed:**
+- `pages/driver.html` — Renamed Road SOS button; added `#screenRoadSOS` screen with GPS chip, radius selector, provider cards, pagination, 112 call button, first-aid banner; rewrote `openRoadSOS()` to search local providers; added `searchRoadSOSProviders()`, `renderRoadSOSPage()`, `roadSosPage()`, `adjustRoadSOSRadius()`, `openFirstAidGuide()`, `closeRoadSOS()`
+- `pages/provider.html` — Fixed `lookupSOSCode()` to decode 8-char block codes in pipe-packets; added Google Maps link extraction; replaced India-center fallback with "LOCATION NOT FOUND" error UI
+
 ### 📝 SOS System Refinements — Unified Block Code, Provider SMS, First Aid UX — 2026-05-17
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)

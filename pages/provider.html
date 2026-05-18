@@ -660,14 +660,31 @@ function lookupSOSCode() {
     const locMatch = input.match(/Loc:([\d.]+),([\d.]+)/);
     if (locMatch && !lat) { lat = parseFloat(locMatch[1]); lng = parseFloat(locMatch[2]); }
 
-    // Try to decode blockCode if it's a valid BlockCodeEncoder format
-    if (blockCode && typeof BlockCodeEncoder !== 'undefined' && BlockCodeEncoder.isValid(blockCode)) {
-      const decoded = BlockCodeEncoder.decodeWithReason ? BlockCodeEncoder.decodeWithReason(blockCode) : BlockCodeEncoder.decode(blockCode);
-      if (decoded) {
-        if (!lat || !lng) { lat = decoded.lat; lng = decoded.lng; }
-        if (!typeCode) typeCode = decoded.type;
+    // Try to decode blockCode — supports both dash-format AND 8-char encoded format
+    if (blockCode && typeof BlockCodeEncoder !== 'undefined') {
+      if (BlockCodeEncoder.isValid(blockCode)) {
+        // Dash-format (RR-NNN-TTT or RR-NNN-TTT-RRRR)
+        const decoded = BlockCodeEncoder.decodeWithReason ? BlockCodeEncoder.decodeWithReason(blockCode) : BlockCodeEncoder.decode(blockCode);
+        if (decoded) {
+          if (!lat || !lng) { lat = decoded.lat; lng = decoded.lng; }
+          if (!typeCode) typeCode = decoded.type;
+        }
+      } else {
+        // Try 8-char encoded format (e.g., CE512ACC)
+        const clean8 = blockCode.replace(/[^0-9A-Z]/gi, '').toUpperCase();
+        if (clean8.length >= 7 && clean8.length <= 9) {
+          const decoded = BlockCodeEncoder.decode(clean8);
+          if (decoded && decoded.valid) {
+            if (!lat || !lng) { lat = decoded.lat; lng = decoded.lng; }
+            if (!typeCode) typeCode = decoded.sosTypeCode || decoded.type;
+          }
+        }
       }
     }
+
+    // Try to extract coordinates from Google Maps link in full SMS body
+    const mapsMatch = input.match(/maps\.google\.com\/\?q=(-?[\d.]+),(-?[\d.]+)/);
+    if (mapsMatch && !lat) { lat = parseFloat(mapsMatch[1]); lng = parseFloat(mapsMatch[2]); }
 
     // Match SOS event from Store
     const events = Store.getSOSEvents();
@@ -681,7 +698,22 @@ function lookupSOSCode() {
     }
 
     type = EMERGENCY_TYPES.find(t => t.code === typeCode) || { icon: '🚨', label: typeCode || 'Unknown', color: '#F87171' };
-    if (!lat || !lng) { lat = 20.5937; lng = 78.9629; }
+
+    // If still no coordinates, show error instead of defaulting to India center
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      showToast('⚠️ Could not extract location from this code. Coordinates missing.');
+      document.getElementById('lookupResult').innerHTML = `
+        <div class="card card-glow-alert mb-2" style="border-color:rgba(239,68,68,0.3);">
+          <div style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;margin-bottom:0.5rem;">⚠️</div>
+            <div style="font-size:0.85rem;font-weight:700;color:#F87171;margin-bottom:0.3rem;">LOCATION NOT FOUND</div>
+            <div class="text-xs text-muted">Could not extract GPS coordinates from this code.</div>
+            <div class="packet-display" style="font-size:0.75rem;margin-top:0.5rem;padding:0.4rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:8px;word-break:break-all;">${input}</div>
+            <div class="text-xs text-muted" style="margin-top:0.5rem;">Try pasting the full SMS body including coordinates or Google Maps link.</div>
+          </div>
+        </div>`;
+      return;
+    }
     const confColor = confidence >= 85 ? 'var(--accent-online)' : confidence >= 60 ? 'var(--accent-offline)' : 'var(--accent-alert)';
 
     document.getElementById('lookupResult').innerHTML = `
