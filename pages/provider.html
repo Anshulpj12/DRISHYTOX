@@ -152,8 +152,8 @@
 <h3 style="font-size:1rem;margin-bottom:0.5rem;">🔍 Decode SOS Code</h3>
 <p class="text-xs text-muted mb-2">Paste the SOS code from SMS to get the driver's exact location and emergency type.</p>
 <div style="margin-bottom:0.75rem;">
-<input class="input" id="lookupCodeInput" maxlength="80" placeholder="Paste SOS code or packet here..." style="font-family:var(--font-mono);font-size:0.85rem;text-align:center;letter-spacing:0.04em;" type="text"/>
-<div class="text-xs text-muted" style="text-align:center;margin-top:0.3rem;">Accepts block code (RR-NNN-TTT), 8-char code, or full SOS packet with coordinates</div>
+<textarea class="input" id="lookupCodeInput" maxlength="500" placeholder="Paste full SOS SMS body or code here..." rows="3" style="font-family:var(--font-mono);font-size:0.82rem;text-align:left;letter-spacing:0.02em;resize:none;width:100%;padding:0.75rem;"></textarea>
+<div class="text-xs text-muted" style="text-align:center;margin-top:0.3rem;">Accepts full SMS body, block code (RR-NNN-TTT), 8-char code, or pipe-separated packet with coordinates</div>
 </div>
 <button class="btn btn-primary btn-full" onclick="lookupSOSCode()">🔍 Decode Location</button>
 <div id="lookupResult" style="margin-top:1rem;"></div>
@@ -602,18 +602,47 @@ function showToast(msg) {
 let lookupMapInstance = null;
 
 function lookupSOSCode() {
-  let input = document.getElementById('lookupCodeInput').value.trim();
-  if (!input) { showToast('Enter or paste an SOS code'); return; }
+  let rawInput = document.getElementById('lookupCodeInput').value.trim();
+  if (!rawInput) { showToast('Enter or paste an SOS code'); return; }
+
+  // ── PRE-PROCESS: Extract data from full SMS body (multi-line paste) ──
+  let extractedLat = null, extractedLng = null, extractedPin = null;
+
+  // Extract coordinates from "Loc:lat,lng" anywhere in body
+  const locMatch = rawInput.match(/Loc:\s*(-?[\d.]+),\s*(-?[\d.]+)/i);
+  if (locMatch) { extractedLat = parseFloat(locMatch[1]); extractedLng = parseFloat(locMatch[2]); }
+
+  // Extract from Google Maps link
+  const mapsMatch = rawInput.match(/maps\.google\.com\/\?q=(-?[\d.]+),(-?[\d.]+)/);
+  if (mapsMatch && !extractedLat) { extractedLat = parseFloat(mapsMatch[1]); extractedLng = parseFloat(mapsMatch[2]); }
+
+  // Extract PIN
+  const pinMatch = rawInput.match(/PIN:\s*(\d+)/i);
+  if (pinMatch) extractedPin = pinMatch[1];
+
+  // Find the pipe-separated packet line (the most important data line)
+  let input = rawInput;
+  if (rawInput.includes('\n')) {
+    const lines = rawInput.split(/[\r\n]+/).map(l => l.trim()).filter(l => l);
+    // Find the line with pipes (the actual packet)
+    const packetLine = lines.find(l => l.includes('|'));
+    if (packetLine) {
+      input = packetLine;
+    } else {
+      // No pipe line — try the first non-"APARA" line as block code
+      input = lines.find(l => !l.startsWith('APARA') && !l.startsWith('Loc:') && !l.startsWith('PIN:') && !l.startsWith('Maps:') && !l.startsWith('Speed:') && l.length >= 3) || lines[0];
+    }
+  }
 
   // Strip SMS prefixes
   if (input.toUpperCase().startsWith('SOS ')) input = input.substring(4).trim();
   if (input.includes('APARA EMERGENCY:')) {
-    const m = input.match(/APARA EMERGENCY:\s*([^\\n]+)/);
+    const m = input.match(/APARA EMERGENCY:\s*([^\\\n]+)/);
     if (m) input = m[1].trim();
   }
 
-  let lat = null, lng = null, typeCode = null, typeName = null, confidence = 0;
-  let blockCode = null, pin = null, time = null;
+  let lat = extractedLat, lng = extractedLng, typeCode = null, typeName = null, confidence = 0;
+  let blockCode = null, pin = extractedPin, time = null;
   let type = null, matchingEvent = null;
 
   // ── FORMAT 1: Pipe-separated packet (new or legacy) ──

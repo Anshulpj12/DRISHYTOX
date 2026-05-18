@@ -36,6 +36,22 @@ All notable changes to this project will be documented in this file.
 **Files Changed:**
 - `pages/driver.html` — Complete CSS rewrite (350+ lines): new background effects with volumetric gradients and scanlines, glassmorphic info boxes with radial overlays, neon text-shadow system, sonar pulse SOS animation, upgraded login/nav/overlay/watchdog styles. All class names and JS hooks preserved — zero functional changes.
 
+### 📝 SOS Copy + Provider Decode Fix — 2026-05-19
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Copy SOS Code | Copied only 8-char block code (no coordinates) | Copies full packet with embedded GPS coordinates, Maps link, PIN |
+| Provider Input | Single-line `<input>` (80 char max, strips newlines) | Multi-line `<textarea>` (500 char max, preserves full SMS body) |
+| Provider Decode | Failed on multi-line SMS paste (coordinates on separate lines) | Pre-extracts Loc:, Maps URL, and PIN from full body before parsing |
+
+**Why:** When copying the SOS code from driver app, only the short block code was copied (e.g. `CE512ACC`) which doesn't contain GPS coordinates. The provider couldn't decode location from this. Now the copy function builds and copies the full pipe-separated packet with embedded coordinates, and the provider's decoder handles multi-line SMS body pastes correctly.
+
+**Files Changed:**
+- `pages/driver.html` — Rewrote `copySOSCode()` and `copyBannerSOSCode()` to build full decodable packets with coordinates
+- `pages/provider.html` — Changed input to textarea for multi-line paste, enhanced `lookupSOSCode()` with pre-extraction of Loc/Maps/PIN from full SMS body
 ### 📝 Road SOS Provider Search + Provider Map Fix — 2026-05-19
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)

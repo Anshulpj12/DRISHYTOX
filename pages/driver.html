@@ -2298,24 +2298,50 @@ function updateSOSBanner() {
 }
 
 function copySOSCode() {
-  const code = document.getElementById('sosCodeDisplay').textContent;
+  // Copy full packet with coordinates, not just the short block code
+  const blockCode8 = document.getElementById('sosCodeDisplay').textContent;
+  const pos = state.lastKnownPos || { lat: 0, lng: 0 };
+  const typeCode = state.activeSOS?.typeCode || state.pendingSOS?.typeCode || 'SOS';
+  const conf = state.currentBlock?.confidence || 85;
+  const pin = state.activeSOS?.resolutionPin || state.pendingSOS?.resolutionPin || '----';
+  // Build full decodable packet: blockCode|typeCode|time|lat,lng|conf:N
+  const fullPacket = `${blockCode8}|${typeCode}|${new Date().toLocaleTimeString('en-IN',{hour12:false})}|${pos.lat.toFixed(4)},${pos.lng.toFixed(4)}|conf:${conf}`;
+  const fullText = `APARA SOS\n${fullPacket}\nLoc:${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}\nPIN:${pin}\nMaps:https://maps.google.com/?q=${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`;
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(code).then(() => showToast('SOS Code copied to clipboard!'));
+    navigator.clipboard.writeText(fullText).then(() => showToast('📋 Full SOS packet copied with coordinates!'));
   } else {
-    const ta = document.createElement('textarea'); ta.value = code;
+    const ta = document.createElement('textarea'); ta.value = fullText;
     document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-    document.body.removeChild(ta); showToast('SOS Code copied!');
+    document.body.removeChild(ta); showToast('📋 Full SOS packet copied!');
   }
 }
 
 function copyBannerSOSCode() {
-  const code = document.getElementById('bannerSosCode').textContent;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(code).then(() => showToast('SOS Code copied!'));
+  // Copy full packet from active SOS, including coordinates for provider decoding
+  if (state.activeSOS) {
+    const pos = state.lastKnownPos || { lat: state.activeSOS.lat || 0, lng: state.activeSOS.lng || 0 };
+    const blockCode8 = state.activeSOS.blockCode8 || state.activeSOS.blockCode || '--------';
+    const typeCode = state.activeSOS.typeCode || 'SOS';
+    const conf = state.activeSOS.confidence || 85;
+    const pin = state.activeSOS.resolutionPin || '----';
+    const fullPacket = `${blockCode8}|${typeCode}|${new Date().toLocaleTimeString('en-IN',{hour12:false})}|${pos.lat.toFixed(4)},${pos.lng.toFixed(4)}|conf:${conf}`;
+    const fullText = `APARA SOS\n${fullPacket}\nLoc:${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}\nPIN:${pin}\nMaps:https://maps.google.com/?q=${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(fullText).then(() => showToast('📋 Full SOS packet copied with coordinates!'));
+    } else {
+      const ta = document.createElement('textarea'); ta.value = fullText;
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); showToast('📋 Full SOS packet copied!');
+    }
   } else {
-    const ta = document.createElement('textarea'); ta.value = code;
-    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-    document.body.removeChild(ta); showToast('SOS Code copied!');
+    const code = document.getElementById('bannerSosCode').textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code).then(() => showToast('SOS Code copied!'));
+    } else {
+      const ta = document.createElement('textarea'); ta.value = code;
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); showToast('SOS Code copied!');
+    }
   }
 }
 
