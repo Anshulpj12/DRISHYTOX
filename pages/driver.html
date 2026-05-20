@@ -2138,74 +2138,35 @@ function sendSOS() {
     return true;
   });
 
-  // Take top 5
-  const top5 = allNearby.slice(0, 5);
+  // Store all nearby for pagination
+  state._sosAllNearby = allNearby;
+  state._sosCurrentPage = 0;
+  state._sosPageSize = 5;
+  state._sosSearchRadius = allNearby.length > 0 && allNearby[0].distance <= SOS_SEARCH_RADIUS ? SOS_SEARCH_RADIUS : SOS_EXTENDED_RADIUS;
 
-  // ═══ RENDER PROVIDER LIST ═══
+  // ═══ RENDER PROVIDER LIST (PAGINATED) ═══
   const listEl = document.getElementById('sosProviderList');
   const noProvEl = document.getElementById('sosNoProviders');
 
-  if (top5.length > 0) {
+  if (allNearby.length > 0) {
     noProvEl.classList.add('hidden');
-    // Get current GPS speed for ETA calculation
-    const currentSpeed = (typeof GPSTracker !== 'undefined' && GPSTracker.getEstimatedPosition)
-      ? GPSTracker.getEstimatedPosition()?.speed || 0 : 0;
-
-    listEl.innerHTML = top5.map((p, i) => {
-      // ═══ SMART ETA using SpeedEstimator (community + user + GPS) ═══
-      const etaResult = SpeedEstimator.calculateETA(
-        pos.lat, pos.lng, p.lat, p.lng, currentSpeed, state.driverId
-      );
-      const distKm = etaResult.distanceKm;
-      const eta = etaResult.etaMinutes;
-      const speedSrc = etaResult.speedSource;
-      const speedConf = etaResult.confidence;
-      const speedKmh = etaResult.estimatedSpeed;
-
-      // Speed source badge colors
-      const srcColors = {
-        'gps_live': { bg: 'rgba(34,197,94,0.15)', fg: '#22C55E', label: 'LIVE' },
-        'user_block': { bg: 'rgba(59,130,246,0.15)', fg: '#3B82F6', label: 'YOUR' },
-        'user_entry': { bg: 'rgba(59,130,246,0.12)', fg: '#60A5FA', label: 'HIST' },
-        'community': { bg: 'rgba(168,85,247,0.15)', fg: '#A855F7', label: 'COMM' },
-        'user_overall': { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24', label: 'AVG' },
-        'default': { bg: 'rgba(107,114,128,0.15)', fg: '#6B7280', label: 'EST' },
-      };
-      const srcStyle = srcColors[speedSrc] || srcColors['default'];
-
-      const smsBody = encodeURIComponent(buildSOSMessage(p.name));
-      const smsHref = `sms:${p.phone}?body=${smsBody}`;
-      const matchBadge = p.catMatch ? '<span style="background:rgba(34,197,94,0.15);color:#22C55E;font-size:0.55rem;padding:0.1rem 0.3rem;border-radius:4px;margin-left:0.3rem;">MATCH</span>' : '';
-      const distBadge = p.distance > SOS_SEARCH_RADIUS ? '<span style="background:rgba(251,191,36,0.12);color:#FBBF24;font-size:0.5rem;padding:0.05rem 0.2rem;border-radius:3px;margin-left:0.2rem;">EXTENDED</span>' : '';
-      return `
-        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:0.75rem;margin-bottom:0.5rem;${i === 0 ? 'border-color:rgba(249,115,22,0.3);background:rgba(249,115,22,0.05);' : ''}">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div style="flex:1;">
-              <div style="font-size:0.85rem;font-weight:600;">${p.catIcon || '🏥'} ${p.name}${matchBadge}${distBadge}</div>
-              <div class="text-xs text-muted" style="margin-top:0.15rem;">${p.catLabel || ''} · ${distKm} km · ETA <b style="color:var(--accent-alert);">~${eta} min</b></div>
-              <div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.15rem;">
-                <span style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-muted);">📞 ${p.phone || '---'}</span>
-                <span style="font-size:0.5rem;padding:0.05rem 0.25rem;border-radius:3px;background:${srcStyle.bg};color:${srcStyle.fg};">${srcStyle.label} ${speedKmh}km/h</span>
-              </div>
-            </div>
-            <a href="${smsHref}" style="background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:0.5rem 0.75rem;border-radius:10px;font-size:0.72rem;font-weight:700;text-decoration:none;white-space:nowrap;display:flex;align-items:center;gap:0.2rem;">📱 SMS</a>
-          </div>
-        </div>`;
-    }).join('');
-
-    // Store first provider for banner
-    state.pendingSOS.nearestProvider = top5[0];
-    Store.updateSOSEvent(state.pendingSOS.id, {
-      providerId: top5[0].id || top5[0].name, providerName: top5[0].name,
-      dispatchedAt: new Date().toISOString(), blockCode8,
-      nearbyCount: top5.length,
-    });
+    renderSOSProviderPage();
   } else {
     // Absolute last resort — no providers found even in 100km
     listEl.innerHTML = '';
     noProvEl.classList.remove('hidden');
     const sms112Body = encodeURIComponent(buildSOSMessage('Emergency'));
     document.getElementById('sos112Link').href = `sms:112?body=${sms112Body}`;
+  }
+
+  // Store first provider for banner
+  if (allNearby.length > 0) {
+    state.pendingSOS.nearestProvider = allNearby[0];
+    Store.updateSOSEvent(state.pendingSOS.id, {
+      providerId: allNearby[0].id || allNearby[0].name, providerName: allNearby[0].name,
+      dispatchedAt: new Date().toISOString(), blockCode8,
+      nearbyCount: allNearby.length,
+    });
   }
 
   // ═══ FIRST AID GUIDE — Optional (manual open only) ═══
@@ -2262,6 +2223,146 @@ function cancelActiveSOS() {
   switchScreen('screenHome');
 }
 
+// ═══ PAGINATED PROVIDER RENDERER ═══
+function renderSOSProviderPage() {
+  const allNearby = state._sosAllNearby || [];
+  const page = state._sosCurrentPage || 0;
+  const pageSize = state._sosPageSize || 5;
+  const start = 0;
+  const end = (page + 1) * pageSize;
+  const visible = allNearby.slice(start, end);
+  const hasMore = end < allNearby.length;
+
+  const pos = state.lastKnownPos || { lat: 0, lng: 0 };
+  const SOS_SEARCH_RADIUS = 10000;
+  const currentSpeed = (typeof GPSTracker !== 'undefined' && GPSTracker.getEstimatedPosition)
+    ? GPSTracker.getEstimatedPosition()?.speed || 0 : 0;
+
+  const listEl = document.getElementById('sosProviderList');
+
+  let html = visible.map((p, i) => {
+    const etaResult = SpeedEstimator.calculateETA(
+      pos.lat, pos.lng, p.lat, p.lng, currentSpeed, state.driverId
+    );
+    const distKm = etaResult.distanceKm;
+    const eta = etaResult.etaMinutes;
+    const speedSrc = etaResult.speedSource;
+    const speedKmh = etaResult.estimatedSpeed;
+
+    const srcColors = {
+      'gps_live': { bg: 'rgba(34,197,94,0.15)', fg: '#22C55E', label: 'LIVE' },
+      'user_block': { bg: 'rgba(59,130,246,0.15)', fg: '#3B82F6', label: 'YOUR' },
+      'user_entry': { bg: 'rgba(59,130,246,0.12)', fg: '#60A5FA', label: 'HIST' },
+      'community': { bg: 'rgba(168,85,247,0.15)', fg: '#A855F7', label: 'COMM' },
+      'user_overall': { bg: 'rgba(251,191,36,0.15)', fg: '#FBBF24', label: 'AVG' },
+      'default': { bg: 'rgba(107,114,128,0.15)', fg: '#6B7280', label: 'EST' },
+    };
+    const srcStyle = srcColors[speedSrc] || srcColors['default'];
+
+    const smsBody = encodeURIComponent(buildSOSMessage(p.name));
+    const smsHref = `sms:${p.phone}?body=${smsBody}`;
+    const matchBadge = p.catMatch ? '<span style="background:rgba(34,197,94,0.15);color:#22C55E;font-size:0.55rem;padding:0.1rem 0.3rem;border-radius:4px;margin-left:0.3rem;">MATCH</span>' : '';
+    const distBadge = p.distance > SOS_SEARCH_RADIUS ? '<span style="background:rgba(251,191,36,0.12);color:#FBBF24;font-size:0.5rem;padding:0.05rem 0.2rem;border-radius:3px;margin-left:0.2rem;">EXTENDED</span>' : '';
+    return `
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:0.75rem;margin-bottom:0.5rem;${i === 0 ? 'border-color:rgba(249,115,22,0.3);background:rgba(249,115,22,0.05);' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="flex:1;">
+            <div style="font-size:0.85rem;font-weight:600;">${p.catIcon || '🏥'} ${p.name}${matchBadge}${distBadge}</div>
+            <div class="text-xs text-muted" style="margin-top:0.15rem;">${p.catLabel || ''} · ${distKm} km · ETA <b style="color:var(--accent-alert);">~${eta} min</b></div>
+            <div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.15rem;">
+              <span style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-muted);">📞 ${p.phone || '---'}</span>
+              <span style="font-size:0.5rem;padding:0.05rem 0.25rem;border-radius:3px;background:${srcStyle.bg};color:${srcStyle.fg};">${srcStyle.label} ${speedKmh}km/h</span>
+            </div>
+          </div>
+          <a href="${smsHref}" style="background:linear-gradient(135deg,#DC2626,#EF4444);color:#fff;padding:0.5rem 0.75rem;border-radius:10px;font-size:0.72rem;font-weight:700;text-decoration:none;white-space:nowrap;display:flex;align-items:center;gap:0.2rem;">📱 SMS</a>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Status bar
+  html += `<div class="text-xs text-muted" style="text-align:center;margin:0.4rem 0;">Showing ${visible.length} of ${allNearby.length} providers · Radius: ${state._sosSearchRadius <= 10000 ? '10km' : '100km'}</div>`;
+
+  // Show More button
+  if (hasMore) {
+    html += `<button onclick="showMoreSOSProviders()" style="width:100%;padding:0.6rem;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);border-radius:10px;color:#00e5ff;font-size:0.78rem;font-weight:700;cursor:pointer;margin-bottom:0.4rem;">▼ Show More (${allNearby.length - end} remaining)</button>`;
+  }
+
+  // Expand Radius button (if currently at 10km and could find more at 100km)
+  if (state._sosSearchRadius <= 10000) {
+    html += `<button onclick="expandSOSRadius()" style="width:100%;padding:0.6rem;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2);border-radius:10px;color:#F97316;font-size:0.78rem;font-weight:700;cursor:pointer;">🔍 Expand Search to 100km</button>`;
+  }
+
+  listEl.innerHTML = html;
+}
+
+function showMoreSOSProviders() {
+  state._sosCurrentPage = (state._sosCurrentPage || 0) + 1;
+  renderSOSProviderPage();
+}
+
+function expandSOSRadius() {
+  if (!state.lastKnownPos || !state.pendingSOS) return;
+  const pos = state.lastKnownPos;
+  const SOS_EXTENDED_RADIUS = 100000;
+  const sosTypeCode = state.pendingSOS.typeCode || 'SOS';
+  const sosProviderMap = { 'ACC': ['HOSP','TOW','MECH'], 'MED': ['HOSP','PHAR'], 'TYR': ['PUNC','MECH'], 'FUL': ['FUEL'], 'TOW': ['TOW','MECH'] };
+  const relevantCats = sosProviderMap[sosTypeCode] || [];
+  let expanded = [];
+
+  ZoneManager.getCachedZoneIds().forEach(zId => {
+    const zone = ZoneManager.getZoneData(zId);
+    if (!zone) return;
+    if (zone.providers) {
+      zone.providers.forEach(p => {
+        if (p.status !== 'Active') return;
+        const dist = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
+        if (dist <= SOS_EXTENDED_RADIUS) {
+          const catMatch = relevantCats.includes(p.cat);
+          expanded.push({ ...p, distance: dist, catMatch });
+        }
+      });
+    }
+    if (zone.shops) {
+      zone.shops.forEach(s => {
+        if (!s.phone) return;
+        const dist = Utils.haversine(pos.lat, pos.lng, s.lat, s.lng);
+        if (dist <= SOS_EXTENDED_RADIUS) {
+          const catMatch = relevantCats.includes(s.catCode);
+          expanded.push({ name: s.name, phone: s.phone, cat: s.catCode || 'GEN', catIcon: SHOP_CATEGORIES.find(c => c.code === s.catCode)?.icon || '🏪', catLabel: SHOP_CATEGORIES.find(c => c.code === s.catCode)?.label || 'Shop', lat: s.lat, lng: s.lng, distance: dist, catMatch, isShop: true });
+        }
+      });
+    }
+  });
+
+  // Also check locally registered providers
+  Store.getProviders().filter(p => p.status === 'Active' && p.lat && p.lng).forEach(p => {
+    const dist = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
+    if (dist <= SOS_EXTENDED_RADIUS) {
+      const catMatch = relevantCats.includes(p.cat);
+      expanded.push({ ...p, distance: dist, catMatch, catIcon: p.category?.icon || '🏥', catLabel: p.category?.label || 'Provider' });
+    }
+  });
+
+  // Sort and dedupe
+  expanded.sort((a, b) => {
+    if (a.catMatch && !b.catMatch) return -1;
+    if (!a.catMatch && b.catMatch) return 1;
+    return a.distance - b.distance;
+  });
+  const seen = new Set();
+  expanded = expanded.filter(p => {
+    if (!p.phone || seen.has(p.phone)) return false;
+    seen.add(p.phone);
+    return true;
+  });
+
+  state._sosAllNearby = expanded;
+  state._sosCurrentPage = 0;
+  state._sosSearchRadius = SOS_EXTENDED_RADIUS;
+  renderSOSProviderPage();
+  showToast(`🔍 Expanded search: ${expanded.length} providers within 100km`);
+}
+
 // ═══ SOS BANNER (persistent on home screen) ═══
 function updateSOSBanner() {
   const banner = document.getElementById('sosBanner');
@@ -2298,40 +2399,36 @@ function updateSOSBanner() {
 }
 
 function copySOSCode() {
-  // Copy full packet with coordinates, not just the short block code
+  // Copy clean single-line SOS packet with embedded coordinates
+  // Provider decodes this offline — extracts lat,lng from pipe format
   const blockCode8 = document.getElementById('sosCodeDisplay').textContent;
   const pos = state.lastKnownPos || { lat: 0, lng: 0 };
   const typeCode = state.activeSOS?.typeCode || state.pendingSOS?.typeCode || 'SOS';
   const conf = state.currentBlock?.confidence || 85;
-  const pin = state.activeSOS?.resolutionPin || state.pendingSOS?.resolutionPin || '----';
-  // Build full decodable packet: blockCode|typeCode|time|lat,lng|conf:N
-  const fullPacket = `${blockCode8}|${typeCode}|${new Date().toLocaleTimeString('en-IN',{hour12:false})}|${pos.lat.toFixed(4)},${pos.lng.toFixed(4)}|conf:${conf}`;
-  const fullText = `APARA SOS\n${fullPacket}\nLoc:${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}\nPIN:${pin}\nMaps:https://maps.google.com/?q=${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`;
+  const fullText = `APARA SOS ${blockCode8}|${typeCode}|${new Date().toLocaleTimeString('en-IN',{hour12:false})}|${pos.lat.toFixed(4)},${pos.lng.toFixed(4)}|conf:${conf}`;
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(fullText).then(() => showToast('📋 Full SOS packet copied with coordinates!'));
+    navigator.clipboard.writeText(fullText).then(() => showToast('📋 SOS packet copied!'));
   } else {
     const ta = document.createElement('textarea'); ta.value = fullText;
     document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-    document.body.removeChild(ta); showToast('📋 Full SOS packet copied!');
+    document.body.removeChild(ta); showToast('📋 SOS packet copied!');
   }
 }
 
 function copyBannerSOSCode() {
-  // Copy full packet from active SOS, including coordinates for provider decoding
+  // Copy clean single-line SOS packet from active SOS
   if (state.activeSOS) {
     const pos = state.lastKnownPos || { lat: state.activeSOS.lat || 0, lng: state.activeSOS.lng || 0 };
     const blockCode8 = state.activeSOS.blockCode8 || state.activeSOS.blockCode || '--------';
     const typeCode = state.activeSOS.typeCode || 'SOS';
     const conf = state.activeSOS.confidence || 85;
-    const pin = state.activeSOS.resolutionPin || '----';
-    const fullPacket = `${blockCode8}|${typeCode}|${new Date().toLocaleTimeString('en-IN',{hour12:false})}|${pos.lat.toFixed(4)},${pos.lng.toFixed(4)}|conf:${conf}`;
-    const fullText = `APARA SOS\n${fullPacket}\nLoc:${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}\nPIN:${pin}\nMaps:https://maps.google.com/?q=${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`;
+    const fullText = `APARA SOS ${blockCode8}|${typeCode}|${new Date().toLocaleTimeString('en-IN',{hour12:false})}|${pos.lat.toFixed(4)},${pos.lng.toFixed(4)}|conf:${conf}`;
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(fullText).then(() => showToast('📋 Full SOS packet copied with coordinates!'));
+      navigator.clipboard.writeText(fullText).then(() => showToast('📋 SOS packet copied!'));
     } else {
       const ta = document.createElement('textarea'); ta.value = fullText;
       document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-      document.body.removeChild(ta); showToast('📋 Full SOS packet copied!');
+      document.body.removeChild(ta); showToast('📋 SOS packet copied!');
     }
   } else {
     const code = document.getElementById('bannerSosCode').textContent;

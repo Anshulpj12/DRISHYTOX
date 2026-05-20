@@ -52,7 +52,44 @@ All notable changes to this project will be documented in this file.
 **Files Changed:**
 - `pages/driver.html` — Rewrote `copySOSCode()` and `copyBannerSOSCode()` to build full decodable packets with coordinates
 - `pages/provider.html` — Changed input to textarea for multi-line paste, enhanced `lookupSOSCode()` with pre-extraction of Loc/Maps/PIN from full SMS body
-### 📝 Road SOS Provider Search + Provider Map Fix — 2026-05-19
+
+### 📝 Clean Single-Line SOS Packet — 2026-05-20
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Copy format | Multi-line SMS with Loc:, PIN:, Maps: lines | Single line: `APARA SOS code\|TYR\|18:29:54\|23.1314,79.9215\|conf:92` |
+| Provider decode | Needed multi-line parsing + Loc: extraction | Strips `APARA SOS ` prefix → pipe parser extracts coordinates directly |
+| Server dependency | None (but format was complex) | None — 100% offline. Driver embeds GPS, provider reads coordinates |
+
+**Why:** Driver is offline when generating SOS. The code should be a clean single line with embedded coordinates that the provider (who has internet) can paste and instantly see the location on a map. No server lookup needed.
+
+**Files Changed:**
+- `pages/driver.html` — Simplified `copySOSCode()` and `copyBannerSOSCode()` to produce single-line packet
+- `pages/provider.html` — Added `APARA SOS ` prefix stripping in `lookupSOSCode()`
+
+### 📝 Provider Unified Decode + Driver Paginated Providers — 2026-05-20
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Provider decode sections | Two separate decode UIs (Lookup tab + Dispatch tab) | Single unified Lookup tab handles all formats |
+| Provider map after decode | Map failed to render (race condition + no invalidateSize) | Reusable `showLookupMap()` with proper cleanup, delay, and invalidateSize |
+| Block code Format 2 | Switched to Dispatch tab, different UI | Decodes inline in Lookup tab with full map |
+| Driver provider list | Static top-5, no pagination | Paginated (5 at a time) with "Show More" button |
+| Driver radius expansion | Auto-expanded only if zero results | Manual "Expand to 100km" button always available |
+
+**Why:** Provider had two confusing decode sections (Dispatch tab's `bcDecodeInput` + Lookup tab's `lookupCodeInput`). Merged into one. Map wasn't rendering because of Leaflet race conditions. Driver needed pagination and manual radius control.
+
+**Files Changed:**
+- `pages/provider.html` — Removed duplicate decode section from Dispatch tab, added `showLookupMap()` helper, made Format 2 decode inline in Lookup tab
+- `pages/driver.html` — Added `renderSOSProviderPage()` with pagination, `showMoreSOSProviders()`, `expandSOSRadius()` for manual 100km expansion
+
+
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)
 **AI Assistant:** Gemini Antigravity
