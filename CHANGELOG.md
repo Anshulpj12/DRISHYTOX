@@ -9,6 +9,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 Fixed Dispatch Map & SOS Code Decoding in Provider Dashboard — 2026-05-21
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity (Claude Opus 4.6 Thinking)
+
+| Category | Before | After |
+|---|---|---|
+| SMS Coordinate Parsing | Only matched `Loc:` keyword | Matches `Loc:`, `Coords:`, and `Location:` keywords |
+| Google Maps URL | Single URL pattern only | Handles multiple Google Maps URL formats |
+| Block Code Extraction | Failed on `Code: XX-NNN-TTT` prefix | Strips `Code:` prefix correctly |
+| Lookup Map Init | Leaflet race condition — map often blank | Uses `requestAnimationFrame` + double `invalidateSize()` |
+| Dispatch Map | Only showed driver marker | Shows driver (red) + provider (blue pulsing dot) with auto-fit bounds |
+| Provider GPS | No GPS tracking for provider | Starts `watchPosition` on login, updates dispatch map in real-time |
+| Provider on Lookup Map | Not shown | Blue dot shows provider's location alongside driver marker |
+| Map Bounds | Fixed zoom level | Auto-fits to show both driver and provider positions |
+| Debug Logging | No parsing debug output | Console logs raw input and parsed data for debugging |
+
+**Why:** When pasting an SOS code with coordinates and clicking "Decode Location", the map didn't render due to Leaflet initialization race conditions. The SMS parser also missed coordinates embedded with `Coords:` keyword. The dispatch map only showed the driver's location — providers had no visual reference of their own position relative to the emergency.
+
+**Files Changed:**
+- `pages/provider.html` — Added provider GPS tracking (`startProviderGPS()`), fixed `lookupSOSCode()` coordinate extraction (supports Loc/Coords/Location keywords, Code: prefix, multiple Maps URL formats), rewrote `showLookupMap()` with `requestAnimationFrame` and provider blue dot, enhanced `renderDispatch()` map with dual markers and live provider tracking
+
 ### 📝 Apex Tactical HUD — Full Driver App Visual Redesign — 2026-05-19
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)

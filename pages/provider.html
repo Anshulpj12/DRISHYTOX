@@ -179,6 +179,11 @@ let dispatchInterval = null;
 let alertPollInterval = null;
 let detailMap = null;
 let dispatchMap = null;
+let providerPosition = null; // Provider's own GPS position
+let providerWatchId = null;
+let dispatchDriverMarker = null;
+let dispatchProviderMarker = null;
+let dispatchProviderCircle = null;
 
 // ═══ LOGIN ═══
 async function doLogin() {
@@ -245,6 +250,7 @@ function login() {
   renderAlerts();
   renderProfile();
   startAlertPolling();
+  startProviderGPS(); // Track provider's own location
 
   // Firebase init
   FirebaseSync.init().then(ready => {
@@ -438,19 +444,35 @@ function renderDispatch() {
     </div>
   `;
 
-  // Init dispatch map with actual SOS coordinates
-  setTimeout(() => {
-    if (dispatchMap) dispatchMap.remove();
-    const hasRealLoc = (d.lat != null && d.lng != null && d.lat !== 0 && d.lng !== 0);
-    const lat = hasRealLoc ? d.lat : 20.5937;
-    const lng = hasRealLoc ? d.lng : 78.9629;
-    const zoom = hasRealLoc ? 15 : 5;
-    dispatchMap = L.map('dispatchMap').setView([lat, lng], zoom);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(dispatchMap);
-    L.marker([lat, lng]).addTo(dispatchMap)
-      .bindPopup(`<b>🚨 ${type.label}</b><br>${d.blockCode}<br>📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`).openPopup();
-    L.circle([lat, lng], { radius: hasRealLoc ? 300 : 3000, color: '#F97316', fillOpacity: 0.1 }).addTo(dispatchMap);
-  }, 100);
+  // Init dispatch map with driver + provider markers
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      if (dispatchMap) { try { dispatchMap.remove(); } catch(e) {} }
+      dispatchDriverMarker = null; dispatchProviderMarker = null; dispatchProviderCircle = null;
+      const hasRealLoc = (d.lat != null && d.lng != null && d.lat !== 0 && d.lng !== 0);
+      const dLat = hasRealLoc ? d.lat : 20.5937;
+      const dLng = hasRealLoc ? d.lng : 78.9629;
+      const zoom = hasRealLoc ? 15 : 5;
+      dispatchMap = L.map('dispatchMap').setView([dLat, dLng], zoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(dispatchMap);
+      // Driver marker (red)
+      dispatchDriverMarker = L.marker([dLat, dLng]).addTo(dispatchMap)
+        .bindPopup(`<b>🚨 ${type.label}</b><br>${d.blockCode}<br>📍 ${dLat.toFixed(5)}°, ${dLng.toFixed(5)}°`).openPopup();
+      L.circle([dLat, dLng], { radius: hasRealLoc ? 300 : 3000, color: '#F97316', fillOpacity: 0.1 }).addTo(dispatchMap);
+      // Provider location (blue pulsing dot)
+      if (providerPosition) {
+        const provIcon = L.divIcon({ className: '', html: '<div style="width:16px;height:16px;background:#3B82F6;border:3px solid #fff;border-radius:50%;box-shadow:0 0 10px rgba(59,130,246,0.7);animation:pulse 2s infinite;"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
+        dispatchProviderMarker = L.marker([providerPosition.lat, providerPosition.lng], { icon: provIcon }).addTo(dispatchMap)
+          .bindPopup('<b>📍 You (Provider)</b>');
+        dispatchProviderCircle = L.circle([providerPosition.lat, providerPosition.lng], { radius: providerPosition.accuracy || 100, color: '#3B82F6', fillOpacity: 0.08, weight: 1 }).addTo(dispatchMap);
+        // Fit map to show both driver and provider
+        const bounds = L.latLngBounds([[dLat, dLng], [providerPosition.lat, providerPosition.lng]]);
+        dispatchMap.fitBounds(bounds.pad(0.3));
+      }
+      setTimeout(() => { dispatchMap.invalidateSize(); }, 200);
+      setTimeout(() => { dispatchMap.invalidateSize(); }, 600);
+    }, 200);
+  });
 
   // Timer
   if (dispatchInterval) clearInterval(dispatchInterval);
@@ -593,48 +615,87 @@ function showToast(msg) {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 3500);
 }
 
+// ═══ PROVIDER GPS TRACKING ═══
+function startProviderGPS() {
+  if (!navigator.geolocation) return;
+  if (providerWatchId) navigator.geolocation.clearWatch(providerWatchId);
+  // Get initial position
+  navigator.geolocation.getCurrentPosition(
+    (p) => { providerPosition = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy, ts: Date.now() }; },
+    () => {},
+    { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+  );
+  // Watch for movement
+  providerWatchId = navigator.geolocation.watchPosition(
+    (p) => {
+      providerPosition = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy, ts: Date.now() };
+      // Update dispatch map if active
+      if (activeDispatch && dispatchMap && dispatchProviderMarker) {
+        dispatchProviderMarker.setLatLng([providerPosition.lat, providerPosition.lng]);
+        if (dispatchProviderCircle) dispatchProviderCircle.setLatLng([providerPosition.lat, providerPosition.lng]);
+      }
+    },
+    () => {},
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+  );
+}
+
 // ═══ UNIFIED SOS CODE LOOKUP ═══
-// Handles all formats: pipe-separated packets, block codes, 8-char codes
 let lookupMapInstance = null;
 
-// Reusable map renderer for all lookup formats
 function showLookupMap(lat, lng, type, label, confidence) {
   const mapDiv = document.getElementById('lookupMap');
+  if (!mapDiv) return;
   mapDiv.style.display = 'block';
-  // Destroy existing map instance cleanly
   if (lookupMapInstance) {
     try { lookupMapInstance.remove(); } catch(e) {}
     lookupMapInstance = null;
   }
-  // Small delay to ensure DOM is ready after display:block
-  setTimeout(() => {
-    try {
-      lookupMapInstance = L.map('lookupMap').setView([lat, lng], 15);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
-      L.marker([lat, lng]).addTo(lookupMapInstance)
-        .bindPopup(`<b>${type.icon} ${type.label}</b><br>${label}<br>📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`).openPopup();
-      const radius = confidence >= 85 ? 150 : confidence >= 50 ? 400 : 600;
-      L.circle([lat, lng], { radius, color: type.color || '#F87171', fillOpacity: 0.12, weight: 2 }).addTo(lookupMapInstance);
-      // Force map to recalculate size after render
-      setTimeout(() => { lookupMapInstance.invalidateSize(); }, 200);
-    } catch(e) { console.warn('Map init error:', e); }
-  }, 150);
+  // Robust Leaflet init — wait for DOM repaint
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      try {
+        lookupMapInstance = L.map('lookupMap').setView([lat, lng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
+        // Driver marker (red)
+        L.marker([lat, lng]).addTo(lookupMapInstance)
+          .bindPopup(`<b>${type.icon} ${type.label}</b><br>${label}<br>📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`).openPopup();
+        const radius = confidence >= 85 ? 150 : confidence >= 50 ? 400 : 600;
+        L.circle([lat, lng], { radius, color: type.color || '#F87171', fillOpacity: 0.12, weight: 2 }).addTo(lookupMapInstance);
+        // Provider's own location (blue dot)
+        if (providerPosition) {
+          const provIcon = L.divIcon({ className: '', html: '<div style="width:14px;height:14px;background:#3B82F6;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(59,130,246,0.6);"></div>', iconSize: [14, 14], iconAnchor: [7, 7] });
+          L.marker([providerPosition.lat, providerPosition.lng], { icon: provIcon }).addTo(lookupMapInstance)
+            .bindPopup('<b>📍 You (Provider)</b>');
+          // Fit bounds to show both
+          const bounds = L.latLngBounds([[lat, lng], [providerPosition.lat, providerPosition.lng]]);
+          lookupMapInstance.fitBounds(bounds.pad(0.3));
+        }
+        setTimeout(() => { lookupMapInstance.invalidateSize(); }, 200);
+        setTimeout(() => { lookupMapInstance.invalidateSize(); }, 600);
+      } catch(e) { console.warn('Map init error:', e); }
+    }, 200);
+  });
 }
 
 function lookupSOSCode() {
   let rawInput = document.getElementById('lookupCodeInput').value.trim();
   if (!rawInput) { showToast('Enter or paste an SOS code'); return; }
 
+  console.log('[Lookup] Raw input:', rawInput);
+
   // ── PRE-PROCESS: Extract data from full SMS body (multi-line paste) ──
   let extractedLat = null, extractedLng = null, extractedPin = null;
 
-  // Extract coordinates from "Loc:lat,lng" anywhere in body
-  const locMatch = rawInput.match(/Loc:\s*(-?[\d.]+),\s*(-?[\d.]+)/i);
+  // Extract coordinates from "Loc:lat,lng" or "Coords:lat,lng" anywhere
+  const locMatch = rawInput.match(/(?:Loc|Coords|Location):\s*(-?[\d.]+),\s*(-?[\d.]+)/i);
   if (locMatch) { extractedLat = parseFloat(locMatch[1]); extractedLng = parseFloat(locMatch[2]); }
 
-  // Extract from Google Maps link
-  const mapsMatch = rawInput.match(/maps\.google\.com\/\?q=(-?[\d.]+),(-?[\d.]+)/);
+  // Extract from Google Maps link (multiple URL formats)
+  const mapsMatch = rawInput.match(/maps\.google\.com\/\?q=(-?[\d.]+),\s*(-?[\d.]+)/);
   if (mapsMatch && !extractedLat) { extractedLat = parseFloat(mapsMatch[1]); extractedLng = parseFloat(mapsMatch[2]); }
+  const mapsMatch2 = rawInput.match(/google\.com\/maps.*?(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+  if (mapsMatch2 && !extractedLat) { extractedLat = parseFloat(mapsMatch2[1]); extractedLng = parseFloat(mapsMatch2[2]); }
 
   // Extract PIN
   const pinMatch = rawInput.match(/PIN:\s*(\d+)/i);
@@ -644,26 +705,30 @@ function lookupSOSCode() {
   let input = rawInput;
   if (rawInput.includes('\n')) {
     const lines = rawInput.split(/[\r\n]+/).map(l => l.trim()).filter(l => l);
-    // Find the line with pipes (the actual packet)
     const packetLine = lines.find(l => l.includes('|'));
     if (packetLine) {
       input = packetLine;
     } else {
-      // No pipe line — try the first non-"APARA" line as block code
-      input = lines.find(l => !l.startsWith('APARA') && !l.startsWith('Loc:') && !l.startsWith('PIN:') && !l.startsWith('Maps:') && !l.startsWith('Speed:') && l.length >= 3) || lines[0];
+      // No pipe line — find block code pattern (XX-NNN-XXX)
+      const blockLine = lines.find(l => /^[A-Z]{2}-\d{3}-[A-Z]{3}/i.test(l.replace(/^(APARA\s+SOS\s+|SOS\s+|Code:\s*)/i, '')));
+      input = blockLine || lines.find(l => !l.startsWith('APARA') && !l.startsWith('Loc:') && !l.startsWith('Coords:') && !l.startsWith('PIN:') && !l.startsWith('Maps:') && !l.startsWith('Speed:') && !l.startsWith('Location:') && l.length >= 3) || lines[0];
     }
   }
 
-  // Strip SMS prefixes — handle clean format: "APARA SOS blockCode|type|time|lat,lng|conf:N"
+  // Strip SMS prefixes
   if (input.toUpperCase().startsWith('APARA SOS ')) {
     input = input.substring(10).trim();
   } else if (input.toUpperCase().startsWith('SOS ')) {
     input = input.substring(4).trim();
+  } else if (input.toUpperCase().startsWith('CODE: ')) {
+    input = input.substring(6).trim();
   }
   if (input.includes('APARA EMERGENCY:')) {
     const m = input.match(/APARA EMERGENCY:\s*([^\\\n]+)/);
     if (m) input = m[1].trim();
   }
+
+  console.log('[Lookup] Parsed input:', input, '| Pre-extracted coords:', extractedLat, extractedLng);
 
   let lat = extractedLat, lng = extractedLng, typeCode = null, typeName = null, confidence = 0;
   let blockCode = null, pin = extractedPin, time = null;
