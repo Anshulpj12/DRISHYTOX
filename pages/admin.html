@@ -6,7 +6,7 @@
 <title>APARA — Admin Panel</title>
 <meta name="description" content="APARA Admin Panel — Manage providers, corridors, SOS events, and platform analytics">
 <link rel="stylesheet" href="../css/shared.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <style>
 * { -webkit-tap-highlight-color: transparent; }
 .admin-app { display: flex; min-height: 100vh; }
@@ -46,8 +46,122 @@
   .main-content { padding-top: 0.5rem; }
 }
 </style>
+
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>APARA | VFX Command Center</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #101417;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(0, 242, 255, 0.03) 0%, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-background": "#e0e3e7",
+                      "secondary-container": "#fd8b00",
+                      "primary-container": "#00f2ff",
+                      "tertiary-fixed-dim": "#c0c7d4",
+                      "primary-fixed-dim": "#00dbe7",
+                      "surface-bright": "#363a3d",
+                      "on-tertiary-fixed-variant": "#404752",
+                      "tertiary": "#f5f7ff",
+                      "surface-container-high": "#272a2e",
+                      "secondary-fixed-dim": "#ffb77d",
+                      "on-secondary-fixed-variant": "#6e3900",
+                      "inverse-on-surface": "#2d3134",
+                      "on-secondary-fixed": "#2f1500",
+                      "surface": "#101417",
+                      "on-surface-variant": "#b9cacb",
+                      "background": "#101417",
+                      "on-error": "#690005",
+                      "on-tertiary-fixed": "#151c25",
+                      "on-surface": "#e0e3e7",
+                      "secondary-fixed": "#ffdcc3",
+                      "primary-fixed": "#74f5ff",
+                      "on-tertiary": "#2a313b",
+                      "on-primary-fixed-variant": "#004f54",
+                      "error": "#ffb4ab",
+                      "on-error-container": "#ffdad6",
+                      "surface-container-low": "#181c1f",
+                      "outline-variant": "#3a494b",
+                      "inverse-primary": "#00696f",
+                      "on-primary-fixed": "#002022",
+                      "surface-tint": "#00dbe7",
+                      "on-tertiary-container": "#59606b",
+                      "outline": "#849495",
+                      "tertiary-fixed": "#dce3f0",
+                      "surface-dim": "#101417",
+                      "primary": "#e1fdff",
+                      "inverse-surface": "#e0e3e7",
+                      "surface-container-highest": "#313539",
+                      "surface-container": "#1c2023",
+                      "on-secondary-container": "#603100",
+                      "surface-variant": "#313539",
+                      "surface-container-lowest": "#0b0f12",
+                      "on-primary": "#00363a",
+                      "secondary": "#ffb77d",
+                      "tertiary-container": "#d5dbe8",
+                      "on-primary-container": "#006a71",
+                      "error-container": "#93000a",
+                      "on-secondary": "#4d2600"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "md": "24px",
+                      "gutter": "20px",
+                      "xs": "8px",
+                      "xl": "64px",
+                      "base": "4px",
+                      "sm": "16px",
+                      "margin": "24px",
+                      "lg": "40px"
+              },
+              "fontFamily": {
+                      "body-lg": ["Inter"],
+                      "data-mono": ["Space Grotesk"],
+                      "label-caps": ["Space Grotesk"],
+                      "headline-md": ["Space Grotesk"],
+                      "headline-lg": ["Space Grotesk"],
+                      "body-md": ["Inter"],
+                      "headline-sm": ["Space Grotesk"]
+              },
+              "fontSize": {
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "data-mono": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "label-caps": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                      "headline-md": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                      "headline-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "headline-sm": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}]
+              }
+            },
+          },
+        }
+      </script>
+
 </head>
-<body>
+<body class="text-on-surface font-body-md bg-background selection:bg-primary-container/30">
 <div class="admin-app">
   <button class="mobile-menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
   <nav class="sidebar">
@@ -148,7 +262,7 @@
     <!-- Dashboard -->
     <div class="section active" id="secDashboard">
       <div class="page-header"><h2>Platform Dashboard</h2><p>Real-time overview — all data from registered providers and user activity</p></div>
-      <div class="stats-grid" id="statsGrid"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md" id="statsGrid"></div>
       <div class="grid-2" id="chartRow">
         <div class="chart-container"><canvas id="chartCategory"></canvas></div>
         <div class="chart-container"><canvas id="chartTimeline"></canvas></div>
@@ -252,7 +366,7 @@
     <!-- V2V Log -->
     <div class="section" id="secV2V">
       <div class="page-header"><h2>V2V Relay Event Log</h2><p>Vehicle-to-vehicle relay telemetry</p></div>
-      <div class="stats-grid" id="v2vStats"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md" id="v2vStats"></div>
       <div id="v2vContent"></div>
       <div id="emptyV2V" class="empty-state"><div class="icon">📡</div><p>No V2V relay events recorded yet.</p></div>
     </div>
@@ -260,7 +374,7 @@
     <!-- Config Push -->
     <div class="section" id="secConfig">
       <div class="page-header"><h2>🔄 Config Push System</h2><p>Real-time provider update distribution to driver apps via lightweight version polling</p></div>
-      <div class="stats-grid" id="configStats"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md" id="configStats"></div>
       <div class="card mb-2">
         <h4 style="font-size:0.9rem;margin-bottom:0.75rem;">How It Works</h4>
         <div class="text-sm text-muted">
@@ -322,7 +436,7 @@
         </div>
         <button class="btn btn-secondary btn-sm" onclick="exportOrderAudit()">📥 Export CSV</button>
       </div>
-      <div class="stats-grid" id="orderAuditStats"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md" id="orderAuditStats"></div>
       <div class="table-wrap"><table id="orderAuditTable"></table></div>
       <div id="emptyOrderAudit" class="empty-state hidden"><div class="icon">🍽️</div><p>No orders recorded yet.</p></div>
     </div>
@@ -343,9 +457,9 @@
 </div>
 
 <!-- Firebase SDK (compat) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js" crossorigin="anonymous"></script>
 <script src="../js/firebase-config.js"></script>
 <script src="../js/firebase_v2.js"></script>
 <script src="../js/data.js"></script>
@@ -394,7 +508,13 @@ function renderDashboard() {
     { v: stats.totalSOS.today, l: 'SOS Today', c: 'var(--accent-alert)' },
     { v: stats.totalSOS.week, l: 'SOS This Week', c: 'var(--accent-alert)' },
     { v: stats.avgResponseMin ? stats.avgResponseMin + ' min' : '—', l: 'Avg Response', c: 'var(--accent-offline)' },
-  ].map(d => `<div class="stat-card"><div class="stat-value" style="color:${d.c}">${d.v}</div><div class="stat-label">${d.l}</div></div>`).join('');
+  ].map(d => `<div class="bg-surface/15 backdrop-blur-md border border-white/10 p-md rounded-lg relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-1 h-full opacity-50 group-hover:opacity-100 transition-opacity" style="background-color:${d.c}"></div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">${d.l}</p>
+<div class="flex items-end justify-between mt-xs">
+<span class="font-headline-md text-headline-md text-on-surface" style="color:${d.c}">${d.v}</span>
+</div>
+</div>`).join('');
 
   const events = Store.getSOSEvents();
   const catData = EMERGENCY_TYPES.map(t => ({
@@ -784,7 +904,13 @@ function renderV2V() {
   emptyEl.style.display = 'none';
   document.getElementById('v2vStats').innerHTML = [
     { v: relays.length, l: 'Total Relays', c: 'var(--accent-v2v)' },
-  ].map(d => `<div class="stat-card"><div class="stat-value" style="color:${d.c}">${d.v}</div><div class="stat-label">${d.l}</div></div>`).join('');
+  ].map(d => `<div class="bg-surface/15 backdrop-blur-md border border-white/10 p-md rounded-lg relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-1 h-full opacity-50 group-hover:opacity-100 transition-opacity" style="background-color:${d.c}"></div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">${d.l}</p>
+<div class="flex items-end justify-between mt-xs">
+<span class="font-headline-md text-headline-md text-on-surface" style="color:${d.c}">${d.v}</span>
+</div>
+</div>`).join('');
 }
 
 // ═══ UTILS ═══
@@ -833,7 +959,13 @@ function renderConfigPush() {
     { v: Object.keys(zoneMap).length, l: 'Active Zones', c: 'var(--accent-online)' },
     { v: activeProviders.length, l: 'Active Providers', c: 'var(--success)' },
     { v: providers.length - activeProviders.length, l: 'Inactive', c: 'var(--text-muted)' },
-  ].map(d => `<div class="stat-card"><div class="stat-value" style="color:${d.c}">${d.v}</div><div class="stat-label">${d.l}</div></div>`).join('');
+  ].map(d => `<div class="bg-surface/15 backdrop-blur-md border border-white/10 p-md rounded-lg relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-1 h-full opacity-50 group-hover:opacity-100 transition-opacity" style="background-color:${d.c}"></div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">${d.l}</p>
+<div class="flex items-end justify-between mt-xs">
+<span class="font-headline-md text-headline-md text-on-surface" style="color:${d.c}">${d.v}</span>
+</div>
+</div>`).join('');
 
   const zonesHtml = Object.entries(zoneMap).sort((a,b) => b[1].length - a[1].length).map(([zone, provs]) => {
     const [lat, lng] = zone.split('_');
@@ -1030,7 +1162,13 @@ function renderOrderAudit() {
     { v: stats.fulfilled, l: 'Fulfilled', c: 'var(--success)' },
     { v: stats.cancelled, l: 'Cancelled', c: 'var(--danger)' },
     { v: stats.active, l: 'Active', c: 'var(--accent-alert)' },
-  ].map(d => `<div class="stat-card"><div class="stat-value" style="color:${d.c}">${d.v}</div><div class="stat-label">${d.l}</div></div>`).join('');
+  ].map(d => `<div class="bg-surface/15 backdrop-blur-md border border-white/10 p-md rounded-lg relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-1 h-full opacity-50 group-hover:opacity-100 transition-opacity" style="background-color:${d.c}"></div>
+<p class="font-label-caps text-label-caps text-on-surface-variant">${d.l}</p>
+<div class="flex items-end justify-between mt-xs">
+<span class="font-headline-md text-headline-md text-on-surface" style="color:${d.c}">${d.v}</span>
+</div>
+</div>`).join('');
 
   const emptyEl = document.getElementById('emptyOrderAudit');
   if (OrderStore.getAll().length === 0) {

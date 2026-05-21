@@ -1,13 +1,14 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>APARA — Provider Dashboard</title>
-<meta name="description" content="APARA Service Provider Dashboard — Receive and respond to emergency SOS alerts">
-<link rel="stylesheet" href="../css/shared.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<meta content="APARA Service Provider Dashboard — Receive and respond to emergency SOS alerts" name="description"/>
+<link href="../css/shared.css" rel="stylesheet"/>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
 <style>
 /* ═══ PREMIUM PROVIDER APP — Road Safety Theme ═══ */
 * { -webkit-tap-highlight-color: transparent; }
@@ -223,101 +224,128 @@
 .empty-state { text-align:center; padding:3rem 1rem; color:var(--text-muted); }
 .empty-state .icon { font-size:2.5rem; margin-bottom:0.5rem; }
 </style>
-</head>
-<body>
-<div class="provider-app" id="app">
-  <!-- Login Screen -->
-  <div class="screen active" id="screenLogin">
-    <div class="login-container">
-      <div class="login-box">
-        <div class="login-logo">
-          <div style="font-size:3rem;margin-bottom:0.5rem;">🛡️</div>
-          <h1>APARA</h1>
-          <p>Service Provider Dashboard</p>
-        </div>
-        <div class="login-error" id="loginError">Credentials invalid. Contact APARA Admin.</div>
-        <div style="margin-bottom:1rem;">
-          <label class="label">Registration ID</label>
-          <input class="input" type="text" id="loginId" placeholder="RSOS-XXXX-000000" style="font-family:var(--font-mono);">
-        </div>
-        <div style="margin-bottom:1.5rem;">
-          <label class="label">Password</label>
-          <input class="input" type="password" id="loginPass" placeholder="Enter password">
-        </div>
-        <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Sign In</button>
-        <div class="text-center text-xs text-muted mt-2">No self-registration. Credentials provided by admin.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Main Dashboard -->
-  <div class="screen" id="screenMain">
-    <div class="header-bar">
-      <h1>🛡️ APARA</h1>
-      <div class="flex-row"><span class="text-xs text-muted" id="provBadge"></span></div>
-    </div>
-
-    <div id="tabAlerts" class="screen-pad" style="display:block;">
-      <div class="flex-between mb-2">
-        <h3 style="font-size:1rem;">Live SOS Alerts</h3>
-        <span class="badge badge-active" id="alertCount">0 active</span>
-      </div>
-      <div id="alertList"></div>
-      <div id="emptyAlerts" class="empty-state">
-        <div class="icon">🔔</div>
-        <p>No SOS alerts yet. Alerts will appear here in real-time when users send emergencies.</p>
-      </div>
-    </div>
-
-    <div id="tabDetail" style="display:none;" class="screen-pad">
-      <button class="btn btn-sm btn-secondary mb-2" onclick="showTab('tabAlerts')">← Back</button>
-      <div id="alertDetail"></div>
-    </div>
-
-    <div id="tabDispatch" style="display:none;" class="screen-pad">
-      <h3 style="font-size:1rem;margin-bottom:1rem;">Active Dispatch</h3>
-      <div id="dispatchContent"></div>
-    </div>
-
-    <div id="tabProfile" style="display:none;" class="screen-pad">
-      <h3 style="font-size:1rem;margin-bottom:1rem;">Provider Profile</h3>
-      <div id="profileContent"></div>
-    </div>
-
-    <div id="tabLookup" style="display:none;" class="screen-pad">
-      <h3 style="font-size:1rem;margin-bottom:0.5rem;">🔍 Decode SOS Code</h3>
-      <p class="text-xs text-muted mb-2">Enter the 8-character code from the SMS to get the driver's exact location and emergency type.</p>
-      <div style="margin-bottom:0.75rem;">
-        <input type="text" id="lookupCodeInput" class="input" maxlength="8" placeholder="e.g. K7M2N4AC" style="font-family:var(--font-mono);font-size:1.5rem;text-align:center;letter-spacing:0.15em;text-transform:uppercase;">
-        <div class="text-xs text-muted" style="text-align:center;margin-top:0.3rem;">8-character India block code with checksum</div>
-      </div>
-      <button class="btn btn-primary btn-full" onclick="lookupSOSCode()">🔍 Decode Location</button>
-      <div style="margin:0.75rem 0;text-align:center;">
-        <span class="text-xs text-muted">— or paste full SOS packet —</span>
-      </div>
-      <input type="text" id="lookupCodeInputLegacy" class="input" placeholder="NH48-B32|ACC|15:24:29|conf:87" style="font-family:var(--font-mono);font-size:0.8rem;">
-      <button class="btn btn-secondary btn-full btn-sm mt-1" onclick="lookupLegacyCode()">🔍 Decode Legacy Packet</button>
-      <div id="lookupResult" style="margin-top:1rem;"></div>
-      <div id="lookupMap" style="display:none;height:250px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:1rem;"></div>
-    </div>
-
-  </div>
+</link><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-container": "#00d4ff",
+                        "surface": "#0e1320",
+                        "surface-container-low": "#161b29",
+                        "outline-variant": "#3c494e"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    }
+                }
+            }
+        }
+        </script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>
+        .hud-glow { box-shadow: 0 0 15px 0px rgba(0, 212, 255, 0.2); }
+        .signal-wave { animation: ping 3s cubic-bezier(0, 0, 0.2, 1) infinite; }
+        .noise-bg { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); opacity: 0.03; }
+        .telemetry-dots { background-image: radial-gradient(#3c494e 1px, transparent 1px); background-size: 24px 24px; }
+        </style></head>
+<body class="bg-surface text-on-surface font-body overflow-hidden">
+<div class="fixed inset-0 z-0 telemetry-dots opacity-20 pointer-events-none"></div><div class="fixed inset-0 z-0 noise-bg pointer-events-none"></div><div class="fixed inset-0 z-0 bg-gradient-to-tr from-surface via-surface to-surface-container-low opacity-80 pointer-events-none"></div><div class="provider-app relative z-10" id="app">
+<!-- Login Screen -->
+<div class="screen active" id="screenLogin">
+<div class="login-container">
+<div class="login-box">
+<div class="login-logo">
+<div style="font-size:3rem;margin-bottom:0.5rem;">🛡️</div>
+<h1>APARA</h1>
+<p>Service Provider Dashboard</p>
 </div>
-
+<div class="login-error" id="loginError">Credentials invalid. Contact APARA Admin.</div>
+<div style="margin-bottom:1rem;">
+<label class="label">Registration ID</label>
+<input class="input" id="loginId" placeholder="RSOS-XXXX-000000" style="font-family:var(--font-mono);" type="text"/>
+</div>
+<div style="margin-bottom:1.5rem;">
+<label class="label">Password</label>
+<input class="input" id="loginPass" placeholder="Enter password" type="password"/>
+</div>
+<button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Sign In</button>
+<div class="text-center text-xs text-muted mt-2">No self-registration. Credentials provided by admin.</div>
+</div>
+</div>
+</div>
+<!-- Main Dashboard -->
+<div class="screen" id="screenMain">
+<div class="header-bar">
+<h1>🛡️ APARA</h1>
+<div class="flex-row"><span class="text-xs text-muted" id="provBadge"></span></div>
+</div>
+<div class="screen-pad" id="tabAlerts" style="display:block;">
+<div class="flex-between mb-2">
+<h3 style="font-size:1rem;">Live SOS Alerts</h3>
+<span class="badge badge-active" id="alertCount">0 active</span>
+</div>
+<div id="alertList"></div>
+<div class="empty-state" id="emptyAlerts">
+<div class="icon">🔔</div>
+<p>No SOS alerts yet. Alerts will appear here in real-time when users send emergencies.</p>
+</div>
+</div>
+<div class="screen-pad" id="tabDetail" style="display:none;">
+<button class="btn btn-sm btn-secondary mb-2" onclick="showTab('tabAlerts')">← Back</button>
+<div id="alertDetail"></div>
+</div>
+<div class="screen-pad" id="tabDispatch" style="display:none;">
+<h3 style="font-size:1rem;margin-bottom:1rem;">Active Dispatch</h3>
+<div id="dispatchContent"></div>
+<!-- Emergency Dispatch Panel -->
+<div class="dispatch-panel" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:1rem;margin-top:1rem;">
+  <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.75rem;">
+    <span style="color:#F87171;">🚨</span>
+    <span style="font-family:var(--font-mono);font-size:0.65rem;font-weight:700;letter-spacing:0.12em;color:#F87171;">EMERGENCY DISPATCH ENGINE</span>
+    <span id="dispatchCacheStatus" style="margin-left:auto;font-family:var(--font-mono);font-size:0.55rem;color:var(--text-muted);" title="Providers cached within 100km">📡 READY</span>
+  </div>
+  <div id="engineAlertList" style="max-height:200px;overflow-y:auto;"></div>
+  <div class="text-xs text-muted" style="text-align:center;margin-top:0.75rem;">Use the <b>🔍 Lookup</b> tab to decode any SOS code, block code, or SMS packet.</div>
+</div>
+<!-- Hidden inputs for backward compat -->
+<input type="hidden" id="bcDecodeInput" />
+<div id="bcDecodeResult" style="display:none;"></div>
+<div id="bcDecodeMap" style="display:none;"></div>
+</div>
+<div class="screen-pad" id="tabProfile" style="display:none;">
+<h3 style="font-size:1rem;margin-bottom:1rem;">Provider Profile</h3>
+<div id="profileContent"></div>
+</div>
+<div class="screen-pad" id="tabLookup" style="display:none;">
+<h3 style="font-size:1rem;margin-bottom:0.5rem;">🔍 Decode SOS Code</h3>
+<p class="text-xs text-muted mb-2">Paste the SOS code from SMS to get the driver's exact location and emergency type.</p>
+<div style="margin-bottom:0.75rem;">
+<textarea class="input" id="lookupCodeInput" maxlength="500" placeholder="Paste full SOS SMS body or code here..." rows="3" style="font-family:var(--font-mono);font-size:0.82rem;text-align:left;letter-spacing:0.02em;resize:none;width:100%;padding:0.75rem;"></textarea>
+<div class="text-xs text-muted" style="text-align:center;margin-top:0.3rem;">Accepts full SMS body, block code (RR-NNN-TTT), 8-char code, or pipe-separated packet with coordinates</div>
+</div>
+<button class="btn btn-primary btn-full" onclick="lookupSOSCode()">🔍 Decode Location</button>
+<div id="lookupResult" style="margin-top:1rem;"></div>
+<div id="lookupMap" style="display:none;height:250px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:1rem;"></div>
+</div>
+</div>
+</div>
 <!-- Bottom Nav — outside .provider-app for position:fixed -->
 <nav class="mobile-nav" id="providerNav" style="display:none;">
-  <div class="mobile-nav-item active" onclick="showTab('tabAlerts')"><span class="nav-icon">🚨</span>Alerts</div>
-  <div class="mobile-nav-item" onclick="showTab('tabLookup')"><span class="nav-icon">🔍</span>Lookup</div>
-  <div class="mobile-nav-item" onclick="showTab('tabDispatch')"><span class="nav-icon">🚀</span>Dispatch</div>
-  <div class="mobile-nav-item" onclick="showTab('tabProfile')"><span class="nav-icon">👤</span>Profile</div>
+<div class="mobile-nav-item active" onclick="showTab('tabAlerts')"><span class="nav-icon">🚨</span>Alerts</div>
+<div class="mobile-nav-item" onclick="showTab('tabLookup')"><span class="nav-icon">🔍</span>Lookup</div>
+<div class="mobile-nav-item" onclick="showTab('tabDispatch')"><span class="nav-icon">🚀</span>Dispatch</div>
+<div class="mobile-nav-item" onclick="showTab('tabProfile')"><span class="nav-icon">👤</span>Profile</div>
 </nav>
-
 <!-- Firebase SDK (compat) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js" crossorigin="anonymous"></script>
 <script src="../js/firebase-config.js"></script>
 <script src="../js/firebase_v2.js"></script>
 <script src="../js/data.js"></script>
+<script src="../js/block-code-encoder.js" crossorigin="anonymous"></script>
+<script src="../js/sos-provider-engine.js" crossorigin="anonymous"></script>
 <script>
 let loggedInProvider = null;
 let activeDispatch = null;
@@ -325,6 +353,11 @@ let dispatchInterval = null;
 let alertPollInterval = null;
 let detailMap = null;
 let dispatchMap = null;
+let providerPosition = null; // Provider's own GPS position
+let providerWatchId = null;
+let dispatchDriverMarker = null;
+let dispatchProviderMarker = null;
+let dispatchProviderCircle = null;
 
 // ═══ LOGIN ═══
 async function doLogin() {
@@ -391,6 +424,7 @@ function login() {
   renderAlerts();
   renderProfile();
   startAlertPolling();
+  startProviderGPS(); // Track provider's own location
 
   // Firebase init
   FirebaseSync.init().then(ready => {
@@ -453,7 +487,7 @@ function renderAlerts() {
         <div class="alert-type" style="color:${type.color}">${type.icon} ${type.label}</div>
         <div class="alert-time">${formatElapsed(elapsed)}</div>
       </div>
-      <div class="alert-block">${a.blockCode}</div>
+      <div class="alert-block" style="font-size:0.72rem;letter-spacing:0.04em;">${a.packet || a.blockCode}</div>
       <div class="alert-meta">
         <span><span class="conf-dot" style="background:${confColor}"></span> Conf: ${a.confidence}%</span>
         <span class="badge ${tx.badge}">${tx.code}</span>
@@ -492,9 +526,9 @@ function showAlertDetail(id) {
         <div class="alert-type" style="color:${type.color};font-size:1.2rem;">${type.icon} ${type.label}</div>
         <span class="badge ${tx.badge}">${tx.code}</span>
       </div>
-      <div style="font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--accent-online);margin:0.5rem 0;">${alert.blockCode}</div>
-      <div class="packet-display">${alert.packet}</div>
+      <div class="packet-display" style="font-size:0.85rem;font-weight:700;margin:0.5rem 0;padding:0.6rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:8px;word-break:break-all;">${alert.packet}</div>
       ${hasRealLocation ? `<div class="text-xs text-muted mt-1">📍 ${alert.lat.toFixed(5)}°, ${alert.lng.toFixed(5)}°</div>` : '<div class="text-xs" style="color:var(--accent-alert);" >⚠️ Driver GPS coordinates not available — showing approximate block location</div>'}
+      ${hasRealLocation ? `<a href="https://www.google.com/maps/dir/?api=1&destination=${alert.lat},${alert.lng}" target="_blank" class="btn btn-sm btn-secondary mt-1" style="display:inline-block;text-decoration:none;font-size:0.72rem;">📍 Open in Google Maps</a>` : ''}
     </div>
 
     <div style="margin-bottom:1rem;">
@@ -504,7 +538,6 @@ function showAlertDetail(id) {
 
     <div style="margin-bottom:1rem;">
       <h4 style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.5rem;">Details</h4>
-      <div class="detail-field"><span class="label">Block Code</span><span style="font-family:var(--font-mono);">${alert.blockCode}</span></div>
       <div class="detail-field"><span class="label">Confidence</span><span style="color:${confColor};font-weight:700;">${alert.confidence}%</span></div>
       <div class="detail-field"><span class="label">Time</span><span>${alert.timeStr || new Date(alert.timestamp).toLocaleTimeString()}</span></div>
       <div class="detail-field"><span class="label">Transmission</span><span class="badge ${tx.badge}">${tx.code}</span></div>
@@ -575,8 +608,8 @@ function renderDispatch() {
     <div class="card mb-2">
       <div class="flex-between mb-1">
         <span class="alert-type" style="color:${type.color}">${type.icon} ${type.label}</span>
-        <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent-online);">${d.blockCode}</span>
       </div>
+      <div class="packet-display" style="font-size:0.72rem;font-weight:700;margin:0.3rem 0;padding:0.4rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:6px;word-break:break-all;">${d.packet || d.blockCode}</div>
       <div class="text-xs text-muted">📍 ${d.lat ? d.lat.toFixed(5) + '°, ' + d.lng.toFixed(5) + '°' : 'Location unknown'}</div>
     </div>
     <div id="dispatchMap"></div>
@@ -585,19 +618,35 @@ function renderDispatch() {
     </div>
   `;
 
-  // Init dispatch map with actual SOS coordinates
-  setTimeout(() => {
-    if (dispatchMap) dispatchMap.remove();
-    const hasRealLoc = (d.lat != null && d.lng != null && d.lat !== 0 && d.lng !== 0);
-    const lat = hasRealLoc ? d.lat : 20.5937;
-    const lng = hasRealLoc ? d.lng : 78.9629;
-    const zoom = hasRealLoc ? 15 : 5;
-    dispatchMap = L.map('dispatchMap').setView([lat, lng], zoom);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(dispatchMap);
-    L.marker([lat, lng]).addTo(dispatchMap)
-      .bindPopup(`<b>🚨 ${type.label}</b><br>${d.blockCode}<br>📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`).openPopup();
-    L.circle([lat, lng], { radius: hasRealLoc ? 300 : 3000, color: '#F97316', fillOpacity: 0.1 }).addTo(dispatchMap);
-  }, 100);
+  // Init dispatch map with driver + provider markers
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      if (dispatchMap) { try { dispatchMap.remove(); } catch(e) {} }
+      dispatchDriverMarker = null; dispatchProviderMarker = null; dispatchProviderCircle = null;
+      const hasRealLoc = (d.lat != null && d.lng != null && d.lat !== 0 && d.lng !== 0);
+      const dLat = hasRealLoc ? d.lat : 20.5937;
+      const dLng = hasRealLoc ? d.lng : 78.9629;
+      const zoom = hasRealLoc ? 15 : 5;
+      dispatchMap = L.map('dispatchMap').setView([dLat, dLng], zoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(dispatchMap);
+      // Driver marker (red)
+      dispatchDriverMarker = L.marker([dLat, dLng]).addTo(dispatchMap)
+        .bindPopup(`<b>🚨 ${type.label}</b><br>${d.blockCode}<br>📍 ${dLat.toFixed(5)}°, ${dLng.toFixed(5)}°`).openPopup();
+      L.circle([dLat, dLng], { radius: hasRealLoc ? 300 : 3000, color: '#F97316', fillOpacity: 0.1 }).addTo(dispatchMap);
+      // Provider location (blue pulsing dot)
+      if (providerPosition) {
+        const provIcon = L.divIcon({ className: '', html: '<div style="width:16px;height:16px;background:#3B82F6;border:3px solid #fff;border-radius:50%;box-shadow:0 0 10px rgba(59,130,246,0.7);animation:pulse 2s infinite;"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
+        dispatchProviderMarker = L.marker([providerPosition.lat, providerPosition.lng], { icon: provIcon }).addTo(dispatchMap)
+          .bindPopup('<b>📍 You (Provider)</b>');
+        dispatchProviderCircle = L.circle([providerPosition.lat, providerPosition.lng], { radius: providerPosition.accuracy || 100, color: '#3B82F6', fillOpacity: 0.08, weight: 1 }).addTo(dispatchMap);
+        // Fit map to show both driver and provider
+        const bounds = L.latLngBounds([[dLat, dLng], [providerPosition.lat, providerPosition.lng]]);
+        dispatchMap.fitBounds(bounds.pad(0.3));
+      }
+      setTimeout(() => { dispatchMap.invalidateSize(); }, 200);
+      setTimeout(() => { dispatchMap.invalidateSize(); }, 600);
+    }, 200);
+  });
 
   // Timer
   if (dispatchInterval) clearInterval(dispatchInterval);
@@ -740,115 +789,425 @@ function showToast(msg) {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 3500);
 }
 
-// ═══ LOOKUP 8-CHAR SOS CODE (NEW SYSTEM) ═══
-let lookupMapInstance = null;
-
-function lookupSOSCode() {
-  let input = document.getElementById('lookupCodeInput').value.trim().toUpperCase();
-  if (!input) { showToast('Enter an 8-character SOS code'); return; }
-
-  // Handle SMS format: "SOS K7M2N4AC" or just "K7M2N4AC"
-  if (input.startsWith('SOS ')) input = input.substring(4).trim();
-  input = input.replace(/[^0-9A-Z]/g, '');
-
-  if (input.length !== 8) {
-    showToast(`Code must be 8 characters (got ${input.length})`); return;
-  }
-
-  const decoded = BlockCodeEncoder.decode(input);
-  if (!decoded.valid) {
-    showToast(`❌ ${decoded.error}`); return;
-  }
-
-  const type = decoded.sosType || { icon: '🚨', label: decoded.sosTypeCode || 'Unknown', color: '#F87171' };
-  const lat = decoded.lat;
-  const lng = decoded.lng;
-
-  // Find matching SOS event (by blockCode8)
-  const events = Store.getSOSEvents();
-  const matchingEvent = events.find(e => e.blockCode8 === input) || events.find(e => {
-    if (!e.lat || !e.lng) return false;
-    return Utils.haversine(e.lat, e.lng, lat, lng) < 1500; // within 1.5km
-  });
-  const pin = matchingEvent?.resolutionPin || null;
-
-  document.getElementById('lookupResult').innerHTML = `
-    <div class="card card-glow-alert mb-2">
-      <div class="flex-between">
-        <div class="alert-type" style="color:${type.color};font-size:1.1rem;">${type.icon} ${type.label}</div>
-        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent-online);">8-CHAR CODE</span>
-      </div>
-      <div style="font-family:var(--font-mono);font-size:2.5rem;font-weight:800;color:var(--accent-alert);margin:0.5rem 0;text-align:center;letter-spacing:0.12em;">${input}</div>
-      <div style="margin-top:0.5rem;display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
-        <span class="text-xs">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</span>
-        <span class="text-xs" style="font-family:var(--font-mono);color:var(--text-muted);">Block: ${decoded.blockId}</span>
-        ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
-      </div>
-      <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📍 Navigate to Location</a>
-    </div>
-    ${matchingEvent ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${matchingEvent.id}')">🚀 Accept & Dispatch</button>` : ''}
-  `;
-
-  // Show map
-  document.getElementById('lookupMap').style.display = 'block';
-  setTimeout(() => {
-    if (lookupMapInstance) lookupMapInstance.remove();
-    lookupMapInstance = L.map('lookupMap').setView([lat, lng], 14);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
-    L.marker([lat, lng]).addTo(lookupMapInstance)
-      .bindPopup(`<b>${type.icon} ${type.label}</b><br>Code: ${input}<br>${lat.toFixed(5)}°, ${lng.toFixed(5)}°`).openPopup();
-    L.circle([lat, lng], { radius: 500, color: type.color, fillOpacity: 0.1 }).addTo(lookupMapInstance);
-  }, 100);
-
-  showToast(`✅ Location decoded: ${type.icon} ${type.label}`);
+// ═══ PROVIDER GPS TRACKING ═══
+function startProviderGPS() {
+  if (!navigator.geolocation) return;
+  if (providerWatchId) navigator.geolocation.clearWatch(providerWatchId);
+  // Get initial position
+  navigator.geolocation.getCurrentPosition(
+    (p) => { providerPosition = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy, ts: Date.now() }; },
+    () => {},
+    { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+  );
+  // Watch for movement
+  providerWatchId = navigator.geolocation.watchPosition(
+    (p) => {
+      providerPosition = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy, ts: Date.now() };
+      // Update dispatch map if active
+      if (activeDispatch && dispatchMap && dispatchProviderMarker) {
+        dispatchProviderMarker.setLatLng([providerPosition.lat, providerPosition.lng]);
+        if (dispatchProviderCircle) dispatchProviderCircle.setLatLng([providerPosition.lat, providerPosition.lng]);
+      }
+    },
+    () => {},
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+  );
 }
 
-// ═══ LEGACY LOOKUP (old packet format) ═══
-function lookupLegacyCode() {
-  const input = (document.getElementById('lookupCodeInputLegacy')?.value || '').trim();
-  if (!input) { showToast('Paste an SOS packet'); return; }
-  let packet = input, pin = null, lat = null, lng = null;
-  if (input.includes('APARA EMERGENCY:')) {
-    const m = input.match(/APARA EMERGENCY:\s*([^|]+\|[^|]+\|[^|]+\|[^|]+)/);
-    if (m) packet = m[1].trim();
-    const pm = input.match(/PIN:(\d+)/); if (pm) pin = pm[1];
-    const lm = input.match(/Loc:([\d.]+),([\d.]+)/); if (lm) { lat = parseFloat(lm[1]); lng = parseFloat(lm[2]); }
+// ═══ UNIFIED SOS CODE LOOKUP ═══
+let lookupMapInstance = null;
+
+function showLookupMap(lat, lng, type, label, confidence) {
+  const mapDiv = document.getElementById('lookupMap');
+  if (!mapDiv) return;
+  mapDiv.style.display = 'block';
+  if (lookupMapInstance) {
+    try { lookupMapInstance.remove(); } catch(e) {}
+    lookupMapInstance = null;
   }
-  const parts = packet.split('|').map(s => s.trim());
-  if (parts.length < 3) { showToast('Invalid SOS code format'); return; }
-  const blockCode = parts[0], typeCode = parts[1], time = parts[2], confPart = parts[3];
-  const confidence = confPart ? parseInt(confPart.replace('conf:', '')) : 0;
-  const type = EMERGENCY_TYPES.find(t => t.code === typeCode) || { icon: '🚨', label: typeCode, color: '#F87171' };
+  // Robust Leaflet init — wait for DOM repaint
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      try {
+        lookupMapInstance = L.map('lookupMap').setView([lat, lng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
+        // Driver marker (red)
+        L.marker([lat, lng]).addTo(lookupMapInstance)
+          .bindPopup(`<b>${type.icon} ${type.label}</b><br>${label}<br>📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`).openPopup();
+        const radius = confidence >= 85 ? 150 : confidence >= 50 ? 400 : 600;
+        L.circle([lat, lng], { radius, color: type.color || '#F87171', fillOpacity: 0.12, weight: 2 }).addTo(lookupMapInstance);
+        // Provider's own location (blue dot)
+        if (providerPosition) {
+          const provIcon = L.divIcon({ className: '', html: '<div style="width:14px;height:14px;background:#3B82F6;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(59,130,246,0.6);"></div>', iconSize: [14, 14], iconAnchor: [7, 7] });
+          L.marker([providerPosition.lat, providerPosition.lng], { icon: provIcon }).addTo(lookupMapInstance)
+            .bindPopup('<b>📍 You (Provider)</b>');
+          // Fit bounds to show both
+          const bounds = L.latLngBounds([[lat, lng], [providerPosition.lat, providerPosition.lng]]);
+          lookupMapInstance.fitBounds(bounds.pad(0.3));
+        }
+        setTimeout(() => { lookupMapInstance.invalidateSize(); }, 200);
+        setTimeout(() => { lookupMapInstance.invalidateSize(); }, 600);
+      } catch(e) { console.warn('Map init error:', e); }
+    }, 200);
+  });
+}
+
+function lookupSOSCode() {
+  let rawInput = document.getElementById('lookupCodeInput').value.trim();
+  if (!rawInput) { showToast('Enter or paste an SOS code'); return; }
+
+  console.log('[Lookup] Raw input:', rawInput);
+
+  // ── PRE-PROCESS: Extract data from full SMS body (multi-line paste) ──
+  let extractedLat = null, extractedLng = null, extractedPin = null;
+
+  // Extract coordinates from "Loc:lat,lng" or "Coords:lat,lng" anywhere
+  const locMatch = rawInput.match(/(?:Loc|Coords|Location):\s*(-?[\d.]+),\s*(-?[\d.]+)/i);
+  if (locMatch) { extractedLat = parseFloat(locMatch[1]); extractedLng = parseFloat(locMatch[2]); }
+
+  // Extract from Google Maps link (multiple URL formats)
+  const mapsMatch = rawInput.match(/maps\.google\.com\/\?q=(-?[\d.]+),\s*(-?[\d.]+)/);
+  if (mapsMatch && !extractedLat) { extractedLat = parseFloat(mapsMatch[1]); extractedLng = parseFloat(mapsMatch[2]); }
+  const mapsMatch2 = rawInput.match(/google\.com\/maps.*?(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+  if (mapsMatch2 && !extractedLat) { extractedLat = parseFloat(mapsMatch2[1]); extractedLng = parseFloat(mapsMatch2[2]); }
+
+  // Extract PIN
+  const pinMatch = rawInput.match(/PIN:\s*(\d+)/i);
+  if (pinMatch) extractedPin = pinMatch[1];
+
+  // Find the pipe-separated packet line (the most important data line)
+  let input = rawInput;
+  if (rawInput.includes('\n')) {
+    const lines = rawInput.split(/[\r\n]+/).map(l => l.trim()).filter(l => l);
+    const packetLine = lines.find(l => l.includes('|'));
+    if (packetLine) {
+      input = packetLine;
+    } else {
+      // No pipe line — find block code pattern (XX-NNN-XXX)
+      const blockLine = lines.find(l => /^[A-Z]{2}-\d{3}-[A-Z]{3}/i.test(l.replace(/^(APARA\s+SOS\s+|SOS\s+|Code:\s*)/i, '')));
+      input = blockLine || lines.find(l => !l.startsWith('APARA') && !l.startsWith('Loc:') && !l.startsWith('Coords:') && !l.startsWith('PIN:') && !l.startsWith('Maps:') && !l.startsWith('Speed:') && !l.startsWith('Location:') && l.length >= 3) || lines[0];
+    }
+  }
+
+  // Strip SMS prefixes
+  if (input.toUpperCase().startsWith('APARA SOS ')) {
+    input = input.substring(10).trim();
+  } else if (input.toUpperCase().startsWith('SOS ')) {
+    input = input.substring(4).trim();
+  } else if (input.toUpperCase().startsWith('CODE: ')) {
+    input = input.substring(6).trim();
+  }
+  if (input.includes('APARA EMERGENCY:')) {
+    const m = input.match(/APARA EMERGENCY:\s*([^\\\n]+)/);
+    if (m) input = m[1].trim();
+  }
+
+  console.log('[Lookup] Parsed input:', input, '| Pre-extracted coords:', extractedLat, extractedLng);
+
+  let lat = extractedLat, lng = extractedLng, typeCode = null, typeName = null, confidence = 0;
+  let blockCode = null, pin = extractedPin, time = null;
+  let type = null, matchingEvent = null;
+
+  // ── FORMAT 1: Pipe-separated packet (new or legacy) ──
+  // New: CE-512-ACC|19.0522,72.8734|15:24:29|conf:87
+  // Legacy: NH48-B32|ACC|15:24:29|conf:87
+  if (input.includes('|')) {
+    const parts = input.split('|').map(s => s.trim());
+
+    blockCode = parts[0];
+    // Detect which part contains coordinates (N.NNNN,N.NNNN)
+    const coordPattern = /^-?\d+\.\d+,-?\d+\.\d+$/;
+    let coordIdx = -1;
+    for (let i = 1; i < parts.length; i++) {
+      if (coordPattern.test(parts[i])) { coordIdx = i; break; }
+    }
+
+    if (coordIdx >= 0) {
+      // New format with coordinates
+      const [latStr, lngStr] = parts[coordIdx].split(',');
+      lat = parseFloat(latStr);
+      lng = parseFloat(lngStr);
+      // Type is right after blockCode
+      typeCode = parts[1] && !coordPattern.test(parts[1]) ? parts[1] : null;
+      // Time: look for HH:MM:SS pattern
+      for (const p of parts) {
+        if (/^\d{1,2}:\d{2}:\d{2}$/.test(p)) { time = p; break; }
+      }
+      // Confidence
+      for (const p of parts) {
+        if (p.startsWith('conf:')) { confidence = parseInt(p.replace('conf:', '')) || 0; break; }
+      }
+    } else {
+      // Legacy format: blockCode|typeCode|time|conf:N
+      typeCode = parts[1] || null;
+      time = parts[2] || null;
+      for (const p of parts) {
+        if (p.startsWith('conf:')) { confidence = parseInt(p.replace('conf:', '')) || 0; break; }
+      }
+    }
+
+    // Also check for PIN and Loc in SMS body
+    const pinMatch = input.match(/PIN:(\d+)/);
+    if (pinMatch) pin = pinMatch[1];
+    const locMatch = input.match(/Loc:([\d.]+),([\d.]+)/);
+    if (locMatch && !lat) { lat = parseFloat(locMatch[1]); lng = parseFloat(locMatch[2]); }
+
+    // Try to decode blockCode — supports both dash-format AND 8-char encoded format
+    if (blockCode && typeof BlockCodeEncoder !== 'undefined') {
+      if (BlockCodeEncoder.isValid(blockCode)) {
+        // Dash-format (RR-NNN-TTT or RR-NNN-TTT-RRRR)
+        const decoded = BlockCodeEncoder.decodeWithReason ? BlockCodeEncoder.decodeWithReason(blockCode) : BlockCodeEncoder.decode(blockCode);
+        if (decoded) {
+          if (!lat || !lng) { lat = decoded.lat; lng = decoded.lng; }
+          if (!typeCode) typeCode = decoded.type;
+        }
+      } else {
+        // Try 8-char encoded format (e.g., CE512ACC)
+        const clean8 = blockCode.replace(/[^0-9A-Z]/gi, '').toUpperCase();
+        if (clean8.length >= 7 && clean8.length <= 9) {
+          const decoded = BlockCodeEncoder.decode(clean8);
+          if (decoded && decoded.valid) {
+            if (!lat || !lng) { lat = decoded.lat; lng = decoded.lng; }
+            if (!typeCode) typeCode = decoded.sosTypeCode || decoded.type;
+          }
+        }
+      }
+    }
+
+    // Try to extract coordinates from Google Maps link in full SMS body
+    const mapsMatch = input.match(/maps\.google\.com\/\?q=(-?[\d.]+),(-?[\d.]+)/);
+    if (mapsMatch && !lat) { lat = parseFloat(mapsMatch[1]); lng = parseFloat(mapsMatch[2]); }
+
+    // Match SOS event from Store
+    const events = Store.getSOSEvents();
+    matchingEvent = events.find(e => e.blockCode === blockCode && e.packet?.includes(typeCode || ''));
+    if (!matchingEvent && lat && lng) {
+      matchingEvent = events.find(e => e.lat && e.lng && Utils.haversine(e.lat, e.lng, lat, lng) < 2000);
+    }
+    if (matchingEvent) {
+      if (!lat || !lng) { lat = matchingEvent.lat; lng = matchingEvent.lng; }
+      if (!pin) pin = matchingEvent.resolutionPin;
+    }
+
+    type = EMERGENCY_TYPES.find(t => t.code === typeCode) || { icon: '🚨', label: typeCode || 'Unknown', color: '#F87171' };
+
+    // If still no coordinates, show error instead of defaulting to India center
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      showToast('⚠️ Could not extract location from this code. Coordinates missing.');
+      document.getElementById('lookupResult').innerHTML = `
+        <div class="card card-glow-alert mb-2" style="border-color:rgba(239,68,68,0.3);">
+          <div style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;margin-bottom:0.5rem;">⚠️</div>
+            <div style="font-size:0.85rem;font-weight:700;color:#F87171;margin-bottom:0.3rem;">LOCATION NOT FOUND</div>
+            <div class="text-xs text-muted">Could not extract GPS coordinates from this code.</div>
+            <div class="packet-display" style="font-size:0.75rem;margin-top:0.5rem;padding:0.4rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:8px;word-break:break-all;">${input}</div>
+            <div class="text-xs text-muted" style="margin-top:0.5rem;">Try pasting the full SMS body including coordinates or Google Maps link.</div>
+          </div>
+        </div>`;
+      return;
+    }
+    const confColor = confidence >= 85 ? 'var(--accent-online)' : confidence >= 60 ? 'var(--accent-offline)' : 'var(--accent-alert)';
+
+    document.getElementById('lookupResult').innerHTML = `
+      <div class="card card-glow-alert mb-2">
+        <div class="flex-between">
+          <div class="alert-type" style="color:${type.color};font-size:1.1rem;">${type.icon} ${type.label}</div>
+          <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-muted);">${time || ''}</span>
+        </div>
+        <div class="packet-display" style="font-size:0.8rem;font-weight:700;margin:0.5rem 0;padding:0.5rem;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:8px;word-break:break-all;">${input}</div>
+        <div style="margin-top:0.5rem;display:flex;gap:1rem;flex-wrap:wrap;">
+          <span class="text-xs">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</span>
+          <span class="text-xs" style="color:${confColor};font-weight:700;">Conf: ${confidence}%</span>
+          ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
+        </div>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📍 Navigate to Location</a>
+      </div>
+      ${matchingEvent ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${matchingEvent.id}')">🚀 Accept & Dispatch</button>` : ''}
+    `;
+
+    // Show map
+    showLookupMap(lat, lng, type, blockCode, confidence);
+    showToast(`✅ Location decoded: ${type.icon} ${type.label}`);
+    return;
+  }
+
+  // ── FORMAT 2: Block code (RR-NNN-TTT or RR-NNN-TTT-RRRR) ──
+  const upper = input.toUpperCase();
+  if (upper.includes('-') && typeof BlockCodeEncoder !== 'undefined' && BlockCodeEncoder.isValid(upper)) {
+    // Decode inline in Lookup tab (no tab switch)
+    let decoded2 = null;
+    let reason2 = null, reasonLabel2 = null;
+    if (BlockCodeEncoder.decodeWithReason) {
+      decoded2 = BlockCodeEncoder.decodeWithReason(upper);
+      if (decoded2) { reason2 = decoded2.reason; reasonLabel2 = decoded2.reasonLabel; }
+    }
+    if (!decoded2) decoded2 = BlockCodeEncoder.decode(upper);
+    if (!decoded2) { showToast('Could not decode block code'); return; }
+    lat = lat || decoded2.lat; lng = lng || decoded2.lng;
+    const reasonColors2 = { 'GOFF': '#F87171', 'STAT': '#FBBF24', 'NRSP': '#EF4444', 'MANU': '#F97316', 'AUTO': '#EF4444', 'FALL': '#DC2626' };
+    const reasonColor2 = reasonColors2[reason2] || '#00D4FF';
+    const events2 = Store.getSOSEvents();
+    const match2 = events2.find(e => e.blockCode === upper) || events2.find(e => e.lat && e.lng && Utils.haversine(e.lat, e.lng, lat, lng) < 1500);
+    pin = pin || match2?.resolutionPin || null;
+    type = decoded2.sosType || { icon: '🚨', label: decoded2.sosTypeCode || 'Unknown', color: '#F87171' };
+    document.getElementById('lookupResult').innerHTML = `
+      <div class="card card-glow-alert mb-2">
+        <div class="flex-between">
+          <div class="alert-type" style="color:${type.color};font-size:1.1rem;">${type.icon} ${type.label}</div>
+          ${reason2 ? `<span style="font-family:var(--font-mono);font-size:0.65rem;padding:0.15rem 0.4rem;border-radius:6px;background:rgba(248,113,113,0.12);color:${reasonColor2};font-weight:700;">${reasonLabel2 || reason2}</span>` : ''}
+        </div>
+        <div style="font-family:var(--font-mono);font-size:1.8rem;font-weight:800;color:var(--accent-alert);margin:0.5rem 0;text-align:center;letter-spacing:0.12em;">${upper}</div>
+        <div style="margin-top:0.5rem;display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
+          <span class="text-xs">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</span>
+          <span class="text-xs" style="font-family:var(--font-mono);color:var(--text-muted);">Block: ${decoded2.blockId || upper}</span>
+          ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
+        </div>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📍 Navigate to Location</a>
+      </div>
+      ${match2 ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${match2.id}')">🚀 Accept & Dispatch</button>` : ''}
+    `;
+    showLookupMap(lat, lng, type, upper, 80);
+    showToast(`✅ Block code decoded: ${type.icon} ${type.label}`);
+    return;
+  }
+
+  // ── FORMAT 3: 8-char code ──
+  const cleanInput = upper.replace(/[^0-9A-Z]/g, '');
+  if (cleanInput.length === 8) {
+    const decoded = BlockCodeEncoder.decode(cleanInput);
+    if (!decoded || !decoded.valid) {
+      showToast(`❌ ${decoded?.error || 'Invalid code'}`); return;
+    }
+    lat = decoded.lat; lng = decoded.lng;
+    type = decoded.sosType || { icon: '🚨', label: decoded.sosTypeCode || 'Unknown', color: '#F87171' };
+
+    const events = Store.getSOSEvents();
+    matchingEvent = events.find(e => e.blockCode8 === cleanInput) || events.find(e => {
+      if (!e.lat || !e.lng) return false;
+      return Utils.haversine(e.lat, e.lng, lat, lng) < 1500;
+    });
+    pin = matchingEvent?.resolutionPin || null;
+
+    document.getElementById('lookupResult').innerHTML = `
+      <div class="card card-glow-alert mb-2">
+        <div class="flex-between">
+          <div class="alert-type" style="color:${type.color};font-size:1.1rem;">${type.icon} ${type.label}</div>
+          <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent-online);">8-CHAR CODE</span>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:2.5rem;font-weight:800;color:var(--accent-alert);margin:0.5rem 0;text-align:center;letter-spacing:0.12em;">${cleanInput}</div>
+        <div style="margin-top:0.5rem;display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;">
+          <span class="text-xs">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</span>
+          <span class="text-xs" style="font-family:var(--font-mono);color:var(--text-muted);">Block: ${decoded.blockId}</span>
+          ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
+        </div>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-primary btn-full mt-2" style="display:block;text-align:center;text-decoration:none;">📍 Navigate to Location</a>
+      </div>
+      ${matchingEvent ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${matchingEvent.id}')">🚀 Accept & Dispatch</button>` : ''}
+    `;
+
+    showLookupMap(lat, lng, type, cleanInput, 0);
+    showToast(`✅ Location decoded: ${type.icon} ${type.label}`);
+    return;
+  }
+
+  showToast(`❌ Unrecognized code format (${input.length} chars). Paste the full SOS code from SMS.`);
+}
+
+// ═══ PHASE 4: BLOCK CODE DECODER + DISPATCH ENGINE (Enhanced with Reason Codes) ═══
+let bcDecodeMapInstance = null;
+
+function decodeBlockCodeInput() {
+  const input = document.getElementById('bcDecodeInput').value.trim();
+  if (!input) { showToast('Enter a block code (RR-NNN-TTT or RR-NNN-TTT-RRRR)'); return; }
+  if (typeof BlockCodeEncoder === 'undefined') { showToast('Block Code Encoder not loaded'); return; }
+  if (!BlockCodeEncoder.isValid(input)) { showToast('Invalid format. Use RR-NNN-TTT or RR-NNN-TTT-RRRR'); return; }
+
+  // Try enhanced decode first (15-char with reason)
+  let decoded = null;
+  let reason = null;
+  let reasonLabel = null;
+
+  if (BlockCodeEncoder.decodeWithReason) {
+    decoded = BlockCodeEncoder.decodeWithReason(input);
+    if (decoded) {
+      reason = decoded.reason;
+      reasonLabel = decoded.reasonLabel;
+    }
+  }
+  if (!decoded) {
+    decoded = BlockCodeEncoder.decode(input);
+  }
+  if (!decoded) { showToast('Could not decode block code'); return; }
+
+  const reasonColors = { 'GOFF': '#F87171', 'STAT': '#FBBF24', 'NRSP': '#EF4444', 'MANU': '#F97316', 'AUTO': '#EF4444', 'FALL': '#DC2626' };
+  const reasonColor = reasonColors[reason] || '#00D4FF';
+
+  // Check for matching SOS event
   const events = Store.getSOSEvents();
-  const me = events.find(e => e.blockCode === blockCode && e.packet?.includes(typeCode));
-  if (me) { lat = me.lat || lat; lng = me.lng || lng; pin = me.resolutionPin || pin; }
-  if (!lat || !lng) { lat = 20.5937; lng = 78.9629; }
-  const confColor = confidence >= 85 ? 'var(--accent-online)' : confidence >= 60 ? 'var(--accent-offline)' : 'var(--accent-alert)';
-  document.getElementById('lookupResult').innerHTML = `
-    <div class="card card-glow-alert mb-2">
-      <div class="flex-between">
-        <div class="alert-type" style="color:${type.color};font-size:1.1rem;">${type.icon} ${type.label}</div>
-        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted);">${time}</span>
+  const matchingEvent = events.find(e => e.blockCode === input || e.blockCode8 === input) ||
+    events.find(e => {
+      if (!e.lat || !e.lng || !decoded.lat || !decoded.lng) return false;
+      return Utils.haversine(e.lat, e.lng, decoded.lat, decoded.lng) < 2000;
+    });
+
+  document.getElementById('bcDecodeResult').innerHTML = `
+    <div style="background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:var(--radius-sm);padding:0.75rem;font-family:var(--font-mono);font-size:0.72rem;">
+      <div style="margin-bottom:0.3rem;color:#00D4FF;font-weight:700;">✅ DECODED</div>
+      <div>📍 ${decoded.lat.toFixed(4)}°N, ${decoded.lng.toFixed(4)}°E</div>
+      <div>🏷️ Type: ${decoded.type} | Region: ${decoded.region || 'N/A'}</div>
+      <div>📏 Accuracy: ~${decoded.accuracy_km || 10}km</div>
+      ${reason ? `<div style="margin-top:0.3rem;color:${reasonColor};font-weight:700;">⚠️ Reason: ${reasonLabel} (${reason})</div>` : ''}
+      <div style="display:flex;gap:0.4rem;margin-top:0.5rem;">
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${decoded.lat},${decoded.lng}" target="_blank" style="flex:1;display:block;text-align:center;padding:0.4rem;background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.3);border-radius:6px;color:#00D4FF;text-decoration:none;font-size:0.65rem;font-weight:700;">📍 Navigate</a>
+        ${matchingEvent ? `<button onclick="acceptDispatch('${matchingEvent.id}')" style="flex:1;padding:0.4rem;background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.3);border-radius:6px;color:#F97316;font-size:0.65rem;font-weight:700;cursor:pointer;">🚀 Dispatch</button>` : ''}
       </div>
-      <div style="font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--accent-online);margin:0.5rem 0;">${blockCode}</div>
-      <div class="packet-display">${packet}</div>
-      <div style="margin-top:0.5rem;display:flex;gap:1rem;flex-wrap:wrap;">
-        <span class="text-xs">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</span>
-        <span class="text-xs" style="color:${confColor};font-weight:700;">Conf: ${confidence}%</span>
-        ${pin ? `<span class="text-xs" style="color:var(--accent-online);font-weight:700;">PIN: ${pin}</span>` : ''}
+    </div>`;
+
+  // Show map
+  const mapEl = document.getElementById('bcDecodeMap');
+  if (mapEl) {
+    mapEl.style.display = 'block';
+    setTimeout(() => {
+      if (bcDecodeMapInstance) bcDecodeMapInstance.remove();
+      bcDecodeMapInstance = L.map('bcDecodeMap').setView([decoded.lat, decoded.lng], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(bcDecodeMapInstance);
+      const markerLabel = reason ? `⚠️ ${reasonLabel}` : `🚨 ${decoded.type}`;
+      L.marker([decoded.lat, decoded.lng]).addTo(bcDecodeMapInstance)
+        .bindPopup(`<b>${markerLabel}</b><br>Code: ${input}<br>${decoded.lat.toFixed(5)}°, ${decoded.lng.toFixed(5)}°`).openPopup();
+      L.circle([decoded.lat, decoded.lng], { radius: 500, color: reasonColor, fillOpacity: 0.1 }).addTo(bcDecodeMapInstance);
+    }, 100);
+  }
+  showToast('Block code decoded — location on map');
+}
+
+function renderDispatchEngine() {
+  if (typeof SOSProviderEngine === 'undefined') return;
+  const emergencies = SOSProviderEngine.getActiveEmergencies();
+  const el = document.getElementById('engineAlertList');
+  if (!el) return;
+  if (emergencies.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.75rem;">No active emergencies in dispatch queue</div>';
+    return;
+  }
+  const pColors = {P1:'#DC2626',P2:'#F97316',P3:'#EAB308',P4:'#06B6D4'};
+  el.innerHTML = emergencies.slice(0,10).map(e => {
+    const pri = e.priority || 'P2';
+    const pc = pColors[pri] || '#F97316';
+    const elapsed = Math.floor((Date.now() - e.receivedAt) / 1000);
+    return `<div style="display:flex;align-items:center;gap:0.65rem;padding:0.5rem;border-radius:var(--radius-sm);margin-bottom:0.3rem;background:${pc}10;border:1px solid ${pc}25;">
+      <span style="font-family:var(--font-mono);font-size:1rem;font-weight:900;color:${pc};min-width:28px;text-align:center;">${pri}</span>
+      <div style="flex:1;">
+        <div style="font-size:0.75rem;font-weight:700;">${e.blockCode||'---'}</div>
+        <div style="font-family:var(--font-mono);font-size:0.55rem;color:var(--text-muted);">${formatElapsed(elapsed)} | ${e.matchedProviders?.length||0} providers</div>
       </div>
-    </div>
-    ${me ? `<button class="btn btn-primary btn-full mb-1" onclick="acceptDispatch('${me.id}')">🚀 Accept & Dispatch</button>` : ''}
-  `;
-  document.getElementById('lookupMap').style.display = 'block';
-  setTimeout(() => {
-    if (lookupMapInstance) lookupMapInstance.remove();
-    lookupMapInstance = L.map('lookupMap').setView([lat, lng], 14);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lookupMapInstance);
-    L.marker([lat, lng]).addTo(lookupMapInstance).bindPopup(`<b>${type.icon} ${type.label}</b><br>${blockCode}`).openPopup();
-    L.circle([lat, lng], { radius: confidence >= 85 ? 150 : 400, color: type.color, fillOpacity: 0.1 }).addTo(lookupMapInstance);
-  }, 100);
-  showToast(`Location decoded: ${blockCode}`);
+      <span style="font-family:var(--font-mono);font-size:0.55rem;padding:0.2rem 0.5rem;border-radius:8px;background:${pc}20;color:${pc};font-weight:700;">${e.status.toUpperCase()}</span>
+    </div>`;
+  }).join('');
+}
+
+// Wire SOSProviderEngine updates
+if (typeof SOSProviderEngine !== 'undefined') {
+  SOSProviderEngine.onChange(() => renderDispatchEngine());
 }
 </script>
 </body>

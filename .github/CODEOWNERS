@@ -1,1 +1,22 @@
+# ═══ CODEOWNERS — DRISHYTOX / APARA ═══
+# @Anshulpj12 is the sole owner and must review ALL changes.
+# No PR can be merged without their approval.
+
+# Everything — catch-all rule
 * @Anshulpj12
+
+# Core pages — critical
+/index.html @Anshulpj12
+/pages/ @Anshulpj12
+
+# Styling
+/css/ @Anshulpj12
+
+# JavaScript / Firebase logic — highest risk
+/js/ @Anshulpj12
+
+# Documentation
+/docs/ @Anshulpj12
+
+# GitHub config — protect repo settings from changes
+/.github/ @Anshulpj12

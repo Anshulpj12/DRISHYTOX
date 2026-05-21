@@ -1,0 +1,2208 @@
+{
+  "_metadata": {
+    "system_name": "Road SOS Emergency Response System",
+    "version": "2.0.0",
+    "build_date": "2026-05-10",
+    "schema_version": "1.0",
+    "language": "en",
+    "supported_languages": ["en", "hi", "ta", "te", "mr", "bn", "gu", "kn"],
+    "platform": ["android", "ios", "web"],
+    "offline_capable": true,
+    "last_medical_review": "2025-12-01",
+    "medical_standards": [
+      "AHA Guidelines for CPR and ECC 2025",
+      "AHA & American Red Cross First Aid Guidelines 2024",
+      "European Resuscitation Council Guidelines 2025",
+      "ILCOR Consensus on CPR Science 2024",
+      "ATLS Advanced Trauma Life Support 10th Edition",
+      "Global Road Safety Partnership First Response to Road Crashes"
+    ],
+    "disclaimer": "This system provides guided first-aid instructions based on verified medical protocols. It does not replace professional medical care. Always call emergency services immediately. All protocols are rule-based and medically reviewed. No LLM or AI inference is used for treatment decisions.",
+    "emergency_numbers": {
+      "india_ambulance": "108",
+      "india_police": "100",
+      "india_fire": "101",
+      "india_unified": "112",
+      "international_standard": "911",
+      "europe_standard": "112"
+    },
+    "activation_triggers": [
+      "manual_sos_button",
+      "crash_impact_detection",
+      "abnormal_motion_sensor",
+      "tilt_sensing",
+      "sudden_stop_pattern",
+      "airbag_deployment_signal",
+      "inactivity_after_impact",
+      "vehicle_rollover_detection"
+    ],
+    "ui_principles": [
+      "large_emergency_buttons",
+      "color_coded_alerts",
+      "body_map_tap_selection",
+      "icon_based_navigation",
+      "voice_guidance_enabled",
+      "minimal_text_input",
+      "panic_mode_layout",
+      "offline_first"
+    ]
+  },
+
+  "triage_priority_system": {
+    "description": "Rule-based priority engine. Evaluates selected conditions and assigns response priority. Based on ABCDE framework (Airway, Breathing, Circulation, Disability, Exposure).",
+    "priority_levels": {
+      "P1_IMMEDIATE": {
+        "code": "P1",
+        "color": "#C0392B",
+        "label": "IMMEDIATE - Life Threatening",
+        "response_time_target_seconds": 0,
+        "description": "Conditions that will cause death within minutes without intervention.",
+        "triggers": [
+          "unconscious_not_breathing",
+          "cardiac_arrest",
+          "no_pulse",
+          "severe_airway_obstruction",
+          "catastrophic_hemorrhage",
+          "tension_pneumothorax",
+          "open_chest_wound",
+          "severe_shock"
+        ]
+      },
+      "P2_URGENT": {
+        "code": "P2",
+        "color": "#E67E22",
+        "label": "URGENT - Serious",
+        "response_time_target_seconds": 120,
+        "description": "Serious conditions that can deteriorate rapidly but allow a brief window for action.",
+        "triggers": [
+          "unconscious_breathing",
+          "heavy_bleeding_controlled",
+          "spinal_injury_suspected",
+          "head_injury_with_unconsciousness",
+          "breathing_difficulty",
+          "chest_pain",
+          "severe_burns_over_10_percent",
+          "seizure_active",
+          "shock_compensated"
+        ]
+      },
+      "P3_DELAYED": {
+        "code": "P3",
+        "color": "#F1C40F",
+        "label": "DELAYED - Moderate",
+        "response_time_target_seconds": 600,
+        "description": "Injuries that are serious but stable. Victim is conscious and able to communicate.",
+        "triggers": [
+          "fracture_limb_stable",
+          "moderate_bleeding_controlled",
+          "burn_minor",
+          "dislocation",
+          "laceration_not_severe",
+          "vomiting_conscious",
+          "dizziness_conscious",
+          "pain_localized"
+        ]
+      },
+      "P4_MINIMAL": {
+        "code": "P4",
+        "color": "#1E8449",
+        "label": "MINIMAL - Walking Wounded",
+        "response_time_target_seconds": 1800,
+        "description": "Minor injuries. Victim is ambulatory and able to follow instructions.",
+        "triggers": [
+          "minor_cuts",
+          "bruising",
+          "mild_pain",
+          "abrasions",
+          "anxiety_no_injury"
+        ]
+      }
+    }
+  },
+
+  "assessment_framework": {
+    "name": "ABCDE Primary Survey",
+    "source": "ATLS 10th Edition & ILCOR 2024",
+    "sequence": [
+      {
+        "step": "A",
+        "name": "Airway",
+        "order": 1,
+        "questions": [
+          {
+            "id": "A_01",
+            "question": "Is the victim speaking or making sounds?",
+            "options": ["Yes - clear speech", "Gurgling sounds", "No sounds at all"],
+            "response_map": {
+              "Yes - clear speech": "airway_clear",
+              "Gurgling sounds": "airway_partial_obstruction",
+              "No sounds at all": "airway_compromised"
+            }
+          },
+          {
+            "id": "A_02",
+            "question": "Can you see any visible obstruction in the mouth?",
+            "options": ["No obstruction visible", "Blood/fluid visible", "Foreign object visible"],
+            "response_map": {
+              "No obstruction visible": "airway_no_obstruction",
+              "Blood/fluid visible": "airway_fluid_obstruction",
+              "Foreign object visible": "airway_foreign_body"
+            }
+          }
+        ]
+      },
+      {
+        "step": "B",
+        "name": "Breathing",
+        "order": 2,
+        "questions": [
+          {
+            "id": "B_01",
+            "question": "Is the victim breathing?",
+            "options": ["Yes - normal breathing", "Gasping/irregular", "Not breathing at all"],
+            "response_map": {
+              "Yes - normal breathing": "breathing_normal",
+              "Gasping/irregular": "breathing_abnormal",
+              "Not breathing at all": "breathing_absent"
+            }
+          },
+          {
+            "id": "B_02",
+            "question": "Check chest rise — is it equal on both sides?",
+            "options": ["Equal rise both sides", "Only one side rising", "No chest movement"],
+            "response_map": {
+              "Equal rise both sides": "breathing_bilateral_equal",
+              "Only one side rising": "breathing_unilateral",
+              "No chest movement": "breathing_absent"
+            }
+          }
+        ]
+      },
+      {
+        "step": "C",
+        "name": "Circulation",
+        "order": 3,
+        "questions": [
+          {
+            "id": "C_01",
+            "question": "Is there visible bleeding?",
+            "options": ["No bleeding", "Mild bleeding", "Heavy/uncontrolled bleeding", "Spurting blood"],
+            "response_map": {
+              "No bleeding": "bleeding_none",
+              "Mild bleeding": "bleeding_minor",
+              "Heavy/uncontrolled bleeding": "bleeding_severe",
+              "Spurting blood": "bleeding_arterial"
+            }
+          },
+          {
+            "id": "C_02",
+            "question": "Check the victim's skin color and feel",
+            "options": ["Normal - pink and warm", "Pale and cold", "Bluish/cyanotic", "Mottled"],
+            "response_map": {
+              "Normal - pink and warm": "circulation_adequate",
+              "Pale and cold": "circulation_poor_shock",
+              "Bluish/cyanotic": "circulation_hypoxic",
+              "Mottled": "circulation_critical"
+            }
+          }
+        ]
+      },
+      {
+        "step": "D",
+        "name": "Disability",
+        "order": 4,
+        "questions": [
+          {
+            "id": "D_01",
+            "question": "What is the victim's level of consciousness? (AVPU Scale)",
+            "options": [
+              "Alert - fully awake and aware",
+              "Voice - responds to voice only",
+              "Pain - responds to pain only",
+              "Unresponsive - no response at all"
+            ],
+            "response_map": {
+              "Alert - fully awake and aware": "consciousness_alert",
+              "Voice - responds to voice only": "consciousness_voice",
+              "Pain - responds to pain only": "consciousness_pain",
+              "Unresponsive - no response at all": "consciousness_unresponsive"
+            }
+          },
+          {
+            "id": "D_02",
+            "question": "Can the victim move their limbs?",
+            "options": ["Yes - all four limbs", "Arms only", "Legs only", "Cannot move any limb"],
+            "response_map": {
+              "Yes - all four limbs": "neuro_intact",
+              "Arms only": "neuro_lower_deficit",
+              "Legs only": "neuro_upper_deficit",
+              "Cannot move any limb": "neuro_quadriplegia_suspected"
+            }
+          },
+          {
+            "id": "D_03",
+            "question": "Check pupils — are they equal and reactive?",
+            "options": ["Equal and reacting to light", "Unequal pupils", "Both fixed and dilated", "Cannot check"],
+            "response_map": {
+              "Equal and reacting to light": "pupils_normal",
+              "Unequal pupils": "pupils_unequal_head_injury",
+              "Both fixed and dilated": "pupils_fixed_critical",
+              "Cannot check": "pupils_unknown"
+            }
+          }
+        ]
+      },
+      {
+        "step": "E",
+        "name": "Exposure",
+        "order": 5,
+        "questions": [
+          {
+            "id": "E_01",
+            "question": "Any additional injuries found on body check?",
+            "options": ["No additional injuries", "Burns visible", "Deformity/fracture visible", "Multiple injuries"],
+            "response_map": {
+              "No additional injuries": "exposure_clear",
+              "Burns visible": "exposure_burns",
+              "Deformity/fracture visible": "exposure_fracture",
+              "Multiple injuries": "exposure_polytrauma"
+            }
+          }
+        ]
+      }
+    ]
+  },
+
+  "injury_conditions": {
+    "description": "All selectable conditions in the rescuer interface. Multi-select enabled.",
+    "categories": {
+      "CONSCIOUSNESS": {
+        "icon": "brain",
+        "color": "#8E44AD",
+        "conditions": [
+          {
+            "id": "COND_001",
+            "label": "Unconscious - Not Breathing",
+            "severity": "P1",
+            "key": "unconscious_not_breathing",
+            "body_region": "head",
+            "auto_trigger_protocol": "PROTO_CPR"
+          },
+          {
+            "id": "COND_002",
+            "label": "Unconscious - Breathing",
+            "severity": "P2",
+            "key": "unconscious_breathing",
+            "body_region": "head",
+            "auto_trigger_protocol": "PROTO_RECOVERY_POSITION"
+          },
+          {
+            "id": "COND_003",
+            "label": "Confused / Disoriented",
+            "severity": "P2",
+            "key": "altered_consciousness",
+            "body_region": "head",
+            "auto_trigger_protocol": "PROTO_HEAD_INJURY"
+          },
+          {
+            "id": "COND_004",
+            "label": "Seizure / Convulsions",
+            "severity": "P2",
+            "key": "seizure",
+            "body_region": "full_body",
+            "auto_trigger_protocol": "PROTO_SEIZURE"
+          },
+          {
+            "id": "COND_005",
+            "label": "Unresponsive to Voice",
+            "severity": "P1",
+            "key": "unresponsive",
+            "body_region": "head",
+            "auto_trigger_protocol": "PROTO_CPR_CHECK"
+          }
+        ]
+      },
+      "BREATHING": {
+        "icon": "lungs",
+        "color": "#1565C0",
+        "conditions": [
+          {
+            "id": "COND_010",
+            "label": "Not Breathing",
+            "severity": "P1",
+            "key": "apnea",
+            "body_region": "chest",
+            "auto_trigger_protocol": "PROTO_CPR"
+          },
+          {
+            "id": "COND_011",
+            "label": "Breathing Difficulty / Shortness of Breath",
+            "severity": "P2",
+            "key": "dyspnea",
+            "body_region": "chest",
+            "auto_trigger_protocol": "PROTO_AIRWAY_MANAGEMENT"
+          },
+          {
+            "id": "COND_012",
+            "label": "Choking / Airway Obstruction",
+            "severity": "P1",
+            "key": "choking",
+            "body_region": "throat",
+            "auto_trigger_protocol": "PROTO_CHOKING"
+          },
+          {
+            "id": "COND_013",
+            "label": "Open Chest Wound (Sucking)",
+            "severity": "P1",
+            "key": "open_chest_wound",
+            "body_region": "chest",
+            "auto_trigger_protocol": "PROTO_OPEN_CHEST"
+          },
+          {
+            "id": "COND_014",
+            "label": "Gurgling / Noisy Breathing",
+            "severity": "P2",
+            "key": "stridor",
+            "body_region": "throat",
+            "auto_trigger_protocol": "PROTO_AIRWAY_MANAGEMENT"
+          }
+        ]
+      },
+      "BLEEDING": {
+        "icon": "blood_drop",
+        "color": "#C0392B",
+        "conditions": [
+          {
+            "id": "COND_020",
+            "label": "Catastrophic / Spurting Bleeding",
+            "severity": "P1",
+            "key": "arterial_bleed",
+            "body_region": "any",
+            "auto_trigger_protocol": "PROTO_BLEEDING_SEVERE"
+          },
+          {
+            "id": "COND_021",
+            "label": "Heavy Bleeding - Not Controlled",
+            "severity": "P1",
+            "key": "heavy_bleed",
+            "body_region": "any",
+            "auto_trigger_protocol": "PROTO_BLEEDING_SEVERE"
+          },
+          {
+            "id": "COND_022",
+            "label": "Moderate Bleeding",
+            "severity": "P2",
+            "key": "moderate_bleed",
+            "body_region": "any",
+            "auto_trigger_protocol": "PROTO_BLEEDING_MODERATE"
+          },
+          {
+            "id": "COND_023",
+            "label": "Minor Bleeding / Cuts",
+            "severity": "P3",
+            "key": "minor_bleed",
+            "body_region": "any",
+            "auto_trigger_protocol": "PROTO_BLEEDING_MINOR"
+          },
+          {
+            "id": "COND_024",
+            "label": "Internal Bleeding Suspected",
+            "severity": "P1",
+            "key": "internal_bleed",
+            "body_region": "abdomen",
+            "auto_trigger_protocol": "PROTO_SHOCK"
+          }
+        ]
+      },
+      "HEAD_AND_SPINE": {
+        "icon": "head_spine",
+        "color": "#8E44AD",
+        "conditions": [
+          {
+            "id": "COND_030",
+            "label": "Head Injury / Trauma",
+            "severity": "P2",
+            "key": "head_injury",
+            "body_region": "head",
+            "auto_trigger_protocol": "PROTO_HEAD_INJURY"
+          },
+          {
+            "id": "COND_031",
+            "label": "Suspected Spinal / Neck Injury",
+            "severity": "P2",
+            "key": "spinal_injury",
+            "body_region": "spine",
+            "auto_trigger_protocol": "PROTO_SPINAL_INJURY"
+          },
+          {
+            "id": "COND_032",
+            "label": "Neck Pain After Impact",
+            "severity": "P2",
+            "key": "neck_pain",
+            "body_region": "cervical",
+            "auto_trigger_protocol": "PROTO_SPINAL_INJURY"
+          },
+          {
+            "id": "COND_033",
+            "label": "Fluid from Ear or Nose",
+            "severity": "P1",
+            "key": "csf_leak",
+            "body_region": "head",
+            "auto_trigger_protocol": "PROTO_HEAD_INJURY"
+          }
+        ]
+      },
+      "CARDIAC": {
+        "icon": "heart",
+        "color": "#E74C3C",
+        "conditions": [
+          {
+            "id": "COND_040",
+            "label": "Cardiac Arrest / No Pulse",
+            "severity": "P1",
+            "key": "cardiac_arrest",
+            "body_region": "chest",
+            "auto_trigger_protocol": "PROTO_CPR"
+          },
+          {
+            "id": "COND_041",
+            "label": "Chest Pain",
+            "severity": "P1",
+            "key": "chest_pain",
+            "body_region": "chest",
+            "auto_trigger_protocol": "PROTO_CHEST_PAIN"
+          },
+          {
+            "id": "COND_042",
+            "label": "Shock / Circulatory Collapse",
+            "severity": "P1",
+            "key": "shock",
+            "body_region": "full_body",
+            "auto_trigger_protocol": "PROTO_SHOCK"
+          }
+        ]
+      },
+      "FRACTURES_AND_BONES": {
+        "icon": "bone",
+        "color": "#7D6608",
+        "conditions": [
+          {
+            "id": "COND_050",
+            "label": "Open Fracture (Bone Visible)",
+            "severity": "P2",
+            "key": "open_fracture",
+            "body_region": "limbs",
+            "auto_trigger_protocol": "PROTO_FRACTURE_OPEN"
+          },
+          {
+            "id": "COND_051",
+            "label": "Closed Fracture / Broken Bone",
+            "severity": "P3",
+            "key": "closed_fracture",
+            "body_region": "limbs",
+            "auto_trigger_protocol": "PROTO_FRACTURE_CLOSED"
+          },
+          {
+            "id": "COND_052",
+            "label": "Dislocated Joint",
+            "severity": "P3",
+            "key": "dislocation",
+            "body_region": "limbs",
+            "auto_trigger_protocol": "PROTO_DISLOCATION"
+          },
+          {
+            "id": "COND_053",
+            "label": "Trapped / Crushed Body Part",
+            "severity": "P1",
+            "key": "crush_injury",
+            "body_region": "limbs",
+            "auto_trigger_protocol": "PROTO_CRUSH_INJURY"
+          }
+        ]
+      },
+      "BURNS": {
+        "icon": "flame",
+        "color": "#E67E22",
+        "conditions": [
+          {
+            "id": "COND_060",
+            "label": "Major Burns (>10% body area)",
+            "severity": "P1",
+            "key": "burn_major",
+            "body_region": "any",
+            "auto_trigger_protocol": "PROTO_BURN_MAJOR"
+          },
+          {
+            "id": "COND_061",
+            "label": "Minor Burns",
+            "severity": "P3",
+            "key": "burn_minor",
+            "body_region": "any",
+            "auto_trigger_protocol": "PROTO_BURN_MINOR"
+          },
+          {
+            "id": "COND_062",
+            "label": "Chemical Burn",
+            "severity": "P2",
+            "key": "burn_chemical",
+            "body_region": "any",
+            "auto_trigger_protocol": "PROTO_BURN_CHEMICAL"
+          },
+          {
+            "id": "COND_063",
+            "label": "Electrical Burn / Electrocution",
+            "severity": "P1",
+            "key": "burn_electrical",
+            "body_region": "any",
+            "auto_trigger_protocol": "PROTO_BURN_ELECTRICAL"
+          }
+        ]
+      },
+      "OTHER_CONDITIONS": {
+        "icon": "medical_cross",
+        "color": "#148F77",
+        "conditions": [
+          {
+            "id": "COND_070",
+            "label": "Vomiting / Nausea",
+            "severity": "P3",
+            "key": "vomiting",
+            "body_region": "abdomen",
+            "auto_trigger_protocol": "PROTO_VOMITING"
+          },
+          {
+            "id": "COND_071",
+            "label": "Dizziness / Fainting",
+            "severity": "P3",
+            "key": "dizziness",
+            "body_region": "head",
+            "auto_trigger_protocol": "PROTO_SYNCOPE"
+          },
+          {
+            "id": "COND_072",
+            "label": "Severe Abdominal Pain",
+            "severity": "P2",
+            "key": "abdominal_pain",
+            "body_region": "abdomen",
+            "auto_trigger_protocol": "PROTO_ABDOMINAL_INJURY"
+          },
+          {
+            "id": "COND_073",
+            "label": "Eye Injury / Foreign Object in Eye",
+            "severity": "P3",
+            "key": "eye_injury",
+            "body_region": "head",
+            "auto_trigger_protocol": "PROTO_EYE_INJURY"
+          },
+          {
+            "id": "COND_074",
+            "label": "Embedded Foreign Object",
+            "severity": "P2",
+            "key": "impaled_object",
+            "body_region": "any",
+            "auto_trigger_protocol": "PROTO_IMPALED_OBJECT"
+          },
+          {
+            "id": "COND_075",
+            "label": "Suspected Diabetic Emergency",
+            "severity": "P2",
+            "key": "diabetic_emergency",
+            "body_region": "full_body",
+            "auto_trigger_protocol": "PROTO_DIABETIC"
+          }
+        ]
+      }
+    }
+  },
+
+  "priority_matrix": {
+    "description": "Rule engine: maps condition combinations to protocol sequence. Evaluated in order. First match wins unless multi-condition override applies.",
+    "rules": [
+      {
+        "rule_id": "RULE_001",
+        "conditions_required": ["unconscious_not_breathing"],
+        "any_of": [],
+        "priority_override": "P1",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_CPR", "PROTO_AED"],
+        "reasoning": "Cardiac/respiratory arrest — highest priority. CPR doubles survival chance. AHA 2025."
+      },
+      {
+        "rule_id": "RULE_002",
+        "conditions_required": ["cardiac_arrest"],
+        "any_of": [],
+        "priority_override": "P1",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_CPR", "PROTO_AED"],
+        "reasoning": "Cardiac arrest. Begin compressions immediately. AHA 2025."
+      },
+      {
+        "rule_id": "RULE_003",
+        "conditions_required": ["arterial_bleed"],
+        "any_of": [],
+        "priority_override": "P1",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_BLEEDING_SEVERE", "PROTO_SHOCK"],
+        "reasoning": "Exsanguination risk. Apply direct pressure + tourniquet if limb. AHA 2024."
+      },
+      {
+        "rule_id": "RULE_004",
+        "conditions_required": ["unconscious_not_breathing", "arterial_bleed"],
+        "any_of": [],
+        "priority_override": "P1",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_BLEEDING_SEVERE", "PROTO_CPR", "PROTO_AED"],
+        "reasoning": "Multi-life-threat. Control catastrophic bleeding before CPR. TCCC + AHA."
+      },
+      {
+        "rule_id": "RULE_005",
+        "conditions_required": ["spinal_injury"],
+        "any_of": [],
+        "priority_override": "P2",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_SPINAL_INJURY"],
+        "reasoning": "Do not move. 40% spinal injuries from MVA. AHA/ERC 2025."
+      },
+      {
+        "rule_id": "RULE_006",
+        "conditions_required": ["unconscious_breathing"],
+        "any_of": [],
+        "priority_override": "P2",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_RECOVERY_POSITION"],
+        "reasoning": "Unconscious but breathing — recovery position prevents aspiration. ERC 2025."
+      },
+      {
+        "rule_id": "RULE_007",
+        "conditions_required": ["unconscious_breathing", "spinal_injury"],
+        "any_of": [],
+        "priority_override": "P1",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_SPINAL_CPR_CONFLICT"],
+        "reasoning": "Spinal injury + unconscious — modified handling required. ERC 2025."
+      },
+      {
+        "rule_id": "RULE_008",
+        "conditions_required": ["choking"],
+        "any_of": [],
+        "priority_override": "P1",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_CHOKING"],
+        "reasoning": "Complete airway obstruction — Heimlich maneuver. AHA 2024."
+      },
+      {
+        "rule_id": "RULE_009",
+        "conditions_required": ["open_chest_wound"],
+        "any_of": [],
+        "priority_override": "P1",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_OPEN_CHEST"],
+        "reasoning": "Tension pneumothorax risk. 3-sided occlusive dressing. AHA 2024."
+      },
+      {
+        "rule_id": "RULE_010",
+        "conditions_required": ["burn_major"],
+        "any_of": [],
+        "priority_override": "P1",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_BURN_MAJOR", "PROTO_SHOCK"],
+        "reasoning": "Major burns >10% — cool, cover, treat shock. GRSP & AHA."
+      },
+      {
+        "rule_id": "RULE_011",
+        "conditions_required": ["seizure"],
+        "any_of": [],
+        "priority_override": "P2",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_SEIZURE"],
+        "reasoning": "Protect from injury. Do not restrain. AHA 2024."
+      },
+      {
+        "rule_id": "RULE_012",
+        "conditions_required": ["shock"],
+        "any_of": [],
+        "priority_override": "P1",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_SHOCK"],
+        "reasoning": "Circulatory shock — lay flat, elevate legs if no spinal, keep warm. AHA 2024."
+      },
+      {
+        "rule_id": "RULE_013",
+        "conditions_required": ["crush_injury"],
+        "any_of": [],
+        "priority_override": "P1",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_CRUSH_INJURY", "PROTO_SHOCK"],
+        "reasoning": "Do not release crush suddenly — rhabdomyolysis risk. AHA 2024."
+      },
+      {
+        "rule_id": "RULE_014",
+        "conditions_required": ["head_injury"],
+        "any_of": [],
+        "priority_override": "P2",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_HEAD_INJURY", "PROTO_SPINAL_INJURY"],
+        "reasoning": "Head injury assumes spinal risk. Immobilize. AHA/ERC 2025."
+      },
+      {
+        "rule_id": "RULE_015",
+        "conditions_required": ["impaled_object"],
+        "any_of": [],
+        "priority_override": "P2",
+        "protocol_sequence": ["PROTO_SCENE_SAFETY", "PROTO_IMPALED_OBJECT"],
+        "reasoning": "NEVER remove impaled objects. Stabilize in place. AHA 2024."
+      }
+    ]
+  },
+
+  "protocols": {
+    "PROTO_SCENE_SAFETY": {
+      "id": "PROTO_SCENE_SAFETY",
+      "name": "Scene Safety Check",
+      "priority": "P1",
+      "source": "AHA & Red Cross 2024, GRSP Road Crash First Response",
+      "must_run_first": true,
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Survey the scene",
+          "detail": "Look for ongoing traffic, fire, fuel leaks, unstable vehicles, or electrical hazards before approaching.",
+          "duration_seconds": 10
+        },
+        {
+          "step_number": 2,
+          "action": "Make scene safe",
+          "detail": "Turn on hazard lights. Place warning triangles 50m behind the vehicle. Signal other drivers to slow down.",
+          "duration_seconds": 30
+        },
+        {
+          "step_number": 3,
+          "action": "Call emergency services",
+          "detail": "Call 112 (or 108 in India) immediately. State location, number of victims, and injuries visible.",
+          "duration_seconds": 60
+        },
+        {
+          "step_number": 4,
+          "action": "Use protective gloves",
+          "detail": "If available, put on disposable gloves before touching the victim to prevent disease transmission.",
+          "duration_seconds": 10
+        },
+        {
+          "step_number": 5,
+          "action": "Approach safely",
+          "detail": "Approach the victim from a direction that does not expose you to hazards. Do not move victim unless in immediate danger.",
+          "duration_seconds": 15
+        }
+      ],
+      "do_not": [
+        "Do NOT approach if the scene is actively unsafe (fire, moving traffic, live electricity).",
+        "Do NOT move a victim from a vehicle unless there is fire or immediate life threat.",
+        "Do NOT turn off a victim's vehicle ignition if it is the only source of stability."
+      ]
+    },
+
+    "PROTO_CPR": {
+      "id": "PROTO_CPR",
+      "name": "Cardiopulmonary Resuscitation (CPR) - Adult",
+      "priority": "P1",
+      "source": "AHA CPR Guidelines 2025 | AHA & Red Cross 2024 First Aid Guidelines | ERC 2025",
+      "applicable_age": "adult_and_child_over_8",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Confirm unresponsiveness",
+          "detail": "Tap shoulders firmly and shout 'Are you OK?' If no response, confirm not breathing normally (gasping does NOT count as breathing). Check for no more than 10 seconds.",
+          "duration_seconds": 10
+        },
+        {
+          "step_number": 2,
+          "action": "Call for help",
+          "detail": "Shout for help. Ask bystander to call 112/108. Ask another to find an AED if available. If alone, call first then begin CPR.",
+          "duration_seconds": 15
+        },
+        {
+          "step_number": 3,
+          "action": "Position the victim",
+          "detail": "Place victim on their back on a firm, flat surface. Kneel beside their chest.",
+          "duration_seconds": 10
+        },
+        {
+          "step_number": 4,
+          "action": "Hand placement",
+          "detail": "Place heel of one hand on the CENTER of the chest on the lower half of the sternum (breastbone). Place other hand on top. Interlace fingers and keep them off the ribs.",
+          "duration_seconds": 10
+        },
+        {
+          "step_number": 5,
+          "action": "Chest compressions",
+          "detail": "Push STRAIGHT DOWN. Rate: 100-120 compressions per minute (rhythm of 'Stayin' Alive'). Depth: at least 2 inches (5cm), not more than 2.4 inches (6cm). Allow FULL chest recoil between each compression. Keep your shoulders directly over hands and elbows locked.",
+          "rate_per_minute": "100-120",
+          "depth_cm": "5-6",
+          "recoil": true,
+          "duration_seconds": 120
+        },
+        {
+          "step_number": 6,
+          "action": "Rescue breaths (if trained)",
+          "detail": "After 30 compressions: tilt head back, lift chin. Pinch nose shut. Take a normal breath. Make complete seal over mouth. Give 1 breath over 1 second — watch chest rise. Give second breath. Total pause should be under 10 seconds. Ratio: 30 compressions to 2 breaths.",
+          "compression_breath_ratio": "30:2",
+          "breath_duration_seconds": 1,
+          "max_pause_seconds": 10,
+          "untrained_alternative": "Hands-only CPR: continuous compressions without breaths is acceptable for untrained rescuers."
+        },
+        {
+          "step_number": 7,
+          "action": "Continue CPR",
+          "detail": "Continue cycles of 30 compressions and 2 breaths. Switch rescuers every 2 minutes to prevent fatigue. Do NOT stop until: AED is available, professional help takes over, victim starts breathing normally, or you are physically unable to continue.",
+          "duration_seconds": -1,
+          "switch_rescuer_every_seconds": 120
+        },
+        {
+          "step_number": 8,
+          "action": "Apply AED as soon as available",
+          "detail": "Turn AED on. Attach pads to bare dry chest as shown on pads. Follow AED voice instructions. Clear all persons before shock. Resume compressions immediately after shock.",
+          "duration_seconds": 60
+        }
+      ],
+      "key_metrics": {
+        "compression_rate_min": 100,
+        "compression_rate_max": 120,
+        "compression_depth_min_cm": 5,
+        "compression_depth_max_cm": 6,
+        "compression_to_breath_ratio": "30:2",
+        "max_pause_between_compressions_seconds": 10,
+        "chest_fraction_target_percent": 60
+      },
+      "do_not": [
+        "Do NOT stop CPR to check for pulse — this wastes critical time.",
+        "Do NOT lean on chest between compressions — full recoil is essential.",
+        "Do NOT give aggressive or rapid ventilation — 1 breath over 1 second only.",
+        "Do NOT compress faster than 120/min — shallow compressions result.",
+        "Do NOT compress deeper than 6cm — can cause internal injury.",
+        "Do NOT give water or anything by mouth to an unconscious person.",
+        "Survival decreases 7-10% per minute without CPR — start immediately."
+      ],
+      "survival_note": "Immediate CPR doubles or triples survival chance after cardiac arrest. ERC 2025 — 'Start CPR without worrying about accidentally hurting the person. It is more important to try to save their life.'"
+    },
+
+    "PROTO_BLEEDING_SEVERE": {
+      "id": "PROTO_BLEEDING_SEVERE",
+      "name": "Severe / Life-Threatening Bleeding Control",
+      "priority": "P1",
+      "source": "AHA & Red Cross First Aid Guidelines 2024 | Stop The Bleed Program | ERC 2025",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Use protective gloves",
+          "detail": "Put on gloves if available before touching blood."
+        },
+        {
+          "step_number": 2,
+          "action": "Apply direct pressure",
+          "detail": "Press a clean cloth, clothing, or bandage FIRMLY over the wound. Apply continuous strong pressure with both hands. Do NOT remove cloth if soaked — add more on top.",
+          "duration_seconds": 300,
+          "pressure": "firm_continuous"
+        },
+        {
+          "step_number": 3,
+          "action": "Tourniquet for limb bleeds",
+          "detail": "If the wound is on an arm or leg AND direct pressure is not stopping bleeding: apply a tourniquet 5-8cm (2-3 inches) above the wound. Tighten until bleeding stops. Note the time applied. Commercial tourniquet is ideal; improvised tourniquet using belt or cloth is acceptable.",
+          "applicable_body_region": ["arm", "leg"],
+          "note_time": true
+        },
+        {
+          "step_number": 4,
+          "action": "Wound packing for junctional wounds",
+          "detail": "For wounds in groin, armpit, or neck where tourniquet cannot be applied: pack wound tightly with cloth or gauze. Apply firm pressure over packed wound continuously.",
+          "applicable_body_region": ["groin", "armpit", "neck"]
+        },
+        {
+          "step_number": 5,
+          "action": "Elevate limb",
+          "detail": "Raise the injured arm or leg above heart level IF no fracture is suspected. This slows blood loss.",
+          "conditional": "no_fracture_suspected"
+        },
+        {
+          "step_number": 6,
+          "action": "Monitor and reassure",
+          "detail": "Keep victim still and calm. Monitor for signs of shock (pale, cold, rapid breathing, confusion). Maintain pressure until professional help arrives.",
+          "duration_seconds": -1
+        }
+      ],
+      "do_not": [
+        "Do NOT remove embedded objects or impaled items from a wound — this can cause rapid fatal bleeding.",
+        "Do NOT remove tourniquet once applied — only trained professionals should remove it.",
+        "Do NOT apply tourniquet directly over a joint.",
+        "Do NOT give water or food to victim.",
+        "Do NOT use a tourniquet on the neck, chest, or abdomen."
+      ]
+    },
+
+    "PROTO_BLEEDING_MODERATE": {
+      "id": "PROTO_BLEEDING_MODERATE",
+      "name": "Moderate Bleeding Control",
+      "priority": "P2",
+      "source": "AHA & Red Cross 2024",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Apply direct pressure",
+          "detail": "Press clean cloth firmly over the wound. Hold for at least 5 minutes without lifting. If soaked, add more cloth on top.",
+          "duration_seconds": 300
+        },
+        {
+          "step_number": 2,
+          "action": "Elevate if no fracture",
+          "detail": "Raise injured limb above heart level if no fracture is suspected."
+        },
+        {
+          "step_number": 3,
+          "action": "Secure dressing",
+          "detail": "Once bleeding slows, secure cloth with bandage or tape. Do not remove."
+        },
+        {
+          "step_number": 4,
+          "action": "Monitor",
+          "detail": "Watch for increasing blood loss or signs of shock. Keep victim calm and still."
+        }
+      ],
+      "do_not": [
+        "Do NOT lift cloth to check wound — this breaks forming clot.",
+        "Do NOT apply a tourniquet unless bleeding is life-threatening."
+      ]
+    },
+
+    "PROTO_RECOVERY_POSITION": {
+      "id": "PROTO_RECOVERY_POSITION",
+      "name": "Recovery Position — Unconscious Breathing Victim",
+      "priority": "P2",
+      "source": "ERC 2025 | AHA & Red Cross 2024 | ILCOR 2022 Systematic Review",
+      "note": "Do NOT use if spinal injury, hip/pelvis injury, or if CPR may be needed.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Kneel beside victim",
+          "detail": "Position yourself on one side of the victim who is lying on their back."
+        },
+        {
+          "step_number": 2,
+          "action": "Extend nearest arm",
+          "detail": "Place the arm closest to you at a right angle to the body, elbow bent with palm facing up."
+        },
+        {
+          "step_number": 3,
+          "action": "Position far arm across chest",
+          "detail": "Bring the victim's far arm across their chest and hold the back of their hand against their nearest cheek."
+        },
+        {
+          "step_number": 4,
+          "action": "Bend the far knee",
+          "detail": "Lift the victim's far knee so the foot is flat on the ground."
+        },
+        {
+          "step_number": 5,
+          "action": "Roll victim onto side",
+          "detail": "Pull the bent knee toward you, rolling the victim onto their side. Support head to keep airway open.",
+          "spinal_caution": true
+        },
+        {
+          "step_number": 6,
+          "action": "Open airway",
+          "detail": "Tilt head back gently and open mouth slightly to allow drainage. Ensure airway is clear."
+        },
+        {
+          "step_number": 7,
+          "action": "Monitor continuously",
+          "detail": "Check breathing every minute. If breathing stops — begin CPR immediately.",
+          "monitoring_interval_seconds": 60
+        }
+      ],
+      "do_not": [
+        "Do NOT use recovery position if spinal injury is suspected — use log-roll only with trained rescuers.",
+        "Do NOT leave victim alone.",
+        "Do NOT give anything by mouth."
+      ]
+    },
+
+    "PROTO_SPINAL_INJURY": {
+      "id": "PROTO_SPINAL_INJURY",
+      "name": "Suspected Spinal Injury Management",
+      "priority": "P2",
+      "source": "ERC 2025 | AHA & Red Cross 2024 | ILCOR Scoping Review 2024 | ATLS 10th Ed.",
+      "note": "Motor vehicle crashes cause 40% of spinal cord injuries. High suspicion in ALL road crash victims. ILCOR 2024: Cervical collars are NOT recommended for lay first aiders as they may impair respiration and raise intracranial pressure.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Tell victim not to move",
+          "detail": "Calmly instruct the victim to stay completely still. Do NOT move their head or neck.",
+          "duration_seconds": 30
+        },
+        {
+          "step_number": 2,
+          "action": "Stabilize head manually if necessary",
+          "detail": "Only if absolutely necessary, hold head gently in the position you found it — do NOT straighten or turn the neck. Use both hands to support the head from the sides without pressing.",
+          "only_if_essential": true
+        },
+        {
+          "step_number": 3,
+          "action": "Keep victim still",
+          "detail": "Do NOT move victim to a more comfortable position. Keep them where they are unless there is immediate life danger (fire, water, collapsing structure).",
+          "conditional_exception": "immediate_life_danger"
+        },
+        {
+          "step_number": 4,
+          "action": "Monitor airway and breathing",
+          "detail": "Watch for breathing difficulty. If victim stops breathing and CPR is required — airway takes priority over spinal precautions. Begin CPR and open airway.",
+          "airway_priority_over_spinal": true
+        },
+        {
+          "step_number": 5,
+          "action": "Reassure and wait",
+          "detail": "Keep victim calm and warm. Talk to them continuously. Wait for professional help.",
+          "duration_seconds": -1
+        }
+      ],
+      "do_not": [
+        "Do NOT move the victim unless in immediate life danger.",
+        "Do NOT twist, bend, or straighten the neck.",
+        "Do NOT remove a motorcycle or bicycle helmet unless victim cannot breathe.",
+        "Do NOT apply a cervical collar unless professionally trained — ILCOR 2024 advises against lay use.",
+        "Do NOT leave victim alone."
+      ]
+    },
+
+    "PROTO_AIRWAY_MANAGEMENT": {
+      "id": "PROTO_AIRWAY_MANAGEMENT",
+      "name": "Airway Opening — Conscious Victim",
+      "priority": "P1",
+      "source": "AHA 2025 | ERC 2025 | ATLS",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Position upright if possible",
+          "detail": "Help victim sit upright or lean forward slightly. This helps open airway. Do NOT do this if spinal injury suspected."
+        },
+        {
+          "step_number": 2,
+          "action": "Head-tilt chin-lift (no spinal suspect)",
+          "detail": "If no spinal injury suspected: gently tilt head back by placing one hand on forehead, two fingers of other hand under chin to lift it upward.",
+          "contraindicated_if": "spinal_injury_suspected"
+        },
+        {
+          "step_number": 3,
+          "action": "Jaw thrust (if spinal injury suspected)",
+          "detail": "Place fingers behind angle of jaw on both sides. Push jaw forward without moving neck.",
+          "use_when": "spinal_injury_suspected"
+        },
+        {
+          "step_number": 4,
+          "action": "Remove visible obstruction",
+          "detail": "If foreign material is clearly visible in mouth, carefully remove with fingers. Do NOT perform blind finger sweeps.",
+          "caution": "visible_only_no_blind_sweep"
+        },
+        {
+          "step_number": 5,
+          "action": "Monitor breathing",
+          "detail": "Watch for chest rise, listen for breath sounds, feel for air. If breathing stops, begin CPR immediately."
+        }
+      ],
+      "do_not": [
+        "Do NOT perform blind finger sweeps — can push obstruction deeper.",
+        "Do NOT tilt head if spinal injury suspected.",
+        "Do NOT give water to victim with breathing difficulty."
+      ]
+    },
+
+    "PROTO_CHOKING": {
+      "id": "PROTO_CHOKING",
+      "name": "Choking — Airway Obstruction",
+      "priority": "P1",
+      "source": "AHA & Red Cross 2024 | ERC 2025",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Encourage coughing",
+          "detail": "If victim can cough forcefully, encourage them to keep coughing. Do NOT interfere.",
+          "for": "partial_obstruction"
+        },
+        {
+          "step_number": 2,
+          "action": "5 back blows",
+          "detail": "Stand to the side and slightly behind. Support chest with one hand. Give 5 firm blows between shoulder blades with heel of other hand.",
+          "repetitions": 5
+        },
+        {
+          "step_number": 3,
+          "action": "5 abdominal thrusts (Heimlich)",
+          "detail": "Stand behind victim. Wrap arms around waist. Make fist with one hand, place thumb side against abdomen just above navel and below breastbone. Grasp fist with other hand. Give 5 firm upward and inward thrusts.",
+          "repetitions": 5,
+          "hand_position": "above_navel_below_breastbone"
+        },
+        {
+          "step_number": 4,
+          "action": "Alternate and repeat",
+          "detail": "Alternate 5 back blows and 5 abdominal thrusts until object is expelled or victim becomes unconscious.",
+          "repeat_until": "object_expelled_or_unconscious"
+        },
+        {
+          "step_number": 5,
+          "action": "If victim becomes unconscious",
+          "detail": "Lower victim to ground carefully. Call emergency services if not done. Begin CPR — chest compressions can help dislodge obstruction. Look in mouth before rescue breaths.",
+          "trigger_protocol": "PROTO_CPR"
+        }
+      ],
+      "modifications": {
+        "pregnant_or_obese": "Use chest thrusts instead of abdominal thrusts. Place hands at lower breastbone.",
+        "infant_under_1_year": "5 back blows + 5 chest thrusts (NOT abdominal thrusts). Support head."
+      },
+      "do_not": [
+        "Do NOT perform abdominal thrusts on infants under 1 year.",
+        "Do NOT do blind finger sweeps.",
+        "Do NOT hold victim upside down."
+      ]
+    },
+
+    "PROTO_OPEN_CHEST": {
+      "id": "PROTO_OPEN_CHEST",
+      "name": "Open Chest Wound (Sucking Chest Wound)",
+      "priority": "P1",
+      "source": "AHA & Red Cross 2024 | TCCC Guidelines | ATLS 10th Ed.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Seal the wound",
+          "detail": "Apply an occlusive (airtight) dressing over the wound. Use commercial vented chest seal if available. If not: use plastic wrap, credit card, or any airtight material. Tape 3 sides only (leave one side open as a flutter valve to allow air to escape).",
+          "tape_sides": 3,
+          "leave_open": 1
+        },
+        {
+          "step_number": 2,
+          "action": "Position victim",
+          "detail": "Position sitting upright or inclined on the injured side if breathing is easier. Do NOT lay flat unless spinal injury is ruled out and airway is at risk.",
+          "preferred_position": "upright_or_injured_side"
+        },
+        {
+          "step_number": 3,
+          "action": "Monitor breathing",
+          "detail": "Watch for increased difficulty breathing, which may indicate tension pneumothorax. If dressing appears to be blocking air escape, briefly lift corner to burp.",
+          "monitoring_interval_seconds": 60
+        },
+        {
+          "step_number": 4,
+          "action": "Call emergency services urgently",
+          "detail": "This is a critical injury. Requires hospital intervention urgently."
+        }
+      ],
+      "do_not": [
+        "Do NOT remove any object from the chest.",
+        "Do NOT seal all four sides — tension pneumothorax risk.",
+        "Do NOT lay flat if breathing is very difficult."
+      ]
+    },
+
+    "PROTO_HEAD_INJURY": {
+      "id": "PROTO_HEAD_INJURY",
+      "name": "Head Injury Management",
+      "priority": "P2",
+      "source": "AHA & Red Cross 2024 | ATLS 10th Ed. | NICE Head Injury Guidelines",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Keep victim still",
+          "detail": "Assume spinal injury with any head injury. Do NOT move head or neck. Activate PROTO_SPINAL_INJURY alongside.",
+          "co_protocol": "PROTO_SPINAL_INJURY"
+        },
+        {
+          "step_number": 2,
+          "action": "Control scalp bleeding",
+          "detail": "Scalp wounds bleed heavily. Apply firm gentle pressure with clean cloth. Do NOT apply pressure over suspected skull fracture — apply pressure around the wound.",
+          "caution": "do_not_press_over_suspected_skull_fracture"
+        },
+        {
+          "step_number": 3,
+          "action": "Monitor consciousness",
+          "detail": "Talk to victim continuously. Check AVPU every 2 minutes. Any deterioration is serious. Note: confusion, vomiting, unequal pupils, fluid from ears/nose are all danger signs.",
+          "monitoring_interval_seconds": 120
+        },
+        {
+          "step_number": 4,
+          "action": "Manage vomiting",
+          "detail": "If victim vomits: turn head to side using log-roll technique to clear airway, maintaining spinal precautions.",
+          "spinal_precaution": true
+        },
+        {
+          "step_number": 5,
+          "action": "Do NOT give medications",
+          "detail": "No aspirin, ibuprofen, or pain killers. These can worsen brain or bleeding complications."
+        }
+      ],
+      "danger_signs": [
+        "Fluid from ears or nose (possible skull fracture / CSF leak)",
+        "Unequal pupils",
+        "Repeated vomiting",
+        "Seizure",
+        "Worsening confusion or loss of consciousness",
+        "Battle's sign (bruising behind ear)",
+        "Raccoon eyes (bruising around both eyes)"
+      ],
+      "do_not": [
+        "Do NOT leave unconscious head injury victim lying face up without monitoring airway.",
+        "Do NOT remove objects embedded in skull.",
+        "Do NOT give aspirin or ibuprofen.",
+        "Do NOT apply pressure directly over suspected skull fracture.",
+        "Do NOT move victim without spinal precautions."
+      ]
+    },
+
+    "PROTO_SHOCK": {
+      "id": "PROTO_SHOCK",
+      "name": "Shock Management",
+      "priority": "P1",
+      "source": "AHA & Red Cross 2024 | ATLS 10th Ed. | ERC 2025",
+      "recognition_signs": [
+        "Pale, cold, clammy skin",
+        "Rapid weak pulse",
+        "Rapid shallow breathing",
+        "Confusion or anxiety",
+        "Nausea",
+        "Extreme thirst",
+        "Mottled or bluish skin",
+        "Loss of consciousness"
+      ],
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Call emergency services",
+          "detail": "Shock is life threatening. Call 112/108 immediately if not done."
+        },
+        {
+          "step_number": 2,
+          "action": "Lay victim flat",
+          "detail": "Help victim lie on back on a flat surface. Do NOT do this if: spinal injury suspected, unconscious (use recovery position), or breathing is worse when flat.",
+          "exceptions": ["spinal_injury", "unconscious", "breathing_worse_when_flat"]
+        },
+        {
+          "step_number": 3,
+          "action": "Elevate legs",
+          "detail": "Raise legs 20-30cm (about 12 inches) above heart level. Do NOT elevate if: fracture of legs/pelvis, spinal injury, or head injury. This helps blood flow to vital organs.",
+          "height_cm": 30,
+          "exceptions": ["leg_fracture", "pelvic_fracture", "spinal_injury", "head_injury"]
+        },
+        {
+          "step_number": 4,
+          "action": "Control bleeding",
+          "detail": "Identify and control any source of bleeding. Shock is often caused by blood loss.",
+          "co_protocol": "PROTO_BLEEDING_SEVERE"
+        },
+        {
+          "step_number": 5,
+          "action": "Keep victim warm",
+          "detail": "Cover with blanket or clothing. Prevent heat loss. Do NOT overheat.",
+          "maintain_temperature": true
+        },
+        {
+          "step_number": 6,
+          "action": "Reassure continuously",
+          "detail": "Speak calmly. Tell victim help is coming. Anxiety worsens shock."
+        },
+        {
+          "step_number": 7,
+          "action": "Monitor",
+          "detail": "Check breathing, pulse, and consciousness every 2 minutes.",
+          "monitoring_interval_seconds": 120
+        }
+      ],
+      "do_not": [
+        "Do NOT give water, food, or anything by mouth — surgery may be needed.",
+        "Do NOT allow victim to stand or walk.",
+        "Do NOT leave victim alone.",
+        "Do NOT apply heating pad or hot water bottles — can cause burns.",
+        "Do NOT elevate legs if head/spine/pelvis injury is suspected."
+      ]
+    },
+
+    "PROTO_BURN_MAJOR": {
+      "id": "PROTO_BURN_MAJOR",
+      "name": "Major Burns (>10% Body Surface Area)",
+      "priority": "P1",
+      "source": "AHA & Red Cross 2024 | GRSP Road Crash First Response | ATLS",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Remove from burn source safely",
+          "detail": "Ensure victim is away from fire, heat, or chemical source. Protect yourself from same hazard."
+        },
+        {
+          "step_number": 2,
+          "action": "Remove clothing and jewelry",
+          "detail": "Remove clothing from burned areas UNLESS it is stuck to the burn. Remove rings, watches, belts before swelling begins.",
+          "exception": "do_not_remove_if_stuck_to_burn"
+        },
+        {
+          "step_number": 3,
+          "action": "Cool the burn",
+          "detail": "Immediately run cool (NOT ice cold) running water over the burn for a minimum of 20 minutes. This is the most important step. Do NOT use ice, butter, toothpaste, oil, or any cream.",
+          "duration_seconds": 1200,
+          "water_temperature": "cool_not_cold",
+          "prohibited": ["ice", "butter", "toothpaste", "cream", "oil"]
+        },
+        {
+          "step_number": 4,
+          "action": "Cover the burn",
+          "detail": "After cooling, cover loosely with a clean non-fluffy material. Cling film (plastic wrap) is ideal. Do NOT use cotton wool or fluffy materials that can stick.",
+          "preferred_material": "cling_film_or_clean_cloth",
+          "prohibited_materials": ["cotton_wool", "adhesive_bandages_over_burn"]
+        },
+        {
+          "step_number": 5,
+          "action": "Treat for shock",
+          "detail": "Major burns cause severe fluid loss and shock. Keep victim warm. Do NOT give water if victim may need surgery.",
+          "co_protocol": "PROTO_SHOCK"
+        },
+        {
+          "step_number": 6,
+          "action": "Monitor airway",
+          "detail": "Burns to face/mouth may cause airway swelling. Watch for increasing voice changes, stridor, or difficulty breathing. Airway burns are immediately life threatening.",
+          "high_risk_regions": ["face", "mouth", "throat"]
+        }
+      ],
+      "do_not": [
+        "Do NOT use ice or ice-cold water — can cause frostbite and worsen shock.",
+        "Do NOT apply butter, oil, toothpaste, or any home remedies.",
+        "Do NOT break blisters.",
+        "Do NOT remove clothing stuck to the burn.",
+        "Do NOT wrap tightly — burned areas swell significantly.",
+        "Do NOT give food or water if major burn — surgery likely needed."
+      ]
+    },
+
+    "PROTO_BURN_MINOR": {
+      "id": "PROTO_BURN_MINOR",
+      "name": "Minor Burns (Small Area, 1st or 2nd Degree)",
+      "priority": "P3",
+      "source": "AHA & Red Cross 2024 | GRSP",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Cool with running water",
+          "detail": "Run cool water over burn for at least 10-20 minutes.",
+          "duration_seconds": 1200
+        },
+        {
+          "step_number": 2,
+          "action": "Cover loosely",
+          "detail": "Apply a non-adhesive clean dressing. Do NOT wrap tightly."
+        },
+        {
+          "step_number": 3,
+          "action": "Monitor",
+          "detail": "Seek medical care if burn covers more than palm size, is on face/hands/feet/genitals, or blisters form."
+        }
+      ],
+      "do_not": [
+        "Do NOT use ice.",
+        "Do NOT burst blisters.",
+        "Do NOT apply any cream or home remedy before cooling."
+      ]
+    },
+
+    "PROTO_BURN_CHEMICAL": {
+      "id": "PROTO_BURN_CHEMICAL",
+      "name": "Chemical Burn",
+      "priority": "P2",
+      "source": "AHA & Red Cross 2024",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Protect yourself",
+          "detail": "Do NOT touch chemical with bare hands. Wear gloves if available."
+        },
+        {
+          "step_number": 2,
+          "action": "Brush off dry chemicals",
+          "detail": "If chemical is dry/powder, brush off with cloth BEFORE washing. Do NOT add water to dry chemicals first — this can activate them."
+        },
+        {
+          "step_number": 3,
+          "action": "Flush with large amounts of water",
+          "detail": "Run large amounts of water over the affected area for 20-30 minutes. Remove contaminated clothing while flushing.",
+          "duration_seconds": 1800
+        },
+        {
+          "step_number": 4,
+          "action": "Cover and seek emergency care",
+          "detail": "Cover loosely. All chemical burns require hospital assessment."
+        }
+      ],
+      "do_not": [
+        "Do NOT use neutralizing agents — can cause heat reaction.",
+        "Do NOT rub chemical into skin."
+      ]
+    },
+
+    "PROTO_BURN_ELECTRICAL": {
+      "id": "PROTO_BURN_ELECTRICAL",
+      "name": "Electrical Burn / Electrocution",
+      "priority": "P1",
+      "source": "AHA & Red Cross 2024 | ATLS",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Do NOT touch victim while in contact with electricity",
+          "detail": "Turn off power source first. If not possible, use non-conductive material (wood, plastic, rubber) to move victim away. Never use metal.",
+          "critical_safety": true
+        },
+        {
+          "step_number": 2,
+          "action": "Assess for cardiac arrest",
+          "detail": "Electrical injuries frequently cause cardiac arrest. Immediately check for breathing and pulse.",
+          "co_protocol": "PROTO_CPR"
+        },
+        {
+          "step_number": 3,
+          "action": "Treat burns",
+          "detail": "Cool visible burns with water. Note there may be entry AND exit wounds.",
+          "note": "Internal damage often far greater than visible surface burn"
+        },
+        {
+          "step_number": 4,
+          "action": "Urgent hospital",
+          "detail": "All electrical injuries require hospital evaluation regardless of visible burn size — internal damage may not be apparent."
+        }
+      ],
+      "do_not": [
+        "Do NOT touch victim while still in contact with electricity.",
+        "Do NOT assume victim is fine because external burn is small."
+      ]
+    },
+
+    "PROTO_FRACTURE_CLOSED": {
+      "id": "PROTO_FRACTURE_CLOSED",
+      "name": "Closed Fracture (Bone Not Visible)",
+      "priority": "P3",
+      "source": "AHA & Red Cross 2024 | ATLS | GRSP",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Do not move victim if back/neck/pelvis fracture suspected",
+          "detail": "Treat breathing, bleeding, and shock first before addressing fractures.",
+          "priority_order": "breathing_bleeding_shock_first"
+        },
+        {
+          "step_number": 2,
+          "action": "Immobilize the fracture",
+          "detail": "Support the injured limb in the position you found it. Do NOT try to straighten or realign. Use padding, rolled clothing, or improvised splint to support.",
+          "do_not_realign": true
+        },
+        {
+          "step_number": 3,
+          "action": "Splint — immobilize joint above and below fracture",
+          "detail": "If splinting: place padding around limb. Splint must extend beyond the joint above and below the fracture. Bind loosely — not so tight as to cut circulation.",
+          "extend_beyond_joint": true
+        },
+        {
+          "step_number": 4,
+          "action": "Check circulation",
+          "detail": "Check fingers/toes below fracture site — they should be warm and pink. If blue, cold, or numb: splint may be too tight — loosen immediately.",
+          "monitoring_interval_seconds": 300
+        },
+        {
+          "step_number": 5,
+          "action": "Elevate if possible",
+          "detail": "Gently elevate immobilized limb to reduce swelling if movement does not cause pain."
+        }
+      ],
+      "do_not": [
+        "Do NOT attempt to straighten or reset a fracture.",
+        "Do NOT apply pressure to the fracture site.",
+        "Do NOT move victim if spine/pelvis fracture suspected.",
+        "Do NOT give food or water if surgery may be needed.",
+        "Do NOT remove shoes/socks unless circulation is compromised."
+      ]
+    },
+
+    "PROTO_FRACTURE_OPEN": {
+      "id": "PROTO_FRACTURE_OPEN",
+      "name": "Open Fracture (Bone Visible Through Skin)",
+      "priority": "P2",
+      "source": "AHA & Red Cross 2024 | ATLS",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Control bleeding",
+          "detail": "Apply gentle pressure around (NOT over) the exposed bone. Use clean cloth or dressing.",
+          "do_not_press_on_bone": true
+        },
+        {
+          "step_number": 2,
+          "action": "Cover the wound",
+          "detail": "Cover exposed bone and wound with clean moist dressing. Do NOT push bone back in.",
+          "do_not_push_bone": true
+        },
+        {
+          "step_number": 3,
+          "action": "Immobilize",
+          "detail": "Immobilize limb in position found. Do NOT try to realign."
+        },
+        {
+          "step_number": 4,
+          "action": "Monitor for shock",
+          "detail": "Open fractures bleed significantly. Watch for shock signs.",
+          "co_protocol": "PROTO_SHOCK"
+        }
+      ],
+      "do_not": [
+        "Do NOT push bone back into wound.",
+        "Do NOT clean the wound.",
+        "Do NOT apply tourniquet unless life-threatening hemorrhage."
+      ]
+    },
+
+    "PROTO_SEIZURE": {
+      "id": "PROTO_SEIZURE",
+      "name": "Seizure / Convulsions Management",
+      "priority": "P2",
+      "source": "AHA & Red Cross 2024 | ERC 2025",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Protect from injury",
+          "detail": "Clear the area of hard or sharp objects. Cushion head with soft material (jacket, bag). Time the seizure from onset."
+        },
+        {
+          "step_number": 2,
+          "action": "Do NOT restrain",
+          "detail": "Do NOT hold victim down or try to stop convulsions. This can cause injury.",
+          "do_not_restrain": true
+        },
+        {
+          "step_number": 3,
+          "action": "Position on side",
+          "detail": "Gently turn victim to their side once convulsions ease to prevent choking on fluids. Maintain this position.",
+          "timing": "after_convulsions_ease"
+        },
+        {
+          "step_number": 4,
+          "action": "Monitor duration and recovery",
+          "detail": "Note seizure duration. Most stop within 1-3 minutes. After seizure: victim may be confused — this is normal. Keep calm, protect airway.",
+          "call_emergency_if_over_minutes": 5
+        },
+        {
+          "step_number": 5,
+          "action": "Call emergency services if",
+          "detail": "Call immediately if: seizure lasts more than 5 minutes, victim does not regain consciousness, second seizure follows, victim is injured, victim is pregnant, or this is their first known seizure.",
+          "emergency_triggers": [
+            "seizure_over_5_minutes",
+            "no_consciousness_after",
+            "second_seizure",
+            "injury_during",
+            "pregnant",
+            "first_seizure_ever"
+          ]
+        }
+      ],
+      "do_not": [
+        "Do NOT put anything in mouth during seizure.",
+        "Do NOT hold victim down.",
+        "Do NOT give water until fully conscious.",
+        "Do NOT restrain convulsing limbs."
+      ]
+    },
+
+    "PROTO_CHEST_PAIN": {
+      "id": "PROTO_CHEST_PAIN",
+      "name": "Chest Pain (Suspected Heart Attack)",
+      "priority": "P1",
+      "source": "AHA & Red Cross 2024 — 'In adults with acute chest pain, activate EMS to initiate transport to closest ED.'",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Call emergency services immediately",
+          "detail": "Chest pain in adults is a medical emergency. Call 112/108 immediately. Every minute matters.",
+          "duration_seconds": 30
+        },
+        {
+          "step_number": 2,
+          "action": "Help victim rest",
+          "detail": "Have victim sit or lie in the most comfortable position — often sitting upright with knees bent. Do NOT allow them to walk around.",
+          "preferred_position": "seated_or_semi_recumbent"
+        },
+        {
+          "step_number": 3,
+          "action": "Loosen clothing",
+          "detail": "Loosen collar, tie, belt, or anything tight around chest or neck."
+        },
+        {
+          "step_number": 4,
+          "action": "Aspirin if available and not allergic",
+          "detail": "If victim is conscious, has no allergy to aspirin, is not on blood thinners, and can swallow: give 300mg aspirin (adult full tablet) to chew slowly. Do NOT give if victim has internal bleeding.",
+          "dose_mg": 300,
+          "form": "chew_not_swallow_whole",
+          "contraindications": ["aspirin_allergy", "active_bleeding", "unconscious"]
+        },
+        {
+          "step_number": 5,
+          "action": "Monitor continuously",
+          "detail": "Watch for loss of consciousness. If victim stops breathing — begin CPR immediately.",
+          "co_protocol": "PROTO_CPR"
+        }
+      ],
+      "warning_signs": [
+        "Crushing central chest pain",
+        "Pain radiating to arm (left), jaw, neck, or back",
+        "Shortness of breath",
+        "Sweating",
+        "Nausea or vomiting",
+        "Feeling of doom"
+      ],
+      "do_not": [
+        "Do NOT allow victim to drive themselves.",
+        "Do NOT leave victim alone.",
+        "Do NOT give aspirin if allergic or unconscious.",
+        "Do NOT give food or water."
+      ]
+    },
+
+    "PROTO_CRUSH_INJURY": {
+      "id": "PROTO_CRUSH_INJURY",
+      "name": "Crush Injury / Trapped Body Part",
+      "priority": "P1",
+      "source": "AHA & Red Cross 2024 | ATLS | Rhabdomyolysis Medical Guidelines",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Call emergency services immediately",
+          "detail": "Crush injuries require specialized rescue. Call 112/108 immediately."
+        },
+        {
+          "step_number": 2,
+          "action": "Do NOT rapidly release crush",
+          "detail": "Sudden release after prolonged crush causes deadly 'crush syndrome' — toxic release from damaged muscle into bloodstream. Only trained rescuers should manage release after >15 minutes of entrapment.",
+          "warning": "rapid_release_can_be_fatal",
+          "safe_release_threshold_minutes": 15
+        },
+        {
+          "step_number": 3,
+          "action": "Control visible bleeding",
+          "detail": "Apply pressure to any visible bleeding wounds around the trapped area.",
+          "co_protocol": "PROTO_BLEEDING_SEVERE"
+        },
+        {
+          "step_number": 4,
+          "action": "Monitor for shock",
+          "detail": "Crush victims develop shock rapidly. Monitor breathing, pulse, consciousness.",
+          "co_protocol": "PROTO_SHOCK"
+        },
+        {
+          "step_number": 5,
+          "action": "Keep victim warm and reassured",
+          "detail": "Prevent hypothermia. Talk continuously. Professional rescue equipment required."
+        }
+      ],
+      "do_not": [
+        "Do NOT rapidly release a victim trapped for more than 15 minutes — fatal cardiac arrest risk.",
+        "Do NOT apply tourniquets above trapped limb unless life-threatening bleed.",
+        "Do NOT give water — kidney failure risk after crush."
+      ]
+    },
+
+    "PROTO_IMPALED_OBJECT": {
+      "id": "PROTO_IMPALED_OBJECT",
+      "name": "Embedded / Impaled Object in Body",
+      "priority": "P2",
+      "source": "AHA & Red Cross 2024 | ATLS",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Do NOT remove the object",
+          "detail": "The impaled object may be plugging a major blood vessel. Removing it can cause fatal hemorrhage.",
+          "critical": true
+        },
+        {
+          "step_number": 2,
+          "action": "Stabilize the object",
+          "detail": "Build up padding around the object (rolled cloth, bandages) to prevent it from moving. Secure lightly.",
+          "do_not_press_on_object": true
+        },
+        {
+          "step_number": 3,
+          "action": "Control bleeding around object",
+          "detail": "Apply pressure to bleeding around the object — NOT to the object itself.",
+          "pressure_around_not_on": true
+        },
+        {
+          "step_number": 4,
+          "action": "Immobilize victim",
+          "detail": "Keep victim as still as possible to prevent object from shifting."
+        },
+        {
+          "step_number": 5,
+          "action": "Urgent emergency services",
+          "detail": "Object removal must be done in a hospital operating environment."
+        }
+      ],
+      "do_not": [
+        "Do NOT remove impaled object under any circumstances.",
+        "Do NOT shorten the object unless essential for rescue.",
+        "Do NOT press on the object."
+      ]
+    },
+
+    "PROTO_SPINAL_CPR_CONFLICT": {
+      "id": "PROTO_SPINAL_CPR_CONFLICT",
+      "name": "Spinal Injury + Unconscious — Conflict Protocol",
+      "priority": "P1",
+      "source": "ERC 2025 | AHA 2025 — Airway takes priority over spinal precautions when life is at immediate risk.",
+      "rule": "AIRWAY AND BREATHING ARE ALWAYS PRIORITY ONE. Spinal precautions are secondary when victim is in cardiac/respiratory arrest.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Check breathing",
+          "detail": "Is victim breathing? If YES and unconscious — use gentle log-roll to recovery position with minimal neck movement."
+        },
+        {
+          "step_number": 2,
+          "action": "If not breathing — begin CPR",
+          "detail": "Open airway using jaw thrust (preferred with suspected spinal injury). If jaw thrust fails to open airway, use head-tilt chin-lift — saving life takes priority over spinal precautions.",
+          "preferred_airway_technique": "jaw_thrust",
+          "fallback": "head_tilt_chin_lift",
+          "co_protocol": "PROTO_CPR"
+        },
+        {
+          "step_number": 3,
+          "action": "Minimize neck movement during CPR",
+          "detail": "Keep head as neutral as possible during compressions. Use jaw thrust for breaths. One rescuer can stabilize head while another compresses if multiple rescuers present."
+        }
+      ]
+    },
+
+    "PROTO_SYNCOPE": {
+      "id": "PROTO_SYNCOPE",
+      "name": "Fainting / Syncope",
+      "priority": "P3",
+      "source": "AHA & Red Cross 2024",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Lay victim flat",
+          "detail": "If victim faints or feels faint, lower to ground or flat surface immediately to prevent injury from fall."
+        },
+        {
+          "step_number": 2,
+          "action": "Elevate legs",
+          "detail": "Raise legs 30cm above heart level. This increases blood flow to brain.",
+          "height_cm": 30
+        },
+        {
+          "step_number": 3,
+          "action": "Loosen clothing",
+          "detail": "Loosen any tight clothing around neck or chest."
+        },
+        {
+          "step_number": 4,
+          "action": "Allow recovery",
+          "detail": "Most people regain consciousness within 1 minute. Do NOT sit them up immediately — wait until fully recovered."
+        },
+        {
+          "step_number": 5,
+          "action": "Call emergency if",
+          "detail": "Call 112 if: no recovery within 1 minute, chest pain, head injury from fall, pregnant, diabetic, or first time fainting with no known cause.",
+          "emergency_triggers": [
+            "no_recovery_1_minute",
+            "chest_pain_associated",
+            "head_injury_from_fall",
+            "pregnant",
+            "diabetic",
+            "first_time_unknown_cause"
+          ]
+        }
+      ],
+      "do_not": [
+        "Do NOT give water until fully conscious.",
+        "Do NOT hold smelling salts near victim.",
+        "Do NOT sit victim up immediately after regaining consciousness."
+      ]
+    },
+
+    "PROTO_VOMITING": {
+      "id": "PROTO_VOMITING",
+      "name": "Vomiting — Airway Protection",
+      "priority": "P3",
+      "source": "AHA & Red Cross 2024",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Position on side",
+          "detail": "If victim is vomiting, immediately turn to their side to allow vomit to drain and prevent choking.",
+          "spinal_caution": "use_log_roll_if_spinal_suspected"
+        },
+        {
+          "step_number": 2,
+          "action": "Clear airway",
+          "detail": "After episode, check mouth and clear any visible obstruction. Do NOT perform blind finger sweep."
+        },
+        {
+          "step_number": 3,
+          "action": "Do NOT give water",
+          "detail": "Do not give water or fluids if victim may have internal injury or need surgery."
+        },
+        {
+          "step_number": 4,
+          "action": "Monitor for aspiration",
+          "detail": "Listen for gurgling breathing. If gurgling — airway obstruction from vomit. Position, open airway, call emergency."
+        }
+      ]
+    },
+
+    "PROTO_EYE_INJURY": {
+      "id": "PROTO_EYE_INJURY",
+      "name": "Eye Injury",
+      "priority": "P3",
+      "source": "AHA & Red Cross 2024",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Do NOT rub the eye",
+          "detail": "Rubbing can worsen injury or embed objects deeper.",
+          "critical": true
+        },
+        {
+          "step_number": 2,
+          "action": "Flush with clean water for chemical exposure",
+          "detail": "If chemical — flush immediately with clean water for 15-20 minutes.",
+          "duration_seconds": 1200,
+          "for": "chemical_exposure_only"
+        },
+        {
+          "step_number": 3,
+          "action": "Cover both eyes loosely",
+          "detail": "Cover both eyes loosely (not tightly) with a clean cloth. Covering both reduces eye movement.",
+          "cover_both": true
+        },
+        {
+          "step_number": 4,
+          "action": "Do NOT remove embedded object",
+          "detail": "If object is embedded in eye — do NOT remove. Stabilize around it and seek immediate care."
+        }
+      ],
+      "do_not": [
+        "Do NOT rub eye.",
+        "Do NOT remove embedded objects.",
+        "Do NOT apply pressure to eyeball."
+      ]
+    },
+
+    "PROTO_ABDOMINAL_INJURY": {
+      "id": "PROTO_ABDOMINAL_INJURY",
+      "name": "Abdominal Injury",
+      "priority": "P2",
+      "source": "AHA & Red Cross 2024 | ATLS",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Lay victim flat with knees bent",
+          "detail": "Help victim lie on back with knees slightly bent to relax abdominal muscles. If eviscerating wound (organs visible) — do NOT push back, cover with moist clean cloth."
+        },
+        {
+          "step_number": 2,
+          "action": "Do NOT give food or water",
+          "detail": "Abdominal injuries almost always require surgery."
+        },
+        {
+          "step_number": 3,
+          "action": "Monitor for shock",
+          "detail": "Abdominal injuries cause significant internal bleeding.",
+          "co_protocol": "PROTO_SHOCK"
+        },
+        {
+          "step_number": 4,
+          "action": "Call emergency urgently",
+          "detail": "All significant abdominal trauma requires hospital evaluation."
+        }
+      ],
+      "do_not": [
+        "Do NOT give food or water.",
+        "Do NOT push exposed organs back.",
+        "Do NOT remove impaled objects."
+      ]
+    },
+
+    "PROTO_DIABETIC": {
+      "id": "PROTO_DIABETIC",
+      "name": "Diabetic Emergency (Hypoglycemia Suspected)",
+      "priority": "P2",
+      "source": "AHA & Red Cross 2024",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Recognize signs",
+          "detail": "Confusion, sweating, trembling, pale, rapid pulse, slurred speech, weakness — in a known diabetic victim."
+        },
+        {
+          "step_number": 2,
+          "action": "Give sugar if conscious and able to swallow",
+          "detail": "Give glucose gel, sugar dissolved in water, fruit juice, or candy. Victim must be conscious and able to swallow safely.",
+          "condition_required": "conscious_and_able_to_swallow"
+        },
+        {
+          "step_number": 3,
+          "action": "Recovery",
+          "detail": "Most improve within 10-15 minutes. Repeat sugar if no improvement in 10 minutes."
+        },
+        {
+          "step_number": 4,
+          "action": "Call emergency if",
+          "detail": "Call 112 if: victim is unconscious, no improvement after 10-15 minutes, seizure occurs.",
+          "emergency_triggers": ["unconscious", "no_improvement_15min", "seizure"]
+        }
+      ],
+      "do_not": [
+        "Do NOT give sugar to an unconscious victim — aspiration risk.",
+        "Do NOT delay giving sugar to a conscious diabetic victim."
+      ]
+    }
+  },
+
+  "body_map": {
+    "description": "Body regions for tap-based injury selection UI. Maps to condition codes.",
+    "regions": [
+      {"id": "HEAD",       "label": "Head",          "conditions": ["COND_001","COND_002","COND_003","COND_004","COND_005","COND_030","COND_031","COND_033","COND_071","COND_073"]},
+      {"id": "NECK",       "label": "Neck / Spine",   "conditions": ["COND_031","COND_032","COND_012","COND_014"]},
+      {"id": "CHEST",      "label": "Chest",          "conditions": ["COND_010","COND_011","COND_013","COND_040","COND_041","COND_042"]},
+      {"id": "ABDOMEN",    "label": "Abdomen",        "conditions": ["COND_024","COND_070","COND_072"]},
+      {"id": "PELVIS",     "label": "Pelvis / Hip",   "conditions": ["COND_051","COND_052","COND_053"]},
+      {"id": "LEFT_ARM",   "label": "Left Arm",       "conditions": ["COND_020","COND_021","COND_022","COND_050","COND_051","COND_052","COND_060","COND_061","COND_074"]},
+      {"id": "RIGHT_ARM",  "label": "Right Arm",      "conditions": ["COND_020","COND_021","COND_022","COND_050","COND_051","COND_052","COND_060","COND_061","COND_074"]},
+      {"id": "LEFT_LEG",   "label": "Left Leg",       "conditions": ["COND_020","COND_021","COND_022","COND_050","COND_051","COND_052","COND_053","COND_060","COND_061","COND_074"]},
+      {"id": "RIGHT_LEG",  "label": "Right Leg",      "conditions": ["COND_020","COND_021","COND_022","COND_050","COND_051","COND_052","COND_053","COND_060","COND_061","COND_074"]},
+      {"id": "FULL_BODY",  "label": "Full Body",      "conditions": ["COND_042","COND_060","COND_075"]}
+    ]
+  },
+
+  "ui_flow": {
+    "screens": [
+      {
+        "screen_id": "SCR_001",
+        "name": "SOS Activated",
+        "type": "alert",
+        "auto_actions": [
+          "share_live_location",
+          "notify_emergency_contacts",
+          "call_emergency_services_option",
+          "start_incident_timer"
+        ],
+        "next_screen": "SCR_002"
+      },
+      {
+        "screen_id": "SCR_002",
+        "name": "Scene Safety Check",
+        "type": "checklist",
+        "mandatory": true,
+        "protocol_ref": "PROTO_SCENE_SAFETY",
+        "next_screen": "SCR_003"
+      },
+      {
+        "screen_id": "SCR_003",
+        "name": "Quick Consciousness Check",
+        "type": "large_button_select",
+        "question": "Is the victim conscious?",
+        "options": [
+          {"label": "YES - Responding", "icon": "check_circle", "color": "#1E8449", "next": "SCR_005"},
+          {"label": "NO - Not Responding", "icon": "warning", "color": "#C0392B", "next": "SCR_004"}
+        ]
+      },
+      {
+        "screen_id": "SCR_004",
+        "name": "Breathing Check",
+        "type": "large_button_select",
+        "question": "Is the victim breathing?",
+        "options": [
+          {"label": "YES - Breathing", "icon": "lungs", "color": "#E67E22", "next": "SCR_006", "trigger": "PROTO_RECOVERY_POSITION"},
+          {"label": "NO - Not Breathing", "icon": "alert_critical", "color": "#C0392B", "next": "SCR_CPR", "trigger": "PROTO_CPR"}
+        ]
+      },
+      {
+        "screen_id": "SCR_005",
+        "name": "Injury Selection",
+        "type": "body_map_multi_select",
+        "instruction": "Tap on the injured body area and select what you see",
+        "multi_select": true,
+        "next_screen": "SCR_007"
+      },
+      {
+        "screen_id": "SCR_006",
+        "name": "Spinal Check",
+        "type": "large_button_select",
+        "question": "Was this a road/vehicle accident? Suspect neck or spine injury?",
+        "options": [
+          {"label": "YES - Suspect Spine", "icon": "spine_alert", "color": "#C0392B", "trigger": "PROTO_SPINAL_CPR_CONFLICT"},
+          {"label": "NO - No Spine Concern", "icon": "check", "color": "#1E8449", "trigger": "PROTO_RECOVERY_POSITION"}
+        ]
+      },
+      {
+        "screen_id": "SCR_007",
+        "name": "Priority Protocol Display",
+        "type": "step_by_step_guide",
+        "data_source": "priority_matrix + protocols",
+        "features": ["voice_guidance", "timer", "do_not_warnings", "step_progress"]
+      },
+      {
+        "screen_id": "SCR_CPR",
+        "name": "CPR Guidance",
+        "type": "step_by_step_guide",
+        "protocol_ref": "PROTO_CPR",
+        "features": ["metronome_100_120bpm", "compression_counter", "voice_guide", "timer"]
+      }
+    ]
+  },
+
+  "voice_guidance": {
+    "enabled": true,
+    "languages": ["en", "hi", "ta"],
+    "key_voice_cues": [
+      {"trigger": "CPR_start",        "text_en": "Start chest compressions now. Push hard and fast in the center of the chest."},
+      {"trigger": "CPR_rate",         "text_en": "Push at 100 to 120 times per minute. Follow the beeping rhythm."},
+      {"trigger": "CPR_breath",       "text_en": "Give two rescue breaths now. Tilt head, pinch nose, breathe in for one second."},
+      {"trigger": "CPR_continue",     "text_en": "Continue CPR. Do not stop. Professional help is on the way."},
+      {"trigger": "bleeding_start",   "text_en": "Apply firm pressure to the wound with a cloth. Press hard and do not lift."},
+      {"trigger": "recovery_pos",     "text_en": "Roll the victim gently onto their side. Keep airway open. Watch for breathing."},
+      {"trigger": "spinal_warning",   "text_en": "Suspected spine injury. Do not move the victim. Keep them still and calm."},
+      {"trigger": "seizure",          "text_en": "Do not restrain the victim. Clear the area. Protect the head. Time the seizure."},
+      {"trigger": "help_coming",      "text_en": "Emergency services have been notified. Stay on the line and follow instructions."}
+    ]
+  },
+
+  "incident_data_schema": {
+    "description": "Data captured and transmitted per SOS incident for rescue coordination",
+    "fields": {
+      "incident_id":          {"type": "string",   "format": "UUID", "auto_generated": true},
+      "timestamp_activated":  {"type": "datetime", "format": "ISO8601"},
+      "activation_method":    {"type": "string",   "enum": ["manual_sos", "crash_detection", "tilt", "impact", "stop_pattern"]},
+      "location": {
+        "latitude":           {"type": "float"},
+        "longitude":          {"type": "float"},
+        "accuracy_meters":    {"type": "float"},
+        "address_reverse":    {"type": "string"},
+        "live_tracking":      {"type": "boolean", "default": true}
+      },
+      "victim_conditions":    {"type": "array",    "items": "condition_id", "multi_select": true},
+      "triage_priority":      {"type": "string",   "enum": ["P1", "P2", "P3", "P4"]},
+      "protocols_activated":  {"type": "array",    "items": "protocol_id"},
+      "assessment_responses": {"type": "object",   "keys": "question_id", "values": "response_key"},
+      "rescuer_type":         {"type": "string",   "enum": ["bystander", "trained_first_aider", "medical_professional", "unknown"]},
+      "emergency_services_called": {"type": "boolean"},
+      "ems_call_timestamp":   {"type": "datetime", "format": "ISO8601"},
+      "incident_duration_seconds": {"type": "integer"},
+      "steps_completed":      {"type": "array",    "items": "string"},
+      "notes":                {"type": "string",   "max_length": 500}
+    }
+  },
+
+  "references": [
+    {
+      "id": "REF_001",
+      "title": "2025 AHA Guidelines for CPR and Emergency Cardiovascular Care — Adult Basic Life Support",
+      "publisher": "American Heart Association",
+      "journal": "Circulation",
+      "year": 2025,
+      "url": "https://www.ahajournals.org/doi/10.1161/CIR.0000000000001369"
+    },
+    {
+      "id": "REF_002",
+      "title": "2024 American Heart Association and American Red Cross Guidelines for First Aid",
+      "publisher": "AHA & American Red Cross",
+      "journal": "Circulation",
+      "year": 2024,
+      "doi": "10.1161/CIR.0000000000001281",
+      "url": "https://www.ahajournals.org/doi/10.1161/CIR.0000000000001281"
+    },
+    {
+      "id": "REF_003",
+      "title": "European Resuscitation Council Guidelines 2025 — First Aid",
+      "publisher": "European Resuscitation Council",
+      "journal": "Resuscitation",
+      "year": 2025,
+      "url": "https://www.resuscitationjournal.com/article/S0300-9572(25)00264-3/fulltext"
+    },
+    {
+      "id": "REF_004",
+      "title": "ATLS Advanced Trauma Life Support — 10th Edition",
+      "publisher": "American College of Surgeons, Committee on Trauma",
+      "year": 2018
+    },
+    {
+      "id": "REF_005",
+      "title": "First Response to Road Crashes — First Aid: It Saves Lives on the Road",
+      "publisher": "Global Road Safety Partnership (GRSP)",
+      "year": 2023,
+      "url": "https://www.grsproadsafety.org/wp-content/uploads/2023/05/EN_FA_RS_manual_webversion.pdf"
+    },
+    {
+      "id": "REF_006",
+      "title": "ABCDE Approach — Scoping Review of Assessment Tools and Outcomes",
+      "publisher": "NCBI / ScienceDirect",
+      "journal": "Resuscitation Plus",
+      "year": 2024,
+      "url": "https://www.sciencedirect.com/science/article/pii/S2666520424002145"
+    },
+    {
+      "id": "REF_007",
+      "title": "High Quality CPR — AHA Standards and Metrics",
+      "publisher": "American Heart Association",
+      "url": "https://cpr.heart.org/en/resuscitation-science/high-quality-cpr"
+    }
+  ],
+
+  "emergency_response_metadata": {
+    "description": "Dynamic metadata for Screen 2.5 — Context & Details. Provides structured selectors for pain, accident type, contextual flags, and transport recommendations.",
+
+    "symptoms": [
+      {"id": "SYM_DIZZY", "label": "Dizziness", "icon": "💫"},
+      {"id": "SYM_NAUSEA", "label": "Nausea", "icon": "🤢"},
+      {"id": "SYM_BLUR", "label": "Blurred Vision", "icon": "👁️"},
+      {"id": "SYM_NUMB", "label": "Numbness", "icon": "🫠"},
+      {"id": "SYM_TIGHT", "label": "Chest Tightness", "icon": "😤"},
+      {"id": "SYM_CONFUSE", "label": "Confusion", "icon": "😵‍💫"},
+      {"id": "SYM_RINGING", "label": "Ringing in Ears", "icon": "🔔"},
+      {"id": "SYM_WEAK", "label": "Weakness", "icon": "😩"}
+    ],
+
+    "pain_levels": [
+      {"level": 0, "label": "No Pain", "emoji": "😊", "color": "#22C55E", "description": "Comfortable, no discomfort"},
+      {"level": 1, "label": "Mild", "emoji": "😐", "color": "#84CC16", "description": "Slight discomfort, bearable"},
+      {"level": 2, "label": "Moderate", "emoji": "😣", "color": "#EAB308", "description": "Noticeable pain, distracting"},
+      {"level": 3, "label": "Severe", "emoji": "😖", "color": "#F97316", "description": "Intense pain, hard to focus"},
+      {"level": 4, "label": "Extreme", "emoji": "😱", "color": "#DC2626", "description": "Worst possible, unbearable"}
+    ],
+
+    "consciousness_levels": [
+      {"id": "ALERT", "label": "Alert", "code": "A", "score": 0, "color": "#22C55E"},
+      {"id": "VOICE", "label": "Responds to Voice", "code": "V", "score": 2, "color": "#EAB308"},
+      {"id": "PAIN", "label": "Responds to Pain", "code": "P", "score": 4, "color": "#F97316"},
+      {"id": "UNRESPONSIVE", "label": "Unresponsive", "code": "U", "score": 5, "color": "#DC2626"}
+    ],
+
+    "accident_types": [
+      {"id": "AT_HEADON", "label": "Head-on", "icon": "💥", "severity_modifier": 2},
+      {"id": "AT_REAREND", "label": "Rear-end", "icon": "🚗", "severity_modifier": 1},
+      {"id": "AT_SIDE", "label": "Side Impact", "icon": "🚙", "severity_modifier": 1.5},
+      {"id": "AT_ROLLOVER", "label": "Rollover", "icon": "🔄", "severity_modifier": 2},
+      {"id": "AT_PEDESTRIAN", "label": "Pedestrian", "icon": "🚶", "severity_modifier": 2},
+      {"id": "AT_SINGLE", "label": "Single Vehicle", "icon": "🚘", "severity_modifier": 1},
+      {"id": "AT_MULTI", "label": "Multi-Vehicle", "icon": "🚧", "severity_modifier": 1.5},
+      {"id": "AT_MOTORCYCLE", "label": "Motorcycle", "icon": "🏍️", "severity_modifier": 1.5}
+    ],
+
+    "contextual_flags": [
+      {"id": "FLAG_FIRE", "label": "Fire / Smoke", "icon": "🔥", "priority_boost": 1, "color": "#F97316"},
+      {"id": "FLAG_PREGNANT", "label": "Pregnancy", "icon": "🤰", "priority_boost": 1, "color": "#EC4899"},
+      {"id": "FLAG_CHILD", "label": "Child / Elderly", "icon": "👶", "priority_boost": 1, "color": "#8B5CF6"},
+      {"id": "FLAG_HAZMAT", "label": "Hazmat / Chemical", "icon": "☣️", "priority_boost": 1, "color": "#FACC15"},
+      {"id": "FLAG_WEATHER", "label": "Bad Weather", "icon": "🌧️", "priority_boost": 0, "color": "#06B6D4"},
+      {"id": "FLAG_NIGHT", "label": "Night / Low Visibility", "icon": "🌙", "priority_boost": 0, "color": "#6366F1"}
+    ],
+
+    "passenger_count_options": [1, 2, 3, 4, 5, "6+"],
+
+    "vehicle_damage_levels": [
+      {"level": 1, "label": "Minor Dents", "icon": "🟢", "color": "#22C55E", "description": "Cosmetic damage only"},
+      {"level": 2, "label": "Moderate", "icon": "🟡", "color": "#EAB308", "description": "Broken lights, cracked windshield"},
+      {"level": 3, "label": "Significant", "icon": "🟠", "color": "#F97316", "description": "Door crushed, airbags deployed"},
+      {"level": 4, "label": "Severe", "icon": "🔴", "color": "#DC2626", "description": "Major structural damage, cabin intrusion"},
+      {"level": 5, "label": "Catastrophic", "icon": "⚫", "color": "#7F1D1D", "description": "Unrecognizable, rollover, fire"}
+    ],
+
+    "transport_recommendations": {
+      "P1": {"type": "ALS Ambulance", "label": "ADVANCED LIFE SUPPORT", "icon": "🚑", "color": "#DC2626", "description": "Immediate paramedic-staffed ambulance with ALS equipment"},
+      "P2": {"type": "BLS Ambulance", "label": "BASIC LIFE SUPPORT", "icon": "🚑", "color": "#F97316", "description": "Ambulance with basic emergency equipment and trained EMT"},
+      "P3": {"type": "Self-drive / Escort", "label": "PRIVATE TRANSPORT", "icon": "🚗", "color": "#EAB308", "description": "Can be driven to hospital by companion if stable"},
+      "P4": {"type": "Self-care", "label": "ON-SITE FIRST AID", "icon": "🩹", "color": "#06B6D4", "description": "First aid on scene, hospital visit optional"}
+    }
+  }
+}

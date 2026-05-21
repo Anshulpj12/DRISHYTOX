@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>APARA — Road SOS Emergency</title>
+<meta name="description" content="APARA Road SOS — Intelligent emergency triage and first-aid guidance">
+<link rel="stylesheet" href="../css/sos.css">
+<script src="../js/sos-protocols.js" crossorigin="anonymous"></script>
+<script src="../js/block-code-encoder.js" crossorigin="anonymous"></script>
+<script src="../js/sos-provider-engine.js" crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="sos-app" id="sosApp">
+
+<!-- ═══ SCREEN 1: ACTIVATION ═══ -->
+<div class="sos-screen active" id="screen1">
+  <div class="sos-hdr">
+    <div class="sos-hdr-title">🚨 ROAD SOS <span class="hdr-badge live">LIVE</span></div>
+    <button class="hdr-back" onclick="goBack()">✕ EXIT</button>
+  </div>
+  <div class="activate-area">
+    <div class="act-source" id="actSrc">MANUAL ACTIVATION</div>
+    <div class="sos-btn-wrap">
+      <div class="sonar-ring"></div>
+      <div class="sonar-ring"></div>
+      <div class="sonar-ring"></div>
+      <button class="sos-btn-main" id="bigBtn" onclick="activateSOS()">
+        <span class="btn-icon">🆘</span>
+        <span class="btn-label">SOS</span>
+      </button>
+    </div>
+    <p style="color:var(--outline);font-size:.82rem;max-width:280px;line-height:1.55;margin-bottom:1rem">
+      Tap to begin emergency triage. Location shared with responders instantly.
+    </p>
+    <div class="gps-chip" id="gpsChip">
+      <span class="gps-dot"></span>
+      <span style="font-family:var(--mono)" id="gpsVal">ACQUIRING GPS...</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 2: INJURY & CONDITION SELECTION ═══ -->
+<div class="sos-screen" id="screen2">
+  <div class="sos-hdr">
+    <div class="sos-hdr-title">🩺 INJURY SELECTION</div>
+    <span style="font-family:var(--mono);font-size:.7rem;color:var(--outline)" id="selCount">0 SELECTED</span>
+  </div>
+
+  <!-- Selected conditions pills -->
+  <div class="pills-row" id="pillsRow"></div>
+
+  <!-- Body Map -->
+  <div class="bodymap-wrap" id="bodyMapWrap">
+    <div class="bodymap-toggle">
+      <button class="bodymap-toggle-btn active" id="bmFrontBtn" onclick="setBodyView('front')">FRONT</button>
+      <button class="bodymap-toggle-btn" id="bmBackBtn" onclick="setBodyView('back')">BACK</button>
+    </div>
+    <div style="font-family:var(--mono);font-size:.55rem;color:var(--outline);letter-spacing:.1em;margin-bottom:.35rem">TAP INJURED AREA</div>
+    <div class="bodymap-svg-container" id="bodyMapContainer">
+      <!-- Front View SVG -->
+      <svg id="svgFront" viewBox="0 0 180 340" xmlns="http://www.w3.org/2000/svg">
+        <!-- Head -->
+        <ellipse data-region="HEAD" class="body-region" cx="90" cy="30" rx="22" ry="26" onclick="tapRegion('HEAD')"/>
+        <text class="body-region-label" x="90" y="30">HEAD</text>
+        <!-- Neck -->
+        <rect data-region="NECK" class="body-region" x="80" y="56" width="20" height="16" rx="4" onclick="tapRegion('NECK')"/>
+        <text class="body-region-label" x="90" y="65">NECK</text>
+        <!-- Left Arm (visual right) -->
+        <path data-region="LEFT_ARM" class="body-region" d="M60,78 L48,82 L32,130 L28,175 L38,177 L50,135 L55,100 L60,88 Z" onclick="tapRegion('LEFT_ARM')"/>
+        <text class="body-region-label" x="38" y="130">L.ARM</text>
+        <!-- Right Arm (visual left) -->
+        <path data-region="RIGHT_ARM" class="body-region" d="M120,78 L132,82 L148,130 L152,175 L142,177 L130,135 L125,100 L120,88 Z" onclick="tapRegion('RIGHT_ARM')"/>
+        <text class="body-region-label" x="142" y="130">R.ARM</text>
+        <!-- Chest -->
+        <path data-region="CHEST" class="body-region" d="M60,72 L120,72 L122,80 L124,120 L56,120 L58,80 Z" onclick="tapRegion('CHEST')"/>
+        <text class="body-region-label" x="90" y="98">CHEST</text>
+        <!-- Abdomen -->
+        <path data-region="ABDOMEN" class="body-region" d="M56,120 L124,120 L122,160 L58,160 Z" onclick="tapRegion('ABDOMEN')"/>
+        <text class="body-region-label" x="90" y="142">ABDOMEN</text>
+        <!-- Pelvis -->
+        <path data-region="PELVIS" class="body-region" d="M58,160 L122,160 L115,185 L90,192 L65,185 Z" onclick="tapRegion('PELVIS')"/>
+        <text class="body-region-label" x="90" y="175">PELVIS</text>
+        <!-- Left Leg (visual right) -->
+        <path data-region="LEFT_LEG" class="body-region" d="M65,185 L90,192 L86,240 L82,290 L78,330 L58,330 L62,290 L60,240 Z" onclick="tapRegion('LEFT_LEG')"/>
+        <text class="body-region-label" x="68" y="270">L.LEG</text>
+        <!-- Right Leg (visual left) -->
+        <path data-region="RIGHT_LEG" class="body-region" d="M90,192 L115,185 L120,240 L118,290 L122,330 L102,330 L98,290 L94,240 Z" onclick="tapRegion('RIGHT_LEG')"/>
+        <text class="body-region-label" x="112" y="270">R.LEG</text>
+      </svg>
+      <!-- Back View SVG (hidden by default) -->
+      <svg id="svgBack" viewBox="0 0 180 340" xmlns="http://www.w3.org/2000/svg" style="display:none">
+        <!-- Head -->
+        <ellipse data-region="HEAD" class="body-region" cx="90" cy="30" rx="22" ry="26" onclick="tapRegion('HEAD')"/>
+        <text class="body-region-label" x="90" y="30">HEAD</text>
+        <!-- Neck -->
+        <rect data-region="NECK" class="body-region" x="80" y="56" width="20" height="16" rx="4" onclick="tapRegion('NECK')"/>
+        <text class="body-region-label" x="90" y="65">NECK</text>
+        <!-- Left Arm -->
+        <path data-region="LEFT_ARM" class="body-region" d="M60,78 L48,82 L32,130 L28,175 L38,177 L50,135 L55,100 L60,88 Z" onclick="tapRegion('LEFT_ARM')"/>
+        <text class="body-region-label" x="38" y="130">L.ARM</text>
+        <!-- Right Arm -->
+        <path data-region="RIGHT_ARM" class="body-region" d="M120,78 L132,82 L148,130 L152,175 L142,177 L130,135 L125,100 L120,88 Z" onclick="tapRegion('RIGHT_ARM')"/>
+        <text class="body-region-label" x="142" y="130">R.ARM</text>
+        <!-- Back (replaces chest+abdomen) -->
+        <path data-region="BACK" class="body-region" d="M60,72 L120,72 L122,80 L124,160 L58,160 L56,80 Z" onclick="tapRegion('BACK')"/>
+        <text class="body-region-label" x="90" y="118">BACK</text>
+        <!-- Pelvis -->
+        <path data-region="PELVIS" class="body-region" d="M58,160 L122,160 L115,185 L90,192 L65,185 Z" onclick="tapRegion('PELVIS')"/>
+        <text class="body-region-label" x="90" y="175">PELVIS</text>
+        <!-- Left Leg -->
+        <path data-region="LEFT_LEG" class="body-region" d="M65,185 L90,192 L86,240 L82,290 L78,330 L58,330 L62,290 L60,240 Z" onclick="tapRegion('LEFT_LEG')"/>
+        <text class="body-region-label" x="68" y="270">L.LEG</text>
+        <!-- Right Leg -->
+        <path data-region="RIGHT_LEG" class="body-region" d="M90,192 L115,185 L120,240 L118,290 L122,330 L102,330 L98,290 L94,240 Z" onclick="tapRegion('RIGHT_LEG')"/>
+        <text class="body-region-label" x="112" y="270">R.LEG</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-bar-wrap">
+    <span class="search-icon">🔍</span>
+    <input class="search-bar" id="condSearch" type="text" placeholder="Search injuries..." oninput="onSearchInput(this.value)" autocomplete="off">
+    <span class="search-clear" id="searchClear" onclick="clearSearch()">✕</span>
+  </div>
+
+  <!-- Quick category chips -->
+  <div class="quick-chips" id="quickChips"></div>
+
+  <!-- Region filter bar -->
+  <div class="region-filter-bar" id="regionFilterBar" style="display:none">
+    <span>FILTERING:</span>
+    <span class="rfb-label" id="rfbLabel"></span>
+    <span class="rfb-clear" onclick="clearBodyRegions()">CLEAR FILTER</span>
+  </div>
+
+  <!-- Condition Grid -->
+  <div style="overflow-y:auto;flex:1">
+    <div class="cond-grid" id="condGrid"></div>
+    <div id="noResults" style="display:none;text-align:center;padding:2rem 1rem;font-family:var(--mono);font-size:.72rem;color:var(--outline)">
+      No conditions found. Try a different search or body region.
+    </div>
+    <!-- Detail Panel: shows when condition is selected -->
+    <div id="condDetail" style="display:none"></div>
+  </div>
+
+  <!-- Navigation -->
+  <div class="step-nav">
+    <button class="nav-btn secondary" onclick="goScreen(1)">← BACK</button>
+    <button class="nav-btn primary" id="toAssessBtn" onclick="goScreen('2_5')" disabled>DETAILS →</button>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 2.5: CONTEXT & DETAILS ═══ -->
+<div class="sos-screen" id="screen2_5">
+  <div class="sos-hdr">
+    <div class="sos-hdr-title">📋 CONTEXT & DETAILS</div>
+    <button class="hdr-back" onclick="goScreen(2)">← BACK</button>
+  </div>
+  <div style="overflow-y:auto;flex:1;padding:.5rem 0">
+
+    <!-- Pain Level -->
+    <div class="ctx-section">
+      <div class="ctx-section-title">😣 PAIN LEVEL</div>
+    </div>
+    <div class="pain-slider-wrap">
+      <div class="pain-track" id="painTrack"></div>
+      <div class="pain-markers" id="painMarkers"></div>
+    </div>
+
+    <!-- Accident Type -->
+    <div class="ctx-section">
+      <div class="ctx-section-title">💥 ACCIDENT TYPE</div>
+    </div>
+    <div class="accident-grid" id="accidentGrid"></div>
+
+    <!-- Contextual Flags -->
+    <div class="ctx-section">
+      <div class="ctx-section-title">🚩 CONTEXTUAL FLAGS</div>
+    </div>
+    <div class="ctx-chips" id="ctxFlags"></div>
+
+    <!-- Passenger Count -->
+    <div class="ctx-section">
+      <div class="ctx-section-title">👥 PASSENGERS INVOLVED</div>
+    </div>
+    <div class="stepper-wrap">
+      <button class="stepper-btn" id="paxMinus" onclick="adjustPassengers(-1)">−</button>
+      <div style="text-align:center">
+        <div class="stepper-val" id="paxVal">1</div>
+        <div class="stepper-label">PERSONS</div>
+      </div>
+      <button class="stepper-btn" id="paxPlus" onclick="adjustPassengers(1)">+</button>
+    </div>
+
+    <!-- Vehicle Damage -->
+    <div class="ctx-section">
+      <div class="ctx-section-title">🚗 VEHICLE DAMAGE LEVEL</div>
+    </div>
+    <div class="damage-selector" id="damageSelector"></div>
+
+  </div>
+  <div class="step-nav">
+    <button class="nav-btn secondary" onclick="goScreen(2)">← INJURIES</button>
+    <button class="nav-btn primary" onclick="goScreen(3)">ASSESS →</button>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 3: ASSESSMENT ═══ -->
+<div class="sos-screen" id="screen3">
+  <div class="sos-hdr">
+    <div class="sos-hdr-title">🧪 ASSESSMENT</div>
+    <button class="hdr-back" onclick="goScreen(2)">← BACK</button>
+  </div>
+  <div class="led-bar" id="ledBar"></div>
+  <div style="overflow-y:auto;flex:1" id="assessArea"></div>
+  <div class="step-nav" style="padding-top:.5rem">
+    <span class="skip-txt" onclick="skipAssessment()">SKIP — GO TO GUIDANCE</span>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 4: TRIAGE RESULT ═══ -->
+<div class="sos-screen" id="screen4">
+  <div class="sos-hdr">
+    <div class="sos-hdr-title">⚡ TRIAGE RESULT</div>
+  </div>
+  <div style="overflow-y:auto;flex:1;padding:.5rem 0">
+    <div class="triage-hero" id="triageHero">
+      <div class="triage-code" id="triCode">P1</div>
+      <div class="triage-lbl" id="triLbl">CRITICAL</div>
+      <div class="pills-row" id="triPills" style="justify-content:center;margin-bottom:.5rem"></div>
+      <div style="font-family:var(--mono);font-size:.7rem;color:var(--outline)" id="triDesc"></div>
+    </div>
+    <!-- Severity Score Meter -->
+    <div class="severity-meter" id="sevMeter">
+      <div class="sev-score" id="sevScoreVal">0</div>
+      <div class="sev-bar-wrap">
+        <div class="sev-bar"><div class="sev-bar-fill" id="sevBarFill" style="width:0%"></div></div>
+        <div class="sev-label">SEVERITY SCORE (0-100)</div>
+      </div>
+    </div>
+    <!-- Transport Recommendation -->
+    <div class="transport-badge" id="transportBadge" style="display:none">
+      <span class="tb-icon" id="tbIcon">🚑</span>
+      <div class="tb-info">
+        <div class="tb-type" id="tbType">AMBULANCE</div>
+        <div class="tb-desc" id="tbDesc">Loading...</div>
+      </div>
+    </div>
+    <!-- Risk Escalation -->
+    <div class="risk-escalation" id="riskEscalation" style="display:none"></div>
+    <div style="padding:0 1.25rem;margin-top:.5rem">
+      <div style="font-family:var(--mono);font-size:.65rem;color:var(--outline);letter-spacing:.12em;margin-bottom:.5rem">TREATMENT ORDER:</div>
+      <div id="treatOrder"></div>
+    </div>
+  </div>
+  <div class="step-nav">
+    <button class="nav-btn primary" onclick="startGuidance()" style="font-size:1rem;padding:1.15rem;letter-spacing:.06em">
+      🚑 BEGIN FIRST-AID GUIDANCE
+    </button>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 5: STEP-BY-STEP GUIDANCE ═══ -->
+<div class="sos-screen" id="screen5">
+  <div class="sos-hdr">
+    <button class="hdr-back" onclick="goScreen(4)">← BACK</button>
+    <div class="sos-hdr-title" id="guideHdr">📋 GUIDANCE</div>
+    <div style="display:flex;align-items:center;gap:.4rem">
+      <button class="tts-btn" id="ttsBtn" onclick="toggleTTS()">🔊 READ ALOUD</button>
+      <div class="lang-toggle">
+        <button class="lang-btn active" data-lang="en" onclick="setLang('en',this)">EN</button>
+        <button class="lang-btn" data-lang="hi" onclick="setLang('hi',this)">HI</button>
+        <button class="lang-btn" data-lang="ta" onclick="setLang('ta',this)">TA</button>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:.25rem 1.25rem">
+    <div class="led-bar" id="guideLed" style="flex:1"></div>
+    <span style="font-family:var(--mono);font-size:.65rem;color:var(--outline);margin-left:.5rem;white-space:nowrap" id="stepCtr">1/1</span>
+  </div>
+  <div style="overflow-y:auto;flex:1" id="stepDisplay"></div>
+  <div class="step-nav">
+    <button class="nav-btn secondary" id="prevBtn" onclick="prevStep()">← PREV</button>
+    <button class="nav-btn primary" id="nextBtn" onclick="nextStep()">NEXT →</button>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 6: ACTIVE STATUS ═══ -->
+<div class="sos-screen" id="screen6">
+  <div class="sos-hdr">
+    <button class="hdr-back" onclick="goScreen(5)">← BACK</button>
+    <div class="sos-hdr-title">📡 EMERGENCY ACTIVE <span class="hdr-badge live">SOS ON</span></div>
+  </div>
+  <div style="overflow-y:auto;flex:1;padding:1rem 1.25rem">
+    <div class="ecode-wrap">
+      <div class="ecode-lbl">EMERGENCY BLOCK CODE</div>
+      <span class="ecode-val" id="eCode">--------</span>
+      <div class="ecode-lbl" id="elapsedTime" style="margin-top:.3rem">00:00 ELAPSED</div>
+    </div>
+    <div style="font-family:var(--mono);font-size:.62rem;color:var(--outline);letter-spacing:.1em;margin:.75rem 0 .4rem">STATUS</div>
+    <div class="stat-row">
+      <div class="stat-dot" style="background:var(--green)"></div>
+      <div class="stat-info"><div class="si-lbl">📍 LOCATION SHARING</div><div class="si-val" id="locShareVal">Sharing live location...</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-dot" style="background:var(--red);animation-duration:.8s"></div>
+      <div class="stat-info"><div class="si-lbl">🚨 SOS BROADCAST ACTIVE</div><div class="si-val">Nearest responders notified</div></div>
+    </div>
+    <!-- Communication Channels -->
+    <div style="font-family:var(--mono);font-size:.62rem;color:var(--outline);letter-spacing:.1em;margin:.75rem 0 .4rem">📡 COMMUNICATION CHANNELS</div>
+    <div class="comm-row" id="commRow">
+      <a class="comm-chip sms" id="smsChip" href="#" onclick="sendSMSSOS(event)">📱 SMS PRE-FILL</a>
+      <span class="comm-chip v2v" onclick="triggerV2V()">📡 V2V RELAY</span>
+      <span class="comm-chip firebase" id="fbChip" onclick="triggerFirebasePush()">🔥 PUSH NOTIFY</span>
+      <span class="comm-chip bt" title="Coming in native app">📶 BT MESH (SOON)</span>
+      <span class="comm-chip queued" id="queueChip" style="display:none">📦 <span id="queueCount">0</span> QUEUED</span>
+    </div>
+    <div style="font-family:var(--mono);font-size:.62rem;color:var(--outline);letter-spacing:.1em;margin:.75rem 0 .4rem">FIRST-AID SUMMARY</div>
+    <div id="quickReview"></div>
+    <div class="call-row">
+      <button class="call-btn ghost" onclick="goScreen(5)">📖 RE-READ STEPS</button>
+      <a href="tel:112" class="call-btn danger">📞 CALL 112</a>
+    </div>
+    <button onclick="endSOS()" style="width:100%;margin-top:.5rem;padding:.8rem;border-radius:var(--r-lg);background:rgba(255,0,0,.08);border:1px solid rgba(255,0,0,.2);color:#fca5a5;font-size:.82rem;font-weight:800;cursor:pointer;font-family:var(--font)">
+      ✕ END EMERGENCY SESSION
+    </button>
+  </div>
+</div>
+
+</div><!-- .sos-app -->
+
+<script>
+// ═══ STATE ═══
+const S = {
+  selected:[],assessIdx:0,assessResults:{},
+  triageResult:null,allSteps:[],stepIdx:0,
+  timerInterval:null,activeTimer:null,sosStart:null,
+  // Phase 2: Context data
+  painLevel:null,accidentType:null,activeFlags:[],
+  passengerCount:1,damageLevel:null,
+  // Phase 2: TTS
+  ttsEnabled:true,ttsLang:'en'
+};
+
+// ═══ CONSTANTS (must be before boot IIFE) ═══
+const CHIP_CATS = [
+  {id:'ALL',label:'ALL',icon:'🔍'},
+  {id:'neuro',label:'BRAIN',icon:'🧠'},
+  {id:'airway',label:'AIRWAY',icon:'🫁'},
+  {id:'bleeding',label:'BLEED',icon:'🩸'},
+  {id:'trauma',label:'TRAUMA',icon:'🦴'},
+  {id:'cardiac',label:'HEART',icon:'❤️'},
+  {id:'fracture',label:'BONES',icon:'💪'},
+  {id:'burns',label:'BURNS',icon:'🔥'},
+  {id:'systemic',label:'OTHER',icon:'➕'}
+];
+let activeChip = 'ALL';
+let searchQuery = '';
+
+const PAIN_LEVELS=[
+  {level:0,label:'NONE',emoji:'😊',color:'#22C55E'},
+  {level:1,label:'MILD',emoji:'😐',color:'#84CC16'},
+  {level:2,label:'MODERATE',emoji:'😣',color:'#EAB308'},
+  {level:3,label:'SEVERE',emoji:'😖',color:'#F97316'},
+  {level:4,label:'EXTREME',emoji:'😱',color:'#DC2626'}
+];
+const ACCIDENT_TYPES=[
+  {id:'AT_HEADON',label:'Head-on',icon:'💥'},
+  {id:'AT_REAREND',label:'Rear-end',icon:'🚗'},
+  {id:'AT_SIDE',label:'Side',icon:'🚙'},
+  {id:'AT_ROLLOVER',label:'Rollover',icon:'🔄'},
+  {id:'AT_PEDESTRIAN',label:'Pedestrian',icon:'🚶'},
+  {id:'AT_SINGLE',label:'Single',icon:'🚘'},
+  {id:'AT_MULTI',label:'Multi-Car',icon:'🚧'},
+  {id:'AT_MOTORCYCLE',label:'Bike',icon:'🏍️'}
+];
+const CTX_FLAGS=[
+  {id:'FLAG_FIRE',label:'Fire/Smoke',icon:'🔥'},
+  {id:'FLAG_PREGNANT',label:'Pregnancy',icon:'🤰'},
+  {id:'FLAG_CHILD',label:'Child/Elderly',icon:'👶'},
+  {id:'FLAG_HAZMAT',label:'Hazmat',icon:'☣️'},
+  {id:'FLAG_WEATHER',label:'Bad Weather',icon:'🌧️'},
+  {id:'FLAG_NIGHT',label:'Night',icon:'🌙'}
+];
+const DAMAGE_LEVELS=[
+  {level:1,label:'Minor',icon:'🟢',color:'#22C55E'},
+  {level:2,label:'Moderate',icon:'🟡',color:'#EAB308'},
+  {level:3,label:'Significant',icon:'🟠',color:'#F97316'},
+  {level:4,label:'Severe',icon:'🔴',color:'#DC2626'},
+  {level:5,label:'Total',icon:'⚫',color:'#7F1D1D'}
+];
+
+// ═══ BOOT ═══
+(function boot(){
+  const p=new URLSearchParams(location.search);
+  if(p.get('src')==='shock') document.getElementById('actSrc').textContent='⚠️ IMPACT DETECTED — AUTO ACTIVATION';
+  if(p.get('auto')==='1') setTimeout(activateSOS,600);
+  try{
+    const pos=JSON.parse(localStorage.getItem('apara_last_pos'));
+    if(pos) document.getElementById('gpsVal').textContent=`${pos.lat.toFixed(5)}°N  ${pos.lng.toFixed(5)}°E`;
+  }catch(e){}
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(p=>{
+      const pos={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy,timestamp:Date.now()};
+      localStorage.setItem('apara_last_pos',JSON.stringify(pos));
+      document.getElementById('gpsVal').textContent=`${pos.lat.toFixed(5)}°N  ${pos.lng.toFixed(5)}°E`;
+    },()=>{},{enableHighAccuracy:true,timeout:10000,maximumAge:30000});
+  }
+  buildQuickChips();
+  renderCondGrid();
+  initScreen25();
+  fetch('../road_sos_system.json').then(r=>r.json()).then(j=>{window._rj=j;renderCondGrid();initScreen25();}).catch(()=>{});
+  // Load cached triage for offline
+  try{const c=JSON.parse(localStorage.getItem('apara_sos_last_triage'));if(c)S._cachedTriage=c;}catch(e){}
+})();
+
+function goBack(){if(window.history.length>1)history.back();else location.href='driver.html';}
+
+function goScreen(n){
+  document.querySelectorAll('.sos-screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen'+n).classList.add('active');
+  if(n==='2_5') initScreen25();
+  if(n===3) initAssessment();
+  if(n===4) renderTriage();
+  if(n===6) startActiveStatus();
+}
+
+// ═══ S1: ACTIVATE ═══
+function activateSOS(){
+  S.sosStart=Date.now();
+  if(navigator.vibrate) navigator.vibrate([200,100,200]);
+  goScreen(2);
+}
+
+// ═══ S2: INJURY & CONDITION SELECTION (Body Map + Search + Grid) ═══
+
+function buildQuickChips() {
+  document.getElementById('quickChips').innerHTML = CHIP_CATS.map(c =>
+    `<span class="qchip${activeChip===c.id?' active':''}" onclick="toggleChip('${c.id}')">${c.icon} ${c.label}</span>`
+  ).join('');
+}
+
+function toggleChip(catId) {
+  activeChip = activeChip === catId ? 'ALL' : catId;
+  buildQuickChips();
+  renderCondGrid();
+}
+
+// ── Body Map ──
+function setBodyView(view) {
+  BodyMapEngine.currentView = view;
+  document.getElementById('svgFront').style.display = view === 'front' ? '' : 'none';
+  document.getElementById('svgBack').style.display = view === 'back' ? '' : 'none';
+  document.getElementById('bmFrontBtn').classList.toggle('active', view === 'front');
+  document.getElementById('bmBackBtn').classList.toggle('active', view === 'back');
+  syncRegionUI();
+}
+
+function tapRegion(regionId) {
+  BodyMapEngine.toggleRegion(regionId);
+  if (navigator.vibrate) navigator.vibrate(25);
+  syncRegionUI();
+  renderCondGrid();
+}
+
+function clearBodyRegions() {
+  BodyMapEngine.clearRegions();
+  syncRegionUI();
+  renderCondGrid();
+}
+
+function syncRegionUI() {
+  // Update SVG region highlights across both views
+  document.querySelectorAll('.body-region').forEach(el => {
+    const r = el.getAttribute('data-region');
+    if (r) el.classList.toggle('selected', BodyMapEngine.isRegionSelected(r));
+  });
+  // Region filter bar
+  const bar = document.getElementById('regionFilterBar');
+  const labels = BodyMapEngine.getSelectedLabels();
+  if (labels.length > 0) {
+    bar.style.display = '';
+    document.getElementById('rfbLabel').textContent = labels.join(' + ');
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+// ── Search ──
+function onSearchInput(val) {
+  searchQuery = val;
+  document.getElementById('searchClear').classList.toggle('visible', val.length > 0);
+  renderCondGrid();
+}
+function clearSearch() {
+  searchQuery = '';
+  document.getElementById('condSearch').value = '';
+  document.getElementById('searchClear').classList.remove('visible');
+  renderCondGrid();
+}
+
+// ── Condition Grid (enhanced v2 cards) ──
+function renderCondGrid() {
+  // Start with all conditions
+  let conds = SOS_CONDITIONS;
+
+  // 1. Filter by body region (if any selected)
+  if (BodyMapEngine.selectedRegions.size > 0) {
+    conds = BodyMapEngine.getFilteredConditions();
+  }
+
+  // 2. Filter by search
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim();
+    conds = conds.filter(c =>
+      c.label.toLowerCase().includes(q) || c.id.toLowerCase().includes(q) || (c.cat || '').toLowerCase().includes(q)
+    );
+  }
+
+  // 3. Filter by category chip
+  if (activeChip !== 'ALL') {
+    conds = conds.filter(c => c.cat === activeChip);
+  }
+
+  // Severity mapping
+  const sevMap = s => s >= 5 ? 'P1' : s >= 4 ? 'P2' : s >= 3 ? 'P3' : 'P4';
+  const sevColors = {P1:'#DC2626', P2:'#F97316', P3:'#EAB308', P4:'#06B6D4'};
+
+  const grid = document.getElementById('condGrid');
+  const noRes = document.getElementById('noResults');
+
+  if (conds.length === 0) {
+    grid.innerHTML = '';
+    noRes.style.display = '';
+    return;
+  }
+  noRes.style.display = 'none';
+
+  grid.innerHTML = conds.map(c => {
+    const sev = sevMap(c.severity);
+    const sel = S.selected.includes(c.id);
+    const sc = sevColors[sev];
+    return `<div class="cond-btn-v2${sel?' selected':''}" data-sev="${sev}" data-id="${c.id}" onclick="toggleCond('${c.id}',this)">
+      <span class="ci2">${c.icon}</span>
+      <span class="cl2">${c.label}</span>
+      <span class="sev-dot" style="background:${sc}"></span>
+      <span class="check-mark">${sel ? '✓' : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+function toggleCond(key, el) {
+  const i = S.selected.indexOf(key);
+  if (i >= 0) {
+    S.selected.splice(i, 1);
+    el.classList.remove('selected');
+    el.querySelector('.check-mark').textContent = '';
+    // Hide detail if this was the one shown
+    if (S._detailKey === key) { document.getElementById('condDetail').style.display = 'none'; S._detailKey = null; }
+  } else {
+    S.selected.push(key);
+    el.classList.add('selected');
+    el.querySelector('.check-mark').textContent = '✓';
+    // Show detail panel for this condition
+    showCondDetail(key);
+  }
+  if (navigator.vibrate) navigator.vibrate(20);
+  updateSelUI();
+}
+
+function showCondDetail(key) {
+  S._detailKey = key;
+  const panel = document.getElementById('condDetail');
+  // Find condition info
+  const cond = SOS_CONDITIONS.find(c => c.id === key);
+  if (!cond) { panel.style.display = 'none'; return; }
+  const sevMap = s => s >= 5 ? 'P1' : s >= 4 ? 'P2' : s >= 3 ? 'P3' : 'P4';
+  const sev = sevMap(cond.severity);
+  const sevLabels = {P1:'IMMEDIATE — LIFE THREATENING',P2:'URGENT — SERIOUS',P3:'DELAYED — MODERATE',P4:'MINIMAL'};
+
+  // Find matching treatment from SOS_TREATMENTS
+  let treat = null;
+  for (const t of Object.values(SOS_TREATMENTS)) {
+    if (t.forConditions && t.forConditions.includes(key)) { treat = t; break; }
+  }
+
+  // Also try to find protocol from JSON dataset
+  let jsonProto = null;
+  let jsonCond = null;
+  try {
+    const j = window._rj;
+    if (j && j.injury_conditions) {
+      for (const cat of Object.values(j.injury_conditions.categories)) {
+        for (const c of cat.conditions) {
+          if (c.key === key || c.id === key) { jsonCond = c; break; }
+        }
+        if (jsonCond) break;
+      }
+    }
+    if (jsonCond && j.protocols && jsonCond.auto_trigger_protocol) {
+      jsonProto = j.protocols[jsonCond.auto_trigger_protocol];
+    }
+  } catch(e) {}
+
+  // Build detail HTML
+  let html = `<div class="cond-detail-panel">`;
+  // Header
+  html += `<div class="cdp-header">
+    <span class="cdp-icon">${cond.icon}</span>
+    <span class="cdp-title">${jsonCond ? jsonCond.label : cond.label}</span>
+    <span class="cdp-severity ${sev.toLowerCase()}">${sev} ${sevLabels[sev] || ''}</span>
+  </div>`;
+
+  // Protocol from JSON (rich version)
+  if (jsonProto) {
+    html += `<div class="cdp-proto-name">📋 PROTOCOL: ${jsonProto.name}</div>`;
+    html += `<div class="cdp-steps">`;
+    jsonProto.steps.forEach(s => {
+      html += `<div class="cdp-step">
+        <span class="cdp-step-num">${s.step_number}</span>
+        <div class="cdp-step-body">
+          <div class="cdp-step-action">${s.action}</div>
+          <div class="cdp-step-detail">${s.detail}</div>
+          ${s.duration_seconds && s.duration_seconds > 0 ? `<span class="cdp-step-timer">⏱ ${s.duration_seconds >= 60 ? Math.floor(s.duration_seconds/60) + ' min' : s.duration_seconds + 's'}</span>` : ''}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+    // DO NOT warnings
+    if (jsonProto.do_not && jsonProto.do_not.length) {
+      html += `<div class="cdp-donot"><div class="cdp-donot-title">⚠️ DO NOT</div>`;
+      jsonProto.do_not.forEach(d => { html += `<div class="cdp-donot-item">${d}</div>`; });
+      html += `</div>`;
+    }
+    // Source
+    if (jsonProto.source) {
+      html += `<div class="cdp-source">📚 Source: ${jsonProto.source}</div>`;
+    }
+  }
+  // Fallback to SOS_TREATMENTS (hardcoded)
+  else if (treat) {
+    html += `<div class="cdp-proto-name">📋 PROTOCOL: ${treat.title}</div>`;
+    html += `<div class="cdp-steps">`;
+    treat.steps.forEach((s, i) => {
+      html += `<div class="cdp-step">
+        <span class="cdp-step-num">${i + 1}</span>
+        <div class="cdp-step-body">
+          <div class="cdp-step-action">${s.text}</div>
+          <div class="cdp-step-detail">${s.detail || ''}</div>
+          ${s.timer ? `<span class="cdp-step-timer">⏱ ${s.timer >= 60 ? Math.floor(s.timer/60) + ' min' : s.timer + 's'}</span>` : ''}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+    if (treat.donts && treat.donts.length) {
+      html += `<div class="cdp-donot"><div class="cdp-donot-title">⚠️ DO NOT</div>`;
+      treat.donts.forEach(d => { html += `<div class="cdp-donot-item">${d}</div>`; });
+      html += `</div>`;
+    }
+  } else {
+    html += `<div class="cdp-proto-name">ℹ️ Select more conditions or proceed to assessment for detailed guidance</div>`;
+  }
+
+  html += `<button class="cdp-collapse-btn" onclick="document.getElementById('condDetail').style.display='none';S._detailKey=null">▲ COLLAPSE DETAILS</button>`;
+  html += `</div>`;
+
+  panel.innerHTML = html;
+  panel.style.display = '';
+  // Auto-scroll to detail panel
+  setTimeout(() => panel.scrollIntoView({behavior:'smooth', block:'nearest'}), 100);
+}
+
+function updateSelUI() {
+  document.getElementById('selCount').textContent = S.selected.length + ' SELECTED';
+  document.getElementById('toAssessBtn').disabled = S.selected.length === 0;
+  // Build selected pills
+  const lm = {};
+  SOS_CONDITIONS.forEach(c => lm[c.id] = {label: c.label, icon: c.icon});
+  try {
+    const j = window._rj;
+    if (j && j.injury_conditions) Object.values(j.injury_conditions.categories).forEach(cat => cat.conditions.forEach(c => {lm[c.key] = {label: c.label, icon: ''};}));
+  } catch(e) {}
+  document.getElementById('pillsRow').innerHTML = S.selected.map(k => {
+    const c = lm[k] || {label: k, icon: ''};
+    return `<span class="pill" onclick="removeCond('${k}')">${c.icon} ${c.label} <span class="px">✕</span></span>`;
+  }).join('');
+}
+function removeCond(key) {S.selected = S.selected.filter(k => k !== key); updateSelUI(); renderCondGrid(); if(S._detailKey===key){document.getElementById('condDetail').style.display='none';S._detailKey=null;}}
+
+// ═══ S3: ASSESSMENT ═══
+function initAssessment(){S.assessIdx=0;S.assessResults={};renderAssessQ();}
+
+function renderLED(idx,total,barId){
+  document.getElementById(barId).innerHTML=Array.from({length:total},(_,i)=>
+    `<div class="led-seg${i<=idx?' filled':''}"></div>`).join('');
+}
+
+function renderAssessQ(){
+  const tests=SOS_ASSESSMENTS;
+  if(S.assessIdx>=tests.length){goScreen(4);return;}
+  const t=tests[S.assessIdx];
+  renderLED(S.assessIdx-1,tests.length,'ledBar');
+  document.getElementById('assessArea').innerHTML=`
+    <div class="assess-card">
+      <div class="assess-q"><span class="qi">${t.icon}</span>${t.question}</div>
+      ${t.options.map(o=>`
+        <button class="assess-opt" onclick="answerAssess('${t.id}','${o.value}',${o.score},this)">
+          <span class="odot" style="background:${o.color}"></span>${o.label}
+        </button>`).join('')}
+    </div>
+    <div style="text-align:center;font-family:var(--mono);font-size:.65rem;color:var(--outline);padding:.5rem">
+      QUESTION ${S.assessIdx+1} OF ${tests.length}
+    </div>`;
+}
+
+function answerAssess(id,value,score,el){
+  S.assessResults[id]={value,score};
+  el.classList.add('chosen');el.style.borderColor=el.querySelector('.odot').style.background;
+  if(navigator.vibrate) navigator.vibrate(30);
+  setTimeout(()=>{S.assessIdx++;renderAssessQ();},380);
+}
+function skipAssessment(){S.assessResults={};goScreen(4);}
+
+// ═══ S4: TRIAGE ═══
+const KEY_MAP={unconscious_not_breathing:'unconscious',unconscious_breathing:'unconscious',apnea:'not_breathing',dyspnea:'breathing_diff',arterial_bleed:'heavy_bleeding',heavy_bleed:'heavy_bleeding',moderate_bleed:'bleeding',minor_bleed:'bleeding',spinal_injury:'spine_injury',cardiac_arrest:'chest_pain',open_fracture:'broken_arm',closed_fracture:'broken_arm',crush_injury:'crush_injury',burn_major:'severe_burns',burn_minor:'burns',burn_chemical:'burns',burn_electrical:'severe_burns',neck_pain:'spine_injury',csf_leak:'head_injury',impaled_object:'heavy_bleeding',abdominal_pain:'shock',dislocation:'broken_arm',open_chest_wound:'breathing_diff',stridor:'breathing_diff',internal_bleed:'heavy_bleeding',altered_consciousness:'head_injury',unresponsive:'unconscious',diabetic_emergency:'shock'};
+
+function renderTriage(){
+  const mapped=[...new Set(S.selected.map(k=>KEY_MAP[k]||k))];
+  const ctx={painLevel:S.painLevel,accidentType:S.accidentType,flags:S.activeFlags,passengerCount:S.passengerCount,damageLevel:S.damageLevel};
+  S.triageResult=SOSTriageEngine.calculatePriority(mapped,S.assessResults,ctx);
+  const r=S.triageResult;
+  // Cache for offline
+  try{localStorage.setItem('apara_sos_last_triage',JSON.stringify({priority:r.priority,label:r.label,score:r.score,severityScore:r.severityScore,timestamp:Date.now()}));}catch(e){}
+  const hero=document.getElementById('triageHero');
+  hero.style.border=`2px solid ${r.color}`;
+  hero.style.background=`linear-gradient(135deg,${r.color}14,${r.color}08)`;
+  document.getElementById('triCode').textContent='P'+r.priority;
+  document.getElementById('triCode').style.color=r.color;
+  document.getElementById('triCode').style.textShadow=`0 0 40px ${r.color}60`;
+  document.getElementById('triLbl').textContent=r.label;
+  document.getElementById('triLbl').style.color=r.color;
+  document.getElementById('triPills').innerHTML=S.selected.slice(0,6).map(k=>`<span class="pill" style="cursor:default">${k.replace(/_/g,' ')}</span>`).join('');
+  const descs={1:'LIFE-THREATENING — IMMEDIATE ACTION',2:'SERIOUS — ACT WITHIN 2 MIN',3:'STABLE — MONITOR CLOSELY',4:'MINOR — FIRST AID ADEQUATE'};
+  document.getElementById('triDesc').textContent=descs[r.priority]||'';
+  // Severity score meter
+  const ss=r.severityScore||0;
+  document.getElementById('sevScoreVal').textContent=ss;
+  document.getElementById('sevScoreVal').style.color=r.color;
+  document.getElementById('sevBarFill').style.width=ss+'%';
+  document.getElementById('sevBarFill').style.background=r.color;
+  // Transport recommendation
+  if(r.transportRecommendation){
+    const tb=document.getElementById('transportBadge');
+    tb.style.display='';
+    tb.style.borderColor=r.transportRecommendation.color;
+    tb.style.background=`${r.transportRecommendation.color}12`;
+    document.getElementById('tbIcon').textContent=r.transportRecommendation.icon;
+    document.getElementById('tbType').textContent=r.transportRecommendation.label;
+    document.getElementById('tbType').style.color=r.transportRecommendation.color;
+    document.getElementById('tbDesc').textContent=r.transportRecommendation.description;
+  }
+  // Risk escalation
+  if(r.riskEscalation&&r.riskEscalation.length>0){
+    const re=document.getElementById('riskEscalation');
+    re.style.display='';
+    re.innerHTML=r.riskEscalation.map(r=>`<div style="margin-bottom:.3rem">${r}</div>`).join('');
+  }
+  document.getElementById('treatOrder').innerHTML=r.treatments.map((t,i)=>`
+    <div class="treat-row" style="${i===0?'border-color:'+r.color:''}">
+      <div class="treat-num" style="color:${i===0?r.color:'var(--outline)'}">${i+1}</div>
+      <div class="treat-info">
+        <div class="ti-title">${t.title}</div>
+        <div class="ti-sub">${t.steps.length} STEPS</div>
+      </div>
+    </div>`).join('');
+  S.allSteps=SOSTriageEngine.getAllSteps(r);S.stepIdx=0;
+}
+
+// ═══ S5: GUIDANCE ═══
+function startGuidance(){goScreen(5);renderStep();}
+
+function renderStep(){
+  if(S.stepIdx<0) S.stepIdx=0;
+  if(S.stepIdx>=S.allSteps.length){goScreen(6);return;}
+  const item=S.allSteps[S.stepIdx];
+  const total=S.allSteps.length;
+  renderLED(S.stepIdx,total,'guideLed');
+  document.getElementById('stepCtr').textContent=`${S.stepIdx+1}/${total}`;
+  let html='';
+  if(item.type==='header'){
+    html=`<div class="step-card hdr-card"><div style="font-size:2rem;margin-bottom:.5rem">🚑</div><h2>${item.title}</h2></div>`;
+    document.getElementById('guideHdr').textContent='📋 '+item.title.toUpperCase();
+  } else if(item.type==='step'){
+    const s=item.step;
+    html=`<div class="step-card">
+      <div class="step-num-lbl">${item.treatmentTitle.toUpperCase()} — STEP ${item.index}/${item.total}</div>
+      <div class="step-icon-big">${s.icon||'📌'}</div>
+      <div class="step-text">${s.text}</div>
+      <div class="step-detail">${s.detail||''}</div>
+      ${s.warning?`<div class="step-warn">⚠️ ${s.warning}</div>`:''}
+      ${s.timer?`<div class="timer-box">
+        <span class="timer-val" id="tval">${s.timer}s</span>
+        <div><button class="timer-btn" onclick="startTimer(${s.timer})">▶ START TIMER</button></div>
+      </div>`:''}
+    </div>`;
+    speakStep(s.text);
+  } else if(item.type==='donts'){
+    html=`<div class="donts-card">
+      <div class="donts-title">🚫 DO NOT — CRITICAL WARNINGS</div>
+      <div style="font-family:var(--mono);font-size:.62rem;color:var(--outline);margin-bottom:.6rem;letter-spacing:.06em">${item.treatmentTitle.toUpperCase()}</div>
+      ${item.donts.map(d=>`<div class="dont-item"><span class="dont-x">✕</span>${d}</div>`).join('')}
+    </div>`;
+  }
+  document.getElementById('stepDisplay').innerHTML=html;
+  document.getElementById('prevBtn').disabled=S.stepIdx===0;
+  document.getElementById('nextBtn').textContent=S.stepIdx>=total-1?'✅ COMPLETE':'NEXT →';
+}
+function nextStep(){clearInterval(S.timerInterval);S.stepIdx++;renderStep();}
+function prevStep(){clearInterval(S.timerInterval);S.stepIdx--;renderStep();}
+
+function startTimer(sec){
+  clearInterval(S.timerInterval);
+  let r=sec;const el=document.getElementById('tval');
+  if(!el)return;
+  S.timerInterval=setInterval(()=>{
+    r--;if(el)el.textContent=r+'s';
+    if(r<=0){clearInterval(S.timerInterval);if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);if(el)el.textContent='✅ DONE';speakStep('Timer complete. Move to next step.');}
+  },1000);
+}
+
+function speakStep(text){
+  if(!S.ttsEnabled||!('speechSynthesis' in window))return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  const langMap={en:'en-IN',hi:'hi-IN',ta:'ta-IN'};
+  u.lang=langMap[S.ttsLang]||'en-IN';u.rate=0.88;u.pitch=1;
+  speechSynthesis.speak(u);
+}
+function toggleTTS(){
+  S.ttsEnabled=!S.ttsEnabled;
+  const btn=document.getElementById('ttsBtn');
+  btn.textContent=S.ttsEnabled?'🔊 READ ALOUD':'🔇 MUTED';
+  btn.classList.toggle('speaking',S.ttsEnabled);
+  if(!S.ttsEnabled&&'speechSynthesis' in window) speechSynthesis.cancel();
+}
+function setLang(lang,el){
+  S.ttsLang=lang;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ═══ SCREEN 2.5: CONTEXT & DETAILS ═══
+function initScreen25(){
+  // Pain markers
+  document.getElementById('painMarkers').innerHTML=PAIN_LEVELS.map(p=>
+    `<div class="pain-marker${S.painLevel===p.level?' active':''}" onclick="setPain(${p.level})" style="${S.painLevel===p.level?'border-bottom:2px solid '+p.color:''}">
+      <span class="pain-emoji">${p.emoji}</span>
+      <span class="pain-label" style="${S.painLevel===p.level?'color:'+p.color:''}">${p.label}</span>
+    </div>`).join('');
+  // Accident grid
+  document.getElementById('accidentGrid').innerHTML=ACCIDENT_TYPES.map(a=>
+    `<div class="accident-btn${S.accidentType===a.id?' selected':''}" onclick="setAccident('${a.id}',this)">
+      <span class="ab-icon">${a.icon}</span>
+      <span class="ab-label">${a.label}</span>
+    </div>`).join('');
+  // Context flags
+  document.getElementById('ctxFlags').innerHTML=CTX_FLAGS.map(f=>
+    `<span class="ctx-chip${S.activeFlags.includes(f.id)?' active':''}" onclick="toggleFlag('${f.id}',this)">${f.icon} ${f.label}</span>`
+  ).join('');
+  // Damage selector
+  document.getElementById('damageSelector').innerHTML=DAMAGE_LEVELS.map(d=>
+    `<div class="damage-level${S.damageLevel===d.level?' selected':''}" onclick="setDamage(${d.level},this)" style="${S.damageLevel===d.level?'border-color:'+d.color+';background:'+d.color+'18':''}">
+      <span class="dl-icon">${d.icon}</span>
+      <span class="dl-label">${d.label}</span>
+    </div>`).join('');
+  // Passenger stepper
+  document.getElementById('paxVal').textContent=S.passengerCount>=6?'6+':S.passengerCount;
+  document.getElementById('paxMinus').disabled=S.passengerCount<=1;
+}
+function setPain(level){
+  S.painLevel=level;if(navigator.vibrate)navigator.vibrate(20);initScreen25();
+}
+function setAccident(id,el){
+  S.accidentType=S.accidentType===id?null:id;if(navigator.vibrate)navigator.vibrate(20);initScreen25();
+}
+function toggleFlag(id,el){
+  const i=S.activeFlags.indexOf(id);
+  if(i>=0)S.activeFlags.splice(i,1);else S.activeFlags.push(id);
+  if(navigator.vibrate)navigator.vibrate(20);
+  el.classList.toggle('active');
+}
+function adjustPassengers(delta){
+  S.passengerCount=Math.max(1,Math.min(7,S.passengerCount+delta));
+  document.getElementById('paxVal').textContent=S.passengerCount>=6?'6+':S.passengerCount;
+  document.getElementById('paxMinus').disabled=S.passengerCount<=1;
+  if(navigator.vibrate)navigator.vibrate(15);
+}
+function setDamage(level,el){
+  S.damageLevel=S.damageLevel===level?null:level;if(navigator.vibrate)navigator.vibrate(20);initScreen25();
+}
+
+// ═══ S6: ACTIVE STATUS + COMMUNICATION ═══
+function startActiveStatus(){
+  try{
+    const pos=JSON.parse(localStorage.getItem('apara_last_pos'));
+    if(pos){
+      document.getElementById('locShareVal').textContent=`${pos.lat.toFixed(4)}°N, ${pos.lng.toFixed(4)}°E`;
+      try{document.getElementById('eCode').textContent=typeof BlockCodeEncoder!=='undefined'?BlockCodeEncoder.encode(pos.lat,pos.lng,'ACC'):'SOS-'+Date.now().toString(36).toUpperCase().slice(-8);}
+      catch(e){document.getElementById('eCode').textContent='SOS-'+Date.now().toString(36).toUpperCase().slice(-8);}
+    }
+  }catch(e){document.getElementById('eCode').textContent='SOS-'+Date.now().toString(36).toUpperCase().slice(-8);}
+  clearInterval(S.activeTimer);
+  S.activeTimer=setInterval(()=>{
+    if(!S.sosStart)return;
+    const el=Math.floor((Date.now()-S.sosStart)/1000);
+    const m=String(Math.floor(el/60)).padStart(2,'0'),s=String(el%60).padStart(2,'0');
+    document.getElementById('elapsedTime').textContent=`${m}:${s} ELAPSED`;
+  },1000);
+  if(S.triageResult){
+    document.getElementById('quickReview').innerHTML=S.triageResult.treatments.map(t=>`
+      <div class="stat-row" style="cursor:pointer;margin-bottom:.4rem" onclick="goScreen(5)">
+        <div class="stat-dot" style="background:var(--orange)"></div>
+        <div class="stat-info"><div class="si-lbl">${t.title}</div><div class="si-val">${t.steps.length} STEPS — TAP TO RE-READ</div></div>
+      </div>`).join('');
+  }
+  // Update queue indicator
+  if(typeof SOSMessageQueue!=='undefined'){
+    const pc=SOSMessageQueue.getPendingCount();
+    const qc=document.getElementById('queueChip');
+    if(pc>0){qc.style.display='';document.getElementById('queueCount').textContent=pc;}
+  }
+  // Build SMS link
+  buildSMSLink();
+}
+
+function buildSMSLink(){
+  try{
+    const pos=JSON.parse(localStorage.getItem('apara_last_pos'));
+    if(pos&&typeof BlockCodeEncoder!=='undefined'){
+      const pri=S.triageResult?'P'+S.triageResult.priority:'SOS';
+      const conds=S.selected.slice(0,5).map(k=>k.replace(/_/g,' ')).join(', ');
+      const msg=BlockCodeEncoder.buildSMSMessage(pos.lat,pos.lng,'ACC',pri,conds);
+      const uri=BlockCodeEncoder.buildSMSUri('112',msg);
+      document.getElementById('smsChip').href=uri;
+    }
+  }catch(e){}
+}
+
+function sendSMSSOS(e){
+  // Also queue for offline sync
+  if(typeof SOSMessageQueue!=='undefined'){
+    SOSMessageQueue.enqueue({type:'sms_prefill',payload:{conditions:S.selected,priority:S.triageResult?.priority,timestamp:Date.now()}});
+  }
+}
+function triggerV2V(){
+  if(typeof Store!=='undefined'){
+    try{
+      const pos=JSON.parse(localStorage.getItem('apara_last_pos'));
+      const code=document.getElementById('eCode').textContent;
+      Store.saveV2VRelay({id:'V2V-'+Date.now(),blockCode:code,lat:pos?.lat,lng:pos?.lng,priority:S.triageResult?'P'+S.triageResult.priority:'SOS',timestamp:new Date().toISOString(),type:'emergency'});
+      alert('📡 V2V relay broadcast sent');
+    }catch(e){alert('V2V relay queued');}
+  }else{alert('📡 V2V relay queued for transmission');}
+}
+function triggerFirebasePush(){
+  if(typeof SOSMessageQueue!=='undefined'){
+    SOSMessageQueue.enqueue({type:'sos_alert',payload:{conditions:S.selected,priority:S.triageResult?.priority,blockCode:document.getElementById('eCode').textContent,timestamp:Date.now()}});
+    const pc=SOSMessageQueue.getPendingCount();
+    const qc=document.getElementById('queueChip');
+    qc.style.display='';document.getElementById('queueCount').textContent=pc;
+    alert(navigator.onLine?'🔥 Push notification sent to providers':'📦 Queued — will send when online');
+  }else{alert('🔥 Push notification queued');}
+}
+
+function endSOS(){
+  if(confirm('End this emergency session?')){
+    clearInterval(S.activeTimer);clearInterval(S.timerInterval);
+    if('speechSynthesis' in window)speechSynthesis.cancel();
+    goBack();
+  }
+}
+</script>
+</body>
+</html>
