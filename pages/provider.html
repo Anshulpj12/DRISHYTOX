@@ -679,6 +679,7 @@ function showLookupMap(lat, lng, type, label, confidence) {
 }
 
 function lookupSOSCode() {
+  try {
   let rawInput = document.getElementById('lookupCodeInput').value.trim();
   if (!rawInput) { showToast('Enter or paste an SOS code'); return; }
 
@@ -780,24 +781,24 @@ function lookupSOSCode() {
 
     // Try to decode blockCode — supports both dash-format AND 8-char encoded format
     if (blockCode && typeof BlockCodeEncoder !== 'undefined') {
-      if (BlockCodeEncoder.isValid(blockCode)) {
-        // Dash-format (RR-NNN-TTT or RR-NNN-TTT-RRRR)
-        const decoded = BlockCodeEncoder.decodeWithReason ? BlockCodeEncoder.decodeWithReason(blockCode) : BlockCodeEncoder.decode(blockCode);
-        if (decoded) {
-          if (!lat || !lng) { lat = decoded.lat; lng = decoded.lng; }
-          if (!typeCode) typeCode = decoded.type;
-        }
-      } else {
-        // Try 8-char encoded format (e.g., CE512ACC)
-        const clean8 = blockCode.replace(/[^0-9A-Z]/gi, '').toUpperCase();
-        if (clean8.length >= 7 && clean8.length <= 9) {
-          const decoded = BlockCodeEncoder.decode(clean8);
-          if (decoded && decoded.valid) {
+      try {
+        if (BlockCodeEncoder.isValid && BlockCodeEncoder.isValid(blockCode)) {
+          const decoded = (BlockCodeEncoder.decodeWithReason ? BlockCodeEncoder.decodeWithReason(blockCode) : BlockCodeEncoder.decode(blockCode));
+          if (decoded) {
             if (!lat || !lng) { lat = decoded.lat; lng = decoded.lng; }
-            if (!typeCode) typeCode = decoded.sosTypeCode || decoded.type;
+            if (!typeCode) typeCode = decoded.type;
+          }
+        } else {
+          const clean8 = blockCode.replace(/[^0-9A-Z]/gi, '').toUpperCase();
+          if (clean8.length >= 7 && clean8.length <= 9) {
+            const decoded = BlockCodeEncoder.decode(clean8);
+            if (decoded && decoded.valid) {
+              if (!lat || !lng) { lat = decoded.lat; lng = decoded.lng; }
+              if (!typeCode) typeCode = decoded.sosTypeCode || decoded.type;
+            }
           }
         }
-      }
+      } catch(bcErr) { console.warn('[Lookup] BlockCode decode error:', bcErr); }
     }
 
     // Try to extract coordinates from Google Maps link in full SMS body
@@ -805,11 +806,13 @@ function lookupSOSCode() {
     if (mapsMatch && !lat) { lat = parseFloat(mapsMatch[1]); lng = parseFloat(mapsMatch[2]); }
 
     // Match SOS event from Store
-    const events = Store.getSOSEvents();
+    try {
+    const events = (typeof Store !== 'undefined' && Store.getSOSEvents) ? Store.getSOSEvents() : [];
     matchingEvent = events.find(e => e.blockCode === blockCode && e.packet?.includes(typeCode || ''));
     if (!matchingEvent && lat && lng) {
-      matchingEvent = events.find(e => e.lat && e.lng && Utils.haversine(e.lat, e.lng, lat, lng) < 2000);
+      matchingEvent = events.find(e => e.lat && e.lng && typeof Utils !== 'undefined' && Utils.haversine(e.lat, e.lng, lat, lng) < 2000);
     }
+    } catch(storeErr) { console.warn('[Lookup] Store match error:', storeErr); }
     if (matchingEvent) {
       if (!lat || !lng) { lat = matchingEvent.lat; lng = matchingEvent.lng; }
       if (!pin) pin = matchingEvent.resolutionPin;
@@ -937,6 +940,12 @@ function lookupSOSCode() {
   }
 
   showToast(`❌ Unrecognized code format (${input.length} chars). Paste the full SOS code from SMS.`);
+  } catch(globalErr) {
+    console.error('[Lookup] FATAL ERROR:', globalErr);
+    showToast('⚠️ Error: ' + globalErr.message);
+    const resultEl = document.getElementById('lookupResult');
+    if (resultEl) resultEl.innerHTML = `<div class="card" style="padding:1rem;color:#F87171;text-align:center;"><b>⚠️ Decode Error</b><br><span class="text-xs">${globalErr.message}</span></div>`;
+  }
 }
 
 // ═══ PHASE 4: BLOCK CODE DECODER + DISPATCH ENGINE (Enhanced with Reason Codes) ═══

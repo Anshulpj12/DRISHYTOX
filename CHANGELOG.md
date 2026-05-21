@@ -25,11 +25,12 @@ All notable changes to this project will be documented in this file.
 | Provider on Lookup Map | Not shown | Blue dot shows provider's location alongside driver marker |
 | Map Bounds | Fixed zoom level | Auto-fits to show both driver and provider positions |
 | Debug Logging | No parsing debug output | Console logs raw input and parsed data for debugging |
+| Error Handling | No try-catch — `BlockCodeEncoder.decode()` and `Store.getSOSEvents()` crashed silently killing entire function | Full try-catch wrapping with visible error UI, safe `typeof` guards on all external deps |
 
-**Why:** When pasting an SOS code with coordinates and clicking "Decode Location", the map didn't render due to Leaflet initialization race conditions. The SMS parser also missed coordinates embedded with `Coords:` keyword. The dispatch map only showed the driver's location — providers had no visual reference of their own position relative to the emergency.
+**Why:** When pasting an SOS code with coordinates and clicking "Decode Location", the map didn't render because `BlockCodeEncoder` and `Store` calls crashed silently with no error handling, killing the entire `lookupSOSCode()` function before it could render the result card or map. Added comprehensive try-catch at 3 levels (global, BlockCodeEncoder, Store) plus `typeof` guards.
 
 **Files Changed:**
-- `pages/provider.html` — Added provider GPS tracking (`startProviderGPS()`), fixed `lookupSOSCode()` coordinate extraction (supports Loc/Coords/Location keywords, Code: prefix, multiple Maps URL formats), rewrote `showLookupMap()` with `requestAnimationFrame` and provider blue dot, enhanced `renderDispatch()` map with dual markers and live provider tracking
+- `pages/provider.html` — Added provider GPS tracking (`startProviderGPS()`), fixed `lookupSOSCode()` with 3-level try-catch error handling (global + BlockCodeEncoder + Store), safe `typeof` guards on external dependencies, coordinate extraction (Loc/Coords/Location keywords, Code: prefix, multiple Maps URL formats), rewrote `showLookupMap()` with `requestAnimationFrame` and provider blue dot, enhanced `renderDispatch()` map with dual markers and live provider tracking
 
 ### 📝 Apex Tactical HUD — Full Driver App Visual Redesign — 2026-05-19
 
