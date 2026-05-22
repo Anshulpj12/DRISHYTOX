@@ -9,6 +9,57 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 Documented Advanced Cockpit Subsystems & Secondary Engines — 2026-05-22
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Advanced Cockpit Docs | Secondary driver systems like Voice SOS, OBD-II Bluetooth, Screen Wake Lock, and GPS Retro-Generation were not documented in the context guides | Created a comprehensive new guide detailing Voice SOS accelerometer triggers, Indian speech optimizations, OBD-II GATT Bluetooth, Screen Wake Lock visible loops, and recovery vector projections |
+
+**Why:** Rigorous analysis showed that secondary driver cockpit engines were missing from the context folder, necessitating a dedicated architectural spec to ensure thorough feature coverage.
+
+**Files Changed:**
+- `context/advanced_cockpit_subsystems.md` — [NEW] Complete guide for Shock Voice SOS, OBD-II Bluetooth, Wake Locks, Retro-Gen, and Parked Mode.
+- `docs/APARA_FEATURE_ARCHITECTURE.md` — Added Section 7 detailing secondary low-level cockpit systems and auxiliary triggers.
+
+### 📝 Documented Driver Proximity Map & Active SOS Responders — 2026-05-22
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Proximity Mapping Docs | Map documentation did not cover driver-side active provider markers | Added complete documentation of Leaflet-based driver proximity map, covering color coding, proximity queries, Haversine filters, and direct-call anchors |
+
+**Why:** The user requested to document the driver-side Leaflet proximity map showing active shops and nearby emergency service providers in the context files.
+
+**Files Changed:**
+- `context/driver_telemetry_hud.md` — Added Section 7 detailing visual color coding, discovery queries, and invalidation guards for the driver's Leaflet HUD map.
+- `context/marketplace_and_shops.md` — Added Section 5 detailing integration, styling, and popup structures of active commercial shops and SOS responders.
+- `docs/APARA_FEATURE_ARCHITECTURE.md` — Added Section 5.5 specifying the architectural pipeline, geodesic filters, and UI safeguards for active driver SOS mapping.
+
+### 📝 Created Contextual Feature Architecture Guides — 2026-05-22
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Platform Feature Documentation | Missing detailed modular feature blueprints | Implemented comprehensive guides covering Driver HUD telemetry, Provider maps, Shop OTP flow, Admin console control, Landing Page presentation, and Offline Test Harness simulations |
+
+**Why:** The user requested separate, highly detailed feature guides in a dedicated `context/` folder. These files have been expanded to include precise triage mathematical formulas, transport recommendations, clinical risk predictors, landing page bento layouts, and background Firebase fallback polling sync models.
+
+**Files Changed:**
+- `context/driver_telemetry_hud.md` — [NEW] Detailed guide covering Driver mobile portal layouts, HUD telemetry indicators, HTML5 DeviceMotion shock thresholds, speech recognition triggers, and location watchdog integrations.
+- `context/provider_shop_dashboards.md` — [NEW] Detailed guide covering Provider Emergency Lookup, Leaflet dynamic maps, Shop catalog sync flow with FAB triggers, and security OTP verification.
+- `context/admin_control_center.md` — [NEW] Detailed guide covering Admin dashboard metrics, Chart.js templates, database backup JSON/CSV streams, and configuration version pushing.
+- `context/testing_and_diagnostics.md` — [NEW] Detailed guide covering the Offline Test Harness sandbox iframe structure, Geolocation and Permission mocking with Object.defineProperty, and auto-login velocity vectors.
+- `context/landing_page_portal.md` — [NEW] Detailed guide covering visual presentation layout, Tailwind configs, 12-column Bento Grid structure, counter setInterval animations, and scroll viewport triggers.
+- `context/road_sos_triage.md` — Extended to cover the exact severity score algebraic equation ($S$), priority transport recommendations matrix, and clinical risk hazard predictors.
+- `context/firebase_data_sync.md` — Extended to cover the technical push version sync via Realtime Database and the 30-minute Cloud Firestore fallback polling loop.
+
 ### 📝 Fixed Dispatch Map & SOS Code Decoding in Provider Dashboard — 2026-05-21
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)
@@ -31,6 +82,7 @@ All notable changes to this project will be documented in this file.
 
 **Files Changed:**
 - `pages/provider.html` — Added provider GPS tracking (`startProviderGPS()`), fixed `lookupSOSCode()` with 3-level try-catch error handling (global + BlockCodeEncoder + Store), safe `typeof` guards on external dependencies, coordinate extraction (Loc/Coords/Location keywords, Code: prefix, multiple Maps URL formats), rewrote `showLookupMap()` with `requestAnimationFrame` and provider blue dot, enhanced `renderDispatch()` map with dual markers and live provider tracking
+- `docs/APARA_FEATURE_ARCHITECTURE.md` — [NEW] Complete Feature Architecture & Workflow Blueprint detailing all 6 primary core system engines, grid partitioning math, warning modals, and cost-control synchronization strategies.
 
 ### 📝 Apex Tactical HUD — Full Driver App Visual Redesign — 2026-05-19
 
