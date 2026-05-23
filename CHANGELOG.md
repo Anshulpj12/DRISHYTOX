@@ -9,6 +9,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 Fixed Offline SOS Provider/Shop Visibility & Leaflet Crash Prevention — 2026-05-23
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Claude Opus 4.6 (Thinking)
+
+| Category | Before | After |
+|---|---|---|
+| Offline Boot Position | Defaulted to center of India (20.5937°N, 78.9629°E) — no cached zone data there, SOS list always empty | Restores driver's actual last known GPS coordinates from `localStorage` (`apara_last_known_pos`) |
+| Leaflet CDN Failure | `L is not defined` ReferenceError crashes all JavaScript execution, breaking SOS, marketplace, and settings | Graceful `typeof L` guards in `initMap()` and `initMktMap()` show "Map unavailable offline" placeholder |
+| Fallback GPS | `startFallbackGPS()` always overwrote position with center-of-India default | Now preserves restored position; only uses default if no position was ever saved |
+| Map Init Safety | `startGPSTracking()` called `initMap()` without error handling | Wrapped in `try-catch` so GPS tracking starts even if map fails |
+| Position Persistence | GPS position was only held in memory (`state.lastKnownPos`) | Every `onGPSUpdate()` now persists coordinates to `localStorage` for next boot |
+
+**Why:** When a driver loses internet connectivity on a highway (dead zone, tunnel, rural area), the cached 100km zone data containing providers and shops was inaccessible because: (1) the position defaulted to India's center where no zone data exists, and (2) Leaflet's CDN failure crashed all downstream JavaScript. This fix ensures SOS provider lists populate from cached data regardless of network state.
+
+**Files Changed:**
+- `pages/driver.html` — Added position restore on startup, position persistence in `onGPSUpdate`, Leaflet availability guards in `initMap`/`initMktMap`, try-catch in `startGPSTracking`, conditional fallback default
+- `context/offline_location_watchdog.md` — Added sections D (Startup Position Restoration) and E (Safe Leaflet Map Decoupling) to Section 4
+
 ### 📝 Added Mandatory Rule for Feature Context Documentation — 2026-05-23
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)
