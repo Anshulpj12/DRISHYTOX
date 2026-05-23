@@ -9,6 +9,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 Added Mandatory Rule for Feature Context Documentation — 2026-05-23
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity (Gemini 3.5 Flash)
+
+| Category | Before | After |
+|---|---|---|
+| AI Agent Rules | No codified requirement for context-file documentation of new features | Codified RULE 8: Feature Context Files, making it mandatory to create/update detailed markdown files inside `context/` for any new features or on-demand |
+| Project Structure | `context/` folder not officially listed in `AGENTS.md` | Listed `context/` folder as a critical folder in Project Structure Reference |
+
+**Why:** To ensure that all new features and major components are thoroughly documented by AI assistants, keeping modular architectural guides up-to-date and maintaining absolute clarity on workings and usage.
+
+**Files Changed:**
+- `AGENTS.md` — Added RULE 8 for Feature Context Files and updated Project Structure Reference.
+
 ### 📝 Documented Advanced Cockpit Subsystems & Secondary Engines — 2026-05-22
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)

@@ -123,6 +123,23 @@ This project uses the **Tactical Horizon** glassmorphic design system.
 
 ---
 
+## 📋 RULE 8: Feature Context Files
+
+**Whenever a new feature is added, or when explicitly requested by the user, you MUST write or update a comprehensive markdown file inside the `context/` folder detailing all of its workings and usage.**
+
+### What to write:
+Create or update a file named `context/<feature_name>.md` containing:
+1. **Feature Overview** — What the feature is, who uses it, and the problems it solves.
+2. **Architecture & Design** — Flow diagrams (using Mermaid), state machines, design patterns, and module dependencies.
+3. **Core API / JavaScript / Code Mechanics** — Important functions, classes, custom events, localStorage keys, and data structures.
+4. **Data Sync & Storage** — Details of offline storage, Firebase/Firestore read/write optimization, and how background/offline queues are handled.
+5. **UI & Styling** — UI layouts, key CSS variables used from `css/shared.css`, glassmorphic styling, and responsiveness details.
+6. **Usage & Integration Guide** — How other parts of the app interact with it, query parameters, console diagnostics, and how to verify it works.
+
+**Crucial Note:** Never build complex features without documenting them in the `context/` folder. This preserves institutional knowledge for future AI agents and developers.
+
+---
+
 ## 📁 Project Structure Reference
 
 ```
@@ -135,6 +152,7 @@ DRISHYTOX/
 ├── GEMINI.md               # Gemini AI pointer → reads AGENTS.md
 ├── .cursorrules            # Cursor AI pointer → reads AGENTS.md
 ├── css/shared.css          # Global design tokens
+├── context/                # ⚠️ Feature Context Files (details of how features work)
 ├── js/
 │   ├── firebase-config.js  # Firebase client config (committed, safe)
 │   ├── firebase.js         # Sync engine for driver app
