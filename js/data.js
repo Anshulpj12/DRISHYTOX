@@ -2033,20 +2033,13 @@ const ShopRegistry = {
   getNearbyShops(lat, lng, radiusM) {
     radiusM = radiusM || 5000; // default 5km
     return this.getShops()
-      .filter(s => s.status === 'Active' && (s.gps || (s.lat != null && s.lng != null)))
+      .filter(s => s.status === 'Active' && s.gps)
       .map(s => {
-        let sLat, sLng;
-        if (s.lat != null && s.lng != null) {
-          sLat = parseFloat(s.lat); sLng = parseFloat(s.lng);
-        } else if (s.gps) {
-          const parts = s.gps.split(',').map(x => parseFloat(x.trim()));
-          if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
-          sLat = parts[0]; sLng = parts[1];
-        } else return null;
-        if (isNaN(sLat) || isNaN(sLng)) return null;
-        const dist = Utils.haversine(lat, lng, sLat, sLng);
+        const parts = s.gps.split(',').map(x => parseFloat(x.trim()));
+        if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+        const dist = Utils.haversine(lat, lng, parts[0], parts[1]);
         if (dist > radiusM) return null;
-        return { ...s, distance: dist, lat: sLat, lng: sLng, shopLat: sLat, shopLng: sLng };
+        return { ...s, distance: dist, shopLat: parts[0], shopLng: parts[1] };
       })
       .filter(Boolean)
       .sort((a, b) => a.distance - b.distance);

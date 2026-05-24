@@ -9,32 +9,6 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### 📝 Unified SOS Flow, GPS Fix, Offline Marketplace & Shop Dispatch Navigation — 2026-05-24
-
-**Contributor:** Kunali Ajay Nagpurkar
-**AI Assistant:** Gemini Antigravity
-
-| Category | Before | After |
-|---|---|---|
-| SOS Buttons | Two separate buttons: `🚨 SOS EMERGENCY` (hold-to-confirm) + `🆘 ROAD SOS — Find Nearby Help` (separate screen) | Single `🚨 SOS EMERGENCY` button → type select → instant provider list with radius controls (10/25/50/100 km) |
-| SOS Hold-to-Confirm | Required 2-second hold before SOS was generated | SOS generated immediately after type selection — no hold step |
-| SOS Radius Control | Fixed 10km, single "Expand to 100km" button | Adjustable via ± buttons: 10 → 25 → 50 → 100 km |
-| GPS Chip in SOS | Not shown | Live GPS coordinates displayed in SOS screen |
-| First Aid Access | Dynamically injected banner via `openRoadSOS()` | Permanent First Aid link inside SOS screen |
-| Provider GPS Parsing | `Store.getProviders()` only checked `p.lat && p.lng` — missed providers with `p.gps` string | Parses both `p.lat/p.lng` and `p.gps` string formats (3 locations fixed) |
-| ShopRegistry.getNearbyShops | Only checked `s.gps` string, returned `shopLat/shopLng` keys | Handles both `s.gps` and `s.lat/s.lng`, returns proper `lat/lng` keys |
-| Marketplace Offline | Blank broken map (tiles can't load) | Shows "📡 OFFLINE MODE" banner, hides map, keeps shop/provider list from cached zone bundle |
-| Map Provider Markers | Providers with only `p.gps` string (no `p.lat/p.lng`) weren't shown | All providers shown regardless of GPS format |
-| Order SMS | No customer coordinates | Includes GPS coordinates + Google Maps link in SMS body |
-| Shop Dispatch Navigation | No navigation option | "🗺️ Navigate to Customer" button opens Google Maps directions in both Lookup and Order Detail views |
-
-**Why:** Multiple issues: drivers saw two SOS buttons creating confusion; providers registered via admin had `gps` as a comma-separated string but the code checked for separate `lat`/`lng` fields, causing them to vanish from map and SOS searches; offline users saw a broken map with no data; shop providers had no way to navigate to customer locations for delivery.
-
-**Files Changed:**
-- `js/data.js` — Fixed `ShopRegistry.getNearbyShops()` to handle both GPS formats and return `lat/lng` keys
-- `pages/driver.html` — Removed Road SOS button; added GPS chip, radius selector (10-100km), First Aid link to SOS step 4; rewrote `selectSOSCat()` to skip hold-to-confirm; rewrote `sendSOS()` with GPS-fix for local providers; added `adjustSOSRadius()` and `reSearchSOSProviders()`; added offline detection to `initMktMap()` with banner fallback; fixed `renderMktMapMarkers()` GPS parsing for Store providers; added GPS coordinates to order SMS body
-- `pages/shop_provider.html` — Added "Navigate to Customer" Google Maps button in both Lookup decode result and Order Detail views
-
 ### 📝 Fixed Offline SOS Provider/Shop Visibility & Leaflet Crash Prevention — 2026-05-23
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)
