@@ -35,6 +35,40 @@ All notable changes to this project will be documented in this file.
 - `pages/driver.html` — Removed Road SOS button; added GPS chip, radius selector (10-100km), First Aid link to SOS step 4; rewrote `selectSOSCat()` to skip hold-to-confirm; rewrote `sendSOS()` with GPS-fix for local providers; added `adjustSOSRadius()` and `reSearchSOSProviders()`; added offline detection to `initMktMap()` with banner fallback; fixed `renderMktMapMarkers()` GPS parsing for Store providers; added GPS coordinates to order SMS body
 - `pages/shop_provider.html` — Added "Navigate to Customer" Google Maps button in both Lookup decode result and Order Detail views
 
+### 📝 Fixed Offline SOS Provider/Shop Visibility & Leaflet Crash Prevention — 2026-05-23
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Claude Opus 4.6 (Thinking)
+
+| Category | Before | After |
+|---|---|---|
+| Offline Boot Position | Defaulted to center of India (20.5937°N, 78.9629°E) — no cached zone data there, SOS list always empty | Restores driver's actual last known GPS coordinates from `localStorage` (`apara_last_known_pos`) |
+| Leaflet CDN Failure | `L is not defined` ReferenceError crashes all JavaScript execution, breaking SOS, marketplace, and settings | Graceful `typeof L` guards in `initMap()` and `initMktMap()` show "Map unavailable offline" placeholder |
+| Fallback GPS | `startFallbackGPS()` always overwrote position with center-of-India default | Now preserves restored position; only uses default if no position was ever saved |
+| Map Init Safety | `startGPSTracking()` called `initMap()` without error handling | Wrapped in `try-catch` so GPS tracking starts even if map fails |
+| Position Persistence | GPS position was only held in memory (`state.lastKnownPos`) | Every `onGPSUpdate()` now persists coordinates to `localStorage` for next boot |
+
+**Why:** When a driver loses internet connectivity on a highway (dead zone, tunnel, rural area), the cached 100km zone data containing providers and shops was inaccessible because: (1) the position defaulted to India's center where no zone data exists, and (2) Leaflet's CDN failure crashed all downstream JavaScript. This fix ensures SOS provider lists populate from cached data regardless of network state.
+
+**Files Changed:**
+- `pages/driver.html` — Added position restore on startup, position persistence in `onGPSUpdate`, Leaflet availability guards in `initMap`/`initMktMap`, try-catch in `startGPSTracking`, conditional fallback default
+- `context/offline_location_watchdog.md` — Added sections D (Startup Position Restoration) and E (Safe Leaflet Map Decoupling) to Section 4
+
+### 📝 Added Mandatory Rule for Feature Context Documentation — 2026-05-23
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity (Gemini 3.5 Flash)
+
+| Category | Before | After |
+|---|---|---|
+| AI Agent Rules | No codified requirement for context-file documentation of new features | Codified RULE 8: Feature Context Files, making it mandatory to create/update detailed markdown files inside `context/` for any new features or on-demand |
+| Project Structure | `context/` folder not officially listed in `AGENTS.md` | Listed `context/` folder as a critical folder in Project Structure Reference |
+
+**Why:** To ensure that all new features and major components are thoroughly documented by AI assistants, keeping modular architectural guides up-to-date and maintaining absolute clarity on workings and usage.
+
+**Files Changed:**
+- `AGENTS.md` — Added RULE 8 for Feature Context Files and updated Project Structure Reference.
+
 ### 📝 Documented Advanced Cockpit Subsystems & Secondary Engines — 2026-05-22
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)

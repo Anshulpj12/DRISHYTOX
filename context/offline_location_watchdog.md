@@ -64,7 +64,7 @@ Once a trigger condition is met, the system does not immediately send an SOS. In
 ---
 
 ## 4. Why the System Works Completely Offline
-To support total offline resilience, three low-level architectures operate silently behind the scenes:
+To support total offline resilience, five low-level architectures operate silently behind the scenes:
 
 ### A. Data Buffer Batched Sync (`DataBuffer`)
 Instead of constantly executing synchronous writes to local storage for every GPS position update (which degrades mobile performance and wears flash memory), the app utilizes a sessionStorage buffer:
@@ -86,3 +86,17 @@ When the watchdog triggers an Auto-SOS while offline, it immediately:
 2.  Queues the structured alert packet in `SOSMessageQueue` (`apara_sos_msg_queue`).
 3.  **Connection Monitor**: `NetworkDetector` listens for browser connectivity events (`online`).
 4.  **Auto-Flush**: The instant the device gains internet access, the queue automatically wakes up and flushes all pending SOS payloads to Firebase Firestore in the background.
+
+### D. Startup Position Restoration (`apara_last_known_pos`)
+Every time `onGPSUpdate()` fires (real GPS or estimated), the driver's coordinates are persisted to `localStorage` under the key `apara_last_known_pos`. On the next page load — even if the device is completely offline and GPS is unavailable — the `state.lastKnownPos` is immediately populated from this stored value:
+*   **Instant SOS Lookup**: When the driver opens Road SOS, `searchRoadSOSProviders()` uses `state.lastKnownPos` to query `ZoneManager` cached zones, finding all providers/shops within the selected radius. Without this restoration, the position would default to the center of India (`20.5937°N, 78.9629°E`), which has no cached zone data and returns zero results.
+*   **Fallback GPS Preservation**: `startFallbackGPS()` now checks whether `state.lastKnownPos` already contains a restored position before overwriting it with the center-of-India default. This means the driver's actual last location is always preferred.
+*   **Dashboard Initialization**: The block code, confidence gauge, and coordinate display all initialize immediately from the restored position rather than showing empty/default values.
+
+### E. Safe Leaflet Map Decoupling
+The Leaflet mapping library (`L`) is loaded from a CDN. When offline, the CDN `<script>` tag fails silently, leaving `L` as `undefined`. To prevent `ReferenceError` crashes that would halt JavaScript execution and break all downstream features (SOS, marketplace, settings):
+*   **`initMap()`**: Checks `typeof L === 'undefined'` before any Leaflet calls. If Leaflet is missing, it renders a graceful "📡 Map unavailable offline" placeholder inside the map `<div>` and returns early.
+*   **`initMktMap()`**: Same guard. The block label and shop count display are updated *before* the Leaflet check, ensuring users still see zone metadata even without a map.
+*   **`startGPSTracking()`**: Wraps `initMap()` in a `try-catch` as an additional safety net, so even unexpected Leaflet errors cannot prevent GPS tracking from starting.
+*   **All list rendering functions** (`searchRoadSOSProviders`, `loadNearbyShops`, `renderMktMapMarkers`) operate on `ZoneManager` and `Store` data directly — they have zero Leaflet dependency and continue to work perfectly offline.
+

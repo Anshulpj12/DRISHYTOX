@@ -2056,6 +2056,20 @@
       isReconnecting: false,     // Smooth reconnection flag
     };
 
+    // ═══ RESTORE LAST KNOWN POSITION FROM LOCALSTORAGE ═══
+    // Critical for offline boot: ensures SOS/marketplace can find cached providers
+    try {
+      const savedPos = localStorage.getItem('apara_last_known_pos');
+      if (savedPos) {
+        const parsed = JSON.parse(savedPos);
+        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
+          state.lastKnownPos = parsed;
+          state.lastKnownPos.timestamp = Date.now(); // Refresh timestamp
+          console.log('[Offline Boot] Restored last known position:', parsed.lat.toFixed(5), parsed.lng.toFixed(5));
+        }
+      }
+    } catch (e) { console.warn('[Offline Boot] Failed to restore position:', e); }
+
     // ═══ DRIVER LOGIN ═══
     function driverLogin() {
       const mobile = document.getElementById('driverMobile').value.trim();
@@ -2300,8 +2314,10 @@
       if (gpsUI) gpsUI.classList.remove('hidden');
       if (gpsUI) gpsUI.style.display = '';
 
-      // Set default position (center of India)
-      state.lastKnownPos = { lat: 20.5937, lng: 78.9629, accuracy: 100, speed: 0, heading: 45, timestamp: Date.now() };
+      // Use restored position if available, otherwise fall back to center of India
+      if (!state.lastKnownPos) {
+        state.lastKnownPos = { lat: 20.5937, lng: 78.9629, accuracy: 100, speed: 0, heading: 45, timestamp: Date.now() };
+      }
 
       // Attempt IP-based location fallback if real GPS fails completely
       fetch('https://get.geojs.io/v1/ip/geo.json')
@@ -2371,7 +2387,7 @@
       state.gpsStarted = true;
       document.getElementById('locationBanner').classList.add('hidden');
       document.getElementById('gpsActive').classList.remove('hidden');
-      initMap();
+      try { initMap(); } catch (e) { console.warn('[Map] initMap failed (offline?):', e); }
 
       // Use the initial high-accuracy position immediately
       if (initialPosition && initialPosition.coords) {
@@ -2397,6 +2413,15 @@
     function onGPSUpdate(pos, isFreshReading) {
       if (!pos) return;
       state.lastKnownPos = pos;
+
+      // ═══ PERSIST POSITION for offline boot restoration ═══
+      try {
+        localStorage.setItem('apara_last_known_pos', JSON.stringify({
+          lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy || 0,
+          speed: pos.speed || 0, heading: pos.heading || 0, timestamp: Date.now()
+        }));
+      } catch (e) { /* localStorage full — non-fatal */ }
+
       const isOnline = NetworkDetector.isOnline();
 
       // ═══ UPDATE UI DISPLAY (always) ═══
@@ -2683,9 +2708,16 @@
 
     // ═══ MAP ═══
     function initMap() {
-      state.map = L.map('miniMap', { zoomControl: false, attributionControl: false }).setView([20.5937, 78.9629], 5);
+      if (typeof L === 'undefined') {
+        console.warn('[Map] Leaflet not loaded (offline?) — skipping map init');
+        const mapDiv = document.getElementById('miniMap');
+        if (mapDiv) mapDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);font-size:0.8em;">📡 Map unavailable offline</div>';
+        return;
+      }
+      const pos = state.lastKnownPos || { lat: 20.5937, lng: 78.9629 };
+      state.map = L.map('miniMap', { zoomControl: false, attributionControl: false }).setView([pos.lat, pos.lng], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(state.map);
-      state.marker = L.marker([20.5937, 78.9629]).addTo(state.map);
+      state.marker = L.marker([pos.lat, pos.lng]).addTo(state.map);
       state.marker.bindPopup('Your location').openPopup();
     }
 
@@ -4062,6 +4094,20 @@
       const offBanner = document.getElementById('mktOfflineBanner');
       if (offBanner) offBanner.remove();
 
+      // Update block label with zone info — always, even without Leaflet
+      const blockLabel = document.getElementById('mktBlockLabel');
+      const zoneStatus = ZoneManager.getStatus();
+      if (blockLabel) {
+        blockLabel.innerHTML = `📍 ${state.currentBlockId || '---'} · <span style="color:var(--accent-market);">10km radius</span> · ${zoneStatus.totalShops || 0} shops cached`;
+      }
+
+      // Guard: skip map rendering if Leaflet CDN failed to load (offline)
+      if (typeof L === 'undefined') {
+        console.warn('[MktMap] Leaflet not loaded (offline?) — skipping marketplace map');
+        mapDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:220px;color:var(--text-secondary);font-size:0.8em;border:1px dashed var(--border);border-radius:12px;">📡 Map unavailable offline · ' + (zoneStatus.totalShops || 0) + ' shops in cache</div>';
+        return;
+      }
+
       // Force explicit height on container before Leaflet init
       mapDiv.style.height = '220px';
       mapDiv.style.minHeight = '220px';
@@ -4085,13 +4131,6 @@
         mktState.map.setView([pos.lat, pos.lng], mktState.map.getZoom());
         if (mktState.userMarker) mktState.userMarker.setLatLng([pos.lat, pos.lng]);
         if (mktState.radiusCircle) mktState.radiusCircle.setLatLng([pos.lat, pos.lng]);
-      }
-
-      // Update block label with zone info
-      const blockLabel = document.getElementById('mktBlockLabel');
-      const zoneStatus = ZoneManager.getStatus();
-      if (blockLabel) {
-        blockLabel.innerHTML = `📍 ${state.currentBlockId || '---'} · <span style="color:var(--accent-market);">10km radius</span> · ${zoneStatus.totalShops || 0} shops cached`;
       }
 
       // Multiple invalidateSize calls — Leaflet needs the container fully visible
