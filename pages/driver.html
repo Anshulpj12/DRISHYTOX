@@ -1535,9 +1535,6 @@
         <!-- SOS BUTTON — in content flow, sticky to bottom -->
         <div class="sos-section">
           <button class="btn-sos" id="sosBtn" onclick="openSOS()">🚨 SOS EMERGENCY</button>
-          <button class="btn-sos" id="roadSosBtn" onclick="openRoadSOS()"
-            style="margin-top:.5rem;background:linear-gradient(135deg,#F97316,#EF4444);box-shadow:0 4px 24px rgba(249,115,22,.4);font-size:.85rem;animation:none;">🆘
-            ROAD SOS — Find Nearby Help</button>
         </div>
       </div>
 
@@ -1696,20 +1693,44 @@
                 <div class="text-xs text-muted" id="sosTypeLabel">Accident</div>
               </div>
             </div>
-            <!-- MULTI-PROVIDER LIST -->
-            <div class="text-xs text-muted"
-              style="text-transform:uppercase;margin-bottom:0.5rem;letter-spacing:0.08em;">📍 Nearby Providers (10 km) —
-              Tap to SMS</div>
-            <div id="sosProviderList" style="max-height:240px;overflow-y:auto;"></div>
+            <!-- GPS Location Chip -->
+            <div style="background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.12);border-radius:10px;padding:0.45rem 0.65rem;margin-bottom:0.6rem;display:flex;align-items:center;gap:0.4rem;">
+              <span style="width:8px;height:8px;border-radius:50%;background:#22C55E;box-shadow:0 0 8px #22C55E;display:inline-block;"></span>
+              <span style="font-family:var(--font-mono);font-size:0.65rem;color:var(--cyan);letter-spacing:0.03em;" id="sosGpsCoords">ACQUIRING GPS...</span>
+            </div>
+            <!-- Radius Selector -->
+            <div style="margin-bottom:0.6rem;">
+              <div style="font-family:var(--font-mono);font-size:0.5rem;color:var(--text-muted);letter-spacing:0.1em;margin-bottom:0.25rem;">SEARCH RADIUS</div>
+              <div style="display:flex;align-items:center;gap:0.4rem;">
+                <button onclick="adjustSOSRadius(-1)" style="width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+                <div style="flex:1;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2);border-radius:8px;padding:0.35rem;text-align:center;">
+                  <span style="font-family:var(--font-mono);font-size:1.2rem;font-weight:800;color:var(--accent-alert);" id="sosRadiusVal">10</span>
+                  <span style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text-muted);margin-left:0.15rem;">KM</span>
+                </div>
+                <button onclick="adjustSOSRadius(1)" style="width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+              </div>
+            </div>
+            <!-- PROVIDER LIST -->
+            <div class="text-xs text-muted" id="sosProviderLabel"
+              style="text-transform:uppercase;margin-bottom:0.5rem;letter-spacing:0.08em;">📍 NEARBY PROVIDERS (10 KM) — TAP SMS TO SEND SOS</div>
+            <div id="sosProviderList" style="max-height:300px;overflow-y:auto;"></div>
             <div id="sosNoProviders" class="hidden"
               style="text-align:center;padding:1rem;background:rgba(239,68,68,0.06);border-radius:var(--radius-sm);border:1px solid rgba(239,68,68,0.15);margin-bottom:0.5rem;">
-              <div class="text-sm" style="color:#F87171;">No providers found in 10km</div>
+              <div class="text-sm" style="color:#F87171;">No providers found in <span id="sosNoRadius">10</span> km</div>
               <a id="sos112Link" href="sms:112?body=SOS" class="btn btn-danger btn-full mt-1"
                 style="text-decoration:none;display:block;text-align:center;">📱 SMS Emergency 112</a>
             </div>
             <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
               <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="copySOSCode()">📋 Copy Code</button>
               <button class="btn btn-danger btn-sm" style="flex:1;" onclick="cancelActiveSOS()">❌ Cancel SOS</button>
+            </div>
+            <!-- First Aid Link -->
+            <div style="margin-top:0.6rem;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.15);border-radius:10px;padding:0.6rem;display:flex;align-items:center;justify-content:space-between;gap:0.4rem;">
+              <div>
+                <div style="font-size:0.72rem;font-weight:700;color:#fca5a5;">🩺 Need First Aid?</div>
+                <div style="font-family:var(--font-mono);font-size:0.55rem;color:var(--text-muted);margin-top:2px;">Step-by-step emergency triage</div>
+              </div>
+              <button onclick="openFirstAidGuide()" style="background:linear-gradient(135deg,#b91c1c,#dc2626);color:#fff;border:none;border-radius:8px;padding:0.4rem 0.6rem;font-size:0.65rem;font-weight:700;cursor:pointer;white-space:nowrap;">Open →</button>
             </div>
             <button class="btn btn-secondary btn-full mt-1 btn-sm" onclick="closeSOS()">Back to Home</button>
           </div>
@@ -3012,21 +3033,21 @@
 
       setTimeout(() => {
         document.getElementById('sosStep1').classList.add('hidden');
-        document.getElementById('sosStep2').classList.remove('hidden');
 
+        // Build SOS data immediately — no hold-to-confirm
         const pos = state.lastKnownPos || GPSTracker.getEstimatedPosition();
         const block = state.currentBlock || BlockResolver.resolve(pos.lat, pos.lng);
         const blockCode = state.currentBlockId || block.blockCode;
         const sosData = SOSPacket.build(blockCode, code, block.confidence, pos.lat, pos.lng);
-
-        document.getElementById('sosPacket').textContent = sosData.packet;
-        document.getElementById('packetSize').textContent = sosData.packet.length;
-        document.getElementById('sosLocation').textContent = `${pos.lat.toFixed(5)}°, ${pos.lng.toFixed(5)}°`;
-
-        const txBadge = document.getElementById('txMethod');
-        txBadge.textContent = sosData.transmission.code;
-        txBadge.className = 'badge ' + sosData.transmission.badge;
         state.pendingSOS = sosData;
+
+        // Reset radius for new SOS
+        sosSearchRadius = 10;
+        const radEl = document.getElementById('sosRadiusVal');
+        if (radEl) radEl.textContent = sosSearchRadius;
+
+        // Go directly to SOS generation + provider list
+        sendSOS();
       }, 300);
     }
 
@@ -3043,6 +3064,10 @@
       document.getElementById('holdFill').style.transition = 'none';
       setTimeout(() => { document.getElementById('holdFill').style.transition = 'width 2s linear'; }, 50);
     }
+
+    // ═══ SOS Search Radius State ═══
+    let sosSearchRadius = 10; // km
+    const SOS_RADII = [10, 25, 50, 100];
 
     function sendSOS() {
       if (!state.pendingSOS) return;
@@ -3061,7 +3086,7 @@
       state.activeSOS = state.pendingSOS;
       localStorage.setItem('apara_active_sos', JSON.stringify(state.pendingSOS));
 
-      // ═══ SHOW STEP 4 ═══
+      // ═══ SHOW STEP 4 (unified provider list) ═══
       document.getElementById('sosStep2').classList.add('hidden');
       document.getElementById('sosStep3').classList.add('hidden');
       document.getElementById('sosStep4').classList.remove('hidden');
@@ -3072,93 +3097,70 @@
       document.getElementById('sosTypeIcon').textContent = sosTypeInfo.icon;
       document.getElementById('sosTypeLabel').textContent = sosTypeInfo.label;
 
+      // Update GPS chip
+      const gpsEl = document.getElementById('sosGpsCoords');
+      if (gpsEl && pos) gpsEl.textContent = `${pos.lat.toFixed(5)}°N  ${pos.lng.toFixed(5)}°E`;
+
+      // Update radius display
+      const radEl = document.getElementById('sosRadiusVal');
+      if (radEl) radEl.textContent = sosSearchRadius;
+
       // ═══ BUILD RICH SMS BODY ═══
       const gpsSpeed = (typeof GPSTracker !== 'undefined' && GPSTracker.getEstimatedPosition)
         ? GPSTracker.getEstimatedPosition()?.speed || 0 : 0;
       const speedInfo = SpeedEstimator.estimateSpeed(pos.lat, pos.lng, gpsSpeed, state.driverId);
-
-      // Build unified packet string with coordinates for SMS
       const sosPacket = state.pendingSOS.packet || `${blockCode8}|${sosTypeCode}|${new Date().toLocaleTimeString('en-IN', { hour12: false })}|${pos.lat.toFixed(4)},${pos.lng.toFixed(4)}|conf:${conf}`;
 
       function buildSOSMessage(providerName) {
         return `APARA SOS\n${sosPacket}\n${sosTypeInfo.icon} ${sosTypeInfo.label}\nLoc: ${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}\nSpeed: ${Math.round(speedInfo.speed)}km/h\nPIN: ${state.pendingSOS.resolutionPin}\nMaps: https://maps.google.com/?q=${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`;
       }
 
-      // ═══ FIND TOP 5 PROVIDERS WITHIN 10KM ═══
-      const SOS_SEARCH_RADIUS = 10000; // 10km
-      const SOS_EXTENDED_RADIUS = 100000; // 100km fallback
+      // ═══ FIND PROVIDERS WITHIN CURRENT RADIUS ═══
+      const radiusM = sosSearchRadius * 1000;
       const sosProviderMap = { 'ACC': ['HOSP', 'TOW', 'MECH'], 'MED': ['HOSP', 'PHAR'], 'TYR': ['PUNC', 'MECH'], 'FUL': ['FUEL'], 'TOW': ['TOW', 'MECH'] };
       const relevantCats = sosProviderMap[sosTypeCode] || [];
 
-      // Search all cached zones for providers within 10km
       let allNearby = [];
+      // Search all cached zones
       ZoneManager.getCachedZoneIds().forEach(zId => {
         const zone = ZoneManager.getZoneData(zId);
-        if (!zone || !zone.providers) return;
-        zone.providers.forEach(p => {
-          if (p.status !== 'Active') return;
-          const dist = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
-          if (dist <= SOS_SEARCH_RADIUS) {
-            // Priority: matching category first, then any provider
-            const catMatch = relevantCats.includes(p.cat);
-            allNearby.push({ ...p, distance: dist, catMatch });
-          }
-        });
+        if (!zone) return;
+        if (zone.providers) {
+          zone.providers.forEach(p => {
+            if (p.status !== 'Active') return;
+            const dist = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
+            if (dist <= radiusM) {
+              allNearby.push({ ...p, distance: dist, catMatch: relevantCats.includes(p.cat) });
+            }
+          });
+        }
+        if (zone.shops) {
+          zone.shops.forEach(s => {
+            if (!s.phone) return;
+            const shopCatMap = { 'FUEL': 'FUEL', 'MECH': 'MECH', 'PHAR': 'PHAR', 'HOSP': 'HOSP' };
+            if (!shopCatMap[s.catCode]) return;
+            const dist = Utils.haversine(pos.lat, pos.lng, s.lat, s.lng);
+            if (dist <= radiusM) {
+              const catMatch = relevantCats.includes(s.catCode);
+              allNearby.push({ name: s.name, phone: s.phone, cat: s.catCode, catIcon: (typeof SHOP_CATEGORIES !== 'undefined' ? SHOP_CATEGORIES.find(c => c.code === s.catCode)?.icon : '') || '🏪', catLabel: (typeof SHOP_CATEGORIES !== 'undefined' ? SHOP_CATEGORIES.find(c => c.code === s.catCode)?.label : '') || 'Shop', lat: s.lat, lng: s.lng, distance: dist, catMatch, isShop: true });
+            }
+          });
+        }
       });
 
-      // Also search shops that might be relevant (fuel, mechanic, pharmacy)
-      ZoneManager.getCachedZoneIds().forEach(zId => {
-        const zone = ZoneManager.getZoneData(zId);
-        if (!zone || !zone.shops) return;
-        zone.shops.forEach(s => {
-          const shopCatMap = { 'FUEL': 'FUEL', 'MECH': 'MECH', 'PHAR': 'PHAR' };
-          if (!shopCatMap[s.catCode]) return;
-          const dist = Utils.haversine(pos.lat, pos.lng, s.lat, s.lng);
-          if (dist <= SOS_SEARCH_RADIUS) {
-            const catMatch = relevantCats.includes(s.catCode);
-            allNearby.push({ name: s.name, phone: s.phone, cat: s.catCode, catIcon: SHOP_CATEGORIES.find(c => c.code === s.catCode)?.icon || '🏪', catLabel: SHOP_CATEGORIES.find(c => c.code === s.catCode)?.label || 'Shop', lat: s.lat, lng: s.lng, distance: dist, catMatch, isShop: true });
-          }
-        });
+      // ═══ SEARCH LOCALLY REGISTERED PROVIDERS (GPS FIX) ═══
+      Store.getProviders().filter(p => p.status === 'Active').forEach(p => {
+        let pLat = p.lat, pLng = p.lng;
+        if (pLat == null || pLng == null) {
+          if (p.gps) { const pts = p.gps.split(',').map(x => parseFloat(x.trim())); if (pts.length === 2 && !isNaN(pts[0]) && !isNaN(pts[1])) { pLat = pts[0]; pLng = pts[1]; } }
+        }
+        if (pLat == null || pLng == null) return;
+        const dist = Utils.haversine(pos.lat, pos.lng, pLat, pLng);
+        if (dist <= radiusM) {
+          const catMatch = relevantCats.includes(p.cat || p.category?.code);
+          allNearby.push({ ...p, lat: pLat, lng: pLng, distance: dist, catMatch, catIcon: p.category?.icon || '🏥', catLabel: p.category?.label || 'Provider' });
+        }
       });
-
-      // ═══ EXTENDED SEARCH: If none within 10km, search 100km zone bundle ═══
-      if (allNearby.length === 0) {
-        console.log('[SOS] No providers within 10km — extending search to 100km zone bundle...');
-        ZoneManager.getCachedZoneIds().forEach(zId => {
-          const zone = ZoneManager.getZoneData(zId);
-          if (!zone) return;
-          // Search providers in 100km
-          if (zone.providers) {
-            zone.providers.forEach(p => {
-              if (p.status !== 'Active') return;
-              const dist = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
-              if (dist <= SOS_EXTENDED_RADIUS) {
-                const catMatch = relevantCats.includes(p.cat);
-                allNearby.push({ ...p, distance: dist, catMatch });
-              }
-            });
-          }
-          // Search shops in 100km
-          if (zone.shops) {
-            zone.shops.forEach(s => {
-              if (!s.phone) return;
-              const dist = Utils.haversine(pos.lat, pos.lng, s.lat, s.lng);
-              if (dist <= SOS_EXTENDED_RADIUS) {
-                const catMatch = relevantCats.includes(s.catCode);
-                allNearby.push({ name: s.name, phone: s.phone, cat: s.catCode || 'GEN', catIcon: SHOP_CATEGORIES.find(c => c.code === s.catCode)?.icon || '🏪', catLabel: SHOP_CATEGORIES.find(c => c.code === s.catCode)?.label || 'Shop', lat: s.lat, lng: s.lng, distance: dist, catMatch, isShop: true });
-              }
-            });
-          }
-        });
-        // Also search locally registered providers
-        Store.getProviders().filter(p => p.status === 'Active' && p.lat && p.lng).forEach(p => {
-          const dist = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
-          if (dist <= SOS_EXTENDED_RADIUS) {
-            const catMatch = relevantCats.includes(p.cat);
-            allNearby.push({ ...p, distance: dist, catMatch, catIcon: p.category?.icon || '🏥', catLabel: p.category?.label || 'Provider' });
-          }
-        });
-      }
 
       // Sort: category matches first, then by distance
       allNearby.sort((a, b) => {
@@ -3179,9 +3181,13 @@
       state._sosAllNearby = allNearby;
       state._sosCurrentPage = 0;
       state._sosPageSize = 5;
-      state._sosSearchRadius = allNearby.length > 0 && allNearby[0].distance <= SOS_SEARCH_RADIUS ? SOS_SEARCH_RADIUS : SOS_EXTENDED_RADIUS;
+      state._sosSearchRadius = radiusM;
 
-      // ═══ RENDER PROVIDER LIST (PAGINATED) ═══
+      // Update provider label with current radius
+      const provLabel = document.getElementById('sosProviderLabel');
+      if (provLabel) provLabel.textContent = `📍 NEARBY PROVIDERS (${sosSearchRadius} KM) — TAP SMS TO SEND SOS`;
+
+      // ═══ RENDER PROVIDER LIST ═══
       const listEl = document.getElementById('sosProviderList');
       const noProvEl = document.getElementById('sosNoProviders');
 
@@ -3189,9 +3195,10 @@
         noProvEl.classList.add('hidden');
         renderSOSProviderPage();
       } else {
-        // Absolute last resort — no providers found even in 100km
         listEl.innerHTML = '';
         noProvEl.classList.remove('hidden');
+        const noRadEl = document.getElementById('sosNoRadius');
+        if (noRadEl) noRadEl.textContent = sosSearchRadius;
         const sms112Body = encodeURIComponent(buildSOSMessage('Emergency'));
         document.getElementById('sos112Link').href = `sms:112?body=${sms112Body}`;
       }
@@ -3206,40 +3213,88 @@
         });
       }
 
-      // ═══ FIRST AID GUIDE — Optional (manual open only) ═══
-      // Save GPS for road-sos.html to pick up
+      // Save GPS for first-aid page
       if (state.lastKnownPos) {
         localStorage.setItem('apara_last_pos', JSON.stringify(state.lastKnownPos));
       }
       localStorage.setItem('apara_sos_type', sosTypeCode);
 
-      // Inject Road SOS banner into step 4 — manual open only, no auto-countdown
-      const roadSosBanner = document.createElement('div');
-      roadSosBanner.id = 'roadSosAutoBanner';
-      roadSosBanner.style.cssText = `
-    margin:0.75rem 0.5rem 0;
-    padding:1rem;
-    background:linear-gradient(135deg,rgba(220,38,38,0.15),rgba(249,115,22,0.1));
-    border:1.5px solid rgba(220,38,38,0.4);
-    border-radius:14px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:0.75rem;
-    animation:slideUp 0.4s ease;
-  `;
-      roadSosBanner.innerHTML = `
-    <div style="flex:1">
-      <div style="font-size:0.9rem;font-weight:800;color:#fca5a5">🩺 First Aid Guide Available</div>
-      <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px;font-family:var(--font-mono)">Tap to open emergency triage & first-aid steps</div>
-    </div>
-    <button onclick="openRoadSOS()" style="background:linear-gradient(135deg,#b91c1c,#dc2626);color:#fff;border:none;border-radius:10px;padding:0.55rem 0.85rem;font-size:0.78rem;font-weight:800;cursor:pointer;white-space:nowrap">Open →</button>`;
-
-      const step4 = document.getElementById('sosStep4');
-      if (step4) step4.prepend(roadSosBanner);
-
       // Update the persistent banner
       updateSOSBanner();
+    }
+
+    // ═══ SOS RADIUS CONTROL ═══
+    function adjustSOSRadius(dir) {
+      const idx = SOS_RADII.indexOf(sosSearchRadius);
+      let newIdx = Math.max(0, Math.min(SOS_RADII.length - 1, idx + dir));
+      sosSearchRadius = SOS_RADII[newIdx];
+      document.getElementById('sosRadiusVal').textContent = sosSearchRadius;
+      reSearchSOSProviders();
+    }
+
+    function reSearchSOSProviders() {
+      const pos = state.lastKnownPos;
+      if (!pos || !state.pendingSOS) return;
+
+      const radiusM = sosSearchRadius * 1000;
+      const sosTypeCode = state.sosCategory?.code || 'ACC';
+      const sosProviderMap = { 'ACC': ['HOSP', 'TOW', 'MECH'], 'MED': ['HOSP', 'PHAR'], 'TYR': ['PUNC', 'MECH'], 'FUL': ['FUEL'], 'TOW': ['TOW', 'MECH'] };
+      const relevantCats = sosProviderMap[sosTypeCode] || [];
+
+      let allNearby = [];
+      ZoneManager.getCachedZoneIds().forEach(zId => {
+        const zone = ZoneManager.getZoneData(zId);
+        if (!zone) return;
+        if (zone.providers) {
+          zone.providers.forEach(p => {
+            if (p.status !== 'Active') return;
+            const dist = Utils.haversine(pos.lat, pos.lng, p.lat, p.lng);
+            if (dist <= radiusM) allNearby.push({ ...p, distance: dist, catMatch: relevantCats.includes(p.cat), catIcon: p.catIcon || '🏥', catLabel: p.catLabel || p.cat || 'Provider' });
+          });
+        }
+        if (zone.shops) {
+          zone.shops.forEach(s => {
+            if (!s.phone) return;
+            const shopCatMap = { 'FUEL': 'FUEL', 'MECH': 'MECH', 'PHAR': 'PHAR', 'HOSP': 'HOSP' };
+            if (!shopCatMap[s.catCode]) return;
+            const dist = Utils.haversine(pos.lat, pos.lng, s.lat, s.lng);
+            if (dist <= radiusM) allNearby.push({ name: s.name, phone: s.phone, cat: s.catCode, catIcon: (typeof SHOP_CATEGORIES !== 'undefined' ? SHOP_CATEGORIES.find(c => c.code === s.catCode)?.icon : '') || '🏪', catLabel: (typeof SHOP_CATEGORIES !== 'undefined' ? SHOP_CATEGORIES.find(c => c.code === s.catCode)?.label : '') || 'Shop', lat: s.lat, lng: s.lng, distance: dist, catMatch: relevantCats.includes(s.catCode), isShop: true });
+          });
+        }
+      });
+
+      // Local providers with GPS fix
+      Store.getProviders().filter(p => p.status === 'Active').forEach(p => {
+        let pLat = p.lat, pLng = p.lng;
+        if (pLat == null || pLng == null) {
+          if (p.gps) { const pts = p.gps.split(',').map(x => parseFloat(x.trim())); if (pts.length === 2 && !isNaN(pts[0]) && !isNaN(pts[1])) { pLat = pts[0]; pLng = pts[1]; } }
+        }
+        if (pLat == null || pLng == null) return;
+        const dist = Utils.haversine(pos.lat, pos.lng, pLat, pLng);
+        if (dist <= radiusM) allNearby.push({ ...p, lat: pLat, lng: pLng, distance: dist, catMatch: relevantCats.includes(p.cat || p.category?.code), catIcon: p.category?.icon || '🏥', catLabel: p.category?.label || 'Provider' });
+      });
+
+      allNearby.sort((a, b) => { if (a.catMatch && !b.catMatch) return -1; if (!a.catMatch && b.catMatch) return 1; return a.distance - b.distance; });
+      const seen = new Set();
+      allNearby = allNearby.filter(p => { if (!p.phone || seen.has(p.phone)) return false; seen.add(p.phone); return true; });
+
+      state._sosAllNearby = allNearby;
+      state._sosCurrentPage = 0;
+      state._sosSearchRadius = radiusM;
+
+      const provLabel = document.getElementById('sosProviderLabel');
+      if (provLabel) provLabel.textContent = `📍 NEARBY PROVIDERS (${sosSearchRadius} KM) — TAP SMS TO SEND SOS`;
+
+      if (allNearby.length > 0) {
+        document.getElementById('sosNoProviders').classList.add('hidden');
+        renderSOSProviderPage();
+      } else {
+        document.getElementById('sosProviderList').innerHTML = '';
+        document.getElementById('sosNoProviders').classList.remove('hidden');
+        const noRadEl = document.getElementById('sosNoRadius');
+        if (noRadEl) noRadEl.textContent = sosSearchRadius;
+      }
+      showToast(`🔍 Searching ${sosSearchRadius} km: ${allNearby.length} providers found`);
     }
 
     function cancelRoadSosAuto() {
@@ -3988,9 +4043,11 @@
       document.getElementById('mktPickupPin').textContent = order.pickupPin;
       document.getElementById('mktOrderCodeDisplay').textContent = order.compactSMS || order.packet;
 
-      // SMS link — uses COMPACT format
+      // SMS link — uses COMPACT format with GPS coordinates
       const shopPhone = shop ? (shop.phone || '112') : '112';
-      const smsBody = encodeURIComponent(order.compactSMS || `ORDER ${order.packet} PIN:${order.pickupPin}`);
+      const pos = state.lastKnownPos;
+      const gpsStr = pos ? `\nLoc:${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}\nMaps:https://maps.google.com/?q=${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}` : '';
+      const smsBody = encodeURIComponent((order.compactSMS || `ORDER ${order.packet} PIN:${order.pickupPin}`) + gpsStr);
       document.getElementById('mktSmsLink').href = `sms:${shopPhone}?body=${smsBody}`;
 
       updateOrderBanner();
@@ -4014,6 +4071,28 @@
       const mapDiv = document.getElementById('mktMap');
       if (!mapDiv) return;
       const pos = state.lastKnownPos || { lat: 20.5937, lng: 78.9629 };
+      const isOnline = typeof NetworkDetector !== 'undefined' ? NetworkDetector.isOnline() : navigator.onLine;
+
+      // ═══ OFFLINE FALLBACK: Hide map, show list-only mode ═══
+      if (!isOnline) {
+        mapDiv.style.display = 'none';
+        // Show offline banner if not already present
+        let offBanner = document.getElementById('mktOfflineBanner');
+        if (!offBanner) {
+          offBanner = document.createElement('div');
+          offBanner.id = 'mktOfflineBanner';
+          offBanner.style.cssText = 'background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.25);border-radius:10px;padding:0.6rem 0.75rem;margin-bottom:0.75rem;text-align:center;';
+          offBanner.innerHTML = '<div style="font-size:0.75rem;font-weight:700;color:#F97316;">📡 OFFLINE MODE</div><div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;">Map unavailable · Showing cached shops & providers from zone bundle</div>';
+          mapDiv.parentElement.insertBefore(offBanner, mapDiv);
+        }
+        // Still render shop list from cached data
+        return;
+      }
+
+      // ═══ ONLINE: Show map normally ═══
+      mapDiv.style.display = '';
+      const offBanner = document.getElementById('mktOfflineBanner');
+      if (offBanner) offBanner.remove();
 
       // Update block label with zone info — always, even without Leaflet
       const blockLabel = document.getElementById('mktBlockLabel');
@@ -4055,7 +4134,6 @@
       }
 
       // Multiple invalidateSize calls — Leaflet needs the container fully visible
-      // Screen animation takes 350ms, so we call at 100ms, 400ms, and 800ms
       setTimeout(() => { if (mktState.map) mktState.map.invalidateSize(); }, 100);
       setTimeout(() => { if (mktState.map) { mktState.map.invalidateSize(); mktState.map.setView([pos.lat, pos.lng], 12); } }, 400);
       setTimeout(() => { if (mktState.map) mktState.map.invalidateSize(); }, 800);
@@ -4140,17 +4218,23 @@
             }
           });
         });
-        // Also from Store directly
+        // Also from Store directly (GPS fix: handle both p.gps string and p.lat/p.lng)
         Store.getProviders().forEach(p => {
-          if (p.status !== 'Active' || !p.gps) return;
-          const pts = p.gps.split(',').map(x => parseFloat(x.trim()));
-          if (pts.length !== 2 || isNaN(pts[0]) || isNaN(pts[1])) return;
-          const dist = Utils.haversine(pos.lat, pos.lng, pts[0], pts[1]);
+          if (p.status !== 'Active') return;
+          let pLat = p.lat, pLng = p.lng;
+          if (pLat == null || pLng == null) {
+            if (p.gps) {
+              const pts = p.gps.split(',').map(x => parseFloat(x.trim()));
+              if (pts.length === 2 && !isNaN(pts[0]) && !isNaN(pts[1])) { pLat = pts[0]; pLng = pts[1]; }
+            }
+          }
+          if (pLat == null || pLng == null) return;
+          const dist = Utils.haversine(pos.lat, pos.lng, parseFloat(pLat), parseFloat(pLng));
           if (dist <= MKT_DISPLAY_RADIUS && !providers.find(ep => ep.id === p.id)) {
             providers.push({
               id: p.id, name: p.name, cat: p.category?.code || '',
               catIcon: p.category?.icon || '🏥', catLabel: p.category?.label || 'Provider',
-              phone: p.phone, lat: pts[0], lng: pts[1], distance: dist
+              phone: p.phone, lat: parseFloat(pLat), lng: parseFloat(pLng), distance: dist
             });
           }
         });

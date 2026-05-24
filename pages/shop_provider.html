@@ -566,6 +566,7 @@ function openOrderDetail(orderId) {
       </div>
       <div style="font-family:var(--font-mono);font-size:1.2rem;color:var(--accent-market);margin:0.75rem 0;text-align:center;">${order.blockCode}</div>
       <div class="text-xs text-muted text-center">Location: ${order.lat ? order.lat.toFixed(5) + '°, ' + order.lng.toFixed(5) + '°' : 'Unknown'}</div>
+      ${order.lat && order.lng ? `<a href="https://www.google.com/maps/dir/?api=1&destination=${order.lat.toFixed(5)},${order.lng.toFixed(5)}" target="_blank" rel="noopener" class="btn btn-sm mt-1" style="background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;text-decoration:none;display:block;text-align:center;font-size:0.75rem;max-width:220px;margin:0.5rem auto;">🗺️ Navigate to Customer</a>` : ''}
       <div style="margin-top:1rem;background:var(--bg-card);padding:0.75rem;border-radius:var(--radius-sm);">
         <div class="text-xs text-muted mb-1" style="text-transform:uppercase;">ORDER ITEMS</div>
         <div class="order-items-list">${itemsHtml}</div>
@@ -685,6 +686,7 @@ function lookupOrderCode() {
       </div>
       ${pinHtml}
       ${mapHtml}
+      ${hasCoords ? `<a href="https://www.google.com/maps/dir/?api=1&destination=${result.lat.toFixed(5)},${result.lng.toFixed(5)}" target="_blank" rel="noopener" class="btn btn-full mt-1" style="background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;text-decoration:none;display:block;text-align:center;font-size:0.85rem;">🗺️ Navigate to Customer</a>` : ''}
       <button class="btn btn-full mt-2" style="background:var(--accent-market);color:#fff;" onclick="acceptLookupOrder()">✅ Accept & Prepare</button>
     </div>
   `;
