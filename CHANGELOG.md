@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 
 ### 📝 Unified SOS Flow, GPS Fix, Offline Marketplace & Shop Dispatch Navigation — 2026-05-24
 
-**Contributor:** Anshul Prajapati (@Anshulpj12)
+**Contributor:** Kunali Ajay Nagpurkar
 **AI Assistant:** Gemini Antigravity
 
 | Category | Before | After |
