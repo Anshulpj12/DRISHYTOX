@@ -9,6 +9,91 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 Fixed Offline SOS Provider/Shop Visibility & Leaflet Crash Prevention — 2026-05-23
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Claude Opus 4.6 (Thinking)
+
+| Category | Before | After |
+|---|---|---|
+| Offline Boot Position | Defaulted to center of India (20.5937°N, 78.9629°E) — no cached zone data there, SOS list always empty | Restores driver's actual last known GPS coordinates from `localStorage` (`apara_last_known_pos`) |
+| Leaflet CDN Failure | `L is not defined` ReferenceError crashes all JavaScript execution, breaking SOS, marketplace, and settings | Graceful `typeof L` guards in `initMap()` and `initMktMap()` show "Map unavailable offline" placeholder |
+| Fallback GPS | `startFallbackGPS()` always overwrote position with center-of-India default | Now preserves restored position; only uses default if no position was ever saved |
+| Map Init Safety | `startGPSTracking()` called `initMap()` without error handling | Wrapped in `try-catch` so GPS tracking starts even if map fails |
+| Position Persistence | GPS position was only held in memory (`state.lastKnownPos`) | Every `onGPSUpdate()` now persists coordinates to `localStorage` for next boot |
+
+**Why:** When a driver loses internet connectivity on a highway (dead zone, tunnel, rural area), the cached 100km zone data containing providers and shops was inaccessible because: (1) the position defaulted to India's center where no zone data exists, and (2) Leaflet's CDN failure crashed all downstream JavaScript. This fix ensures SOS provider lists populate from cached data regardless of network state.
+
+**Files Changed:**
+- `pages/driver.html` — Added position restore on startup, position persistence in `onGPSUpdate`, Leaflet availability guards in `initMap`/`initMktMap`, try-catch in `startGPSTracking`, conditional fallback default
+- `context/offline_location_watchdog.md` — Added sections D (Startup Position Restoration) and E (Safe Leaflet Map Decoupling) to Section 4
+
+### 📝 Added Mandatory Rule for Feature Context Documentation — 2026-05-23
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity (Gemini 3.5 Flash)
+
+| Category | Before | After |
+|---|---|---|
+| AI Agent Rules | No codified requirement for context-file documentation of new features | Codified RULE 8: Feature Context Files, making it mandatory to create/update detailed markdown files inside `context/` for any new features or on-demand |
+| Project Structure | `context/` folder not officially listed in `AGENTS.md` | Listed `context/` folder as a critical folder in Project Structure Reference |
+
+**Why:** To ensure that all new features and major components are thoroughly documented by AI assistants, keeping modular architectural guides up-to-date and maintaining absolute clarity on workings and usage.
+
+**Files Changed:**
+- `AGENTS.md` — Added RULE 8 for Feature Context Files and updated Project Structure Reference.
+
+### 📝 Documented Advanced Cockpit Subsystems & Secondary Engines — 2026-05-22
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Advanced Cockpit Docs | Secondary driver systems like Voice SOS, OBD-II Bluetooth, Screen Wake Lock, and GPS Retro-Generation were not documented in the context guides | Created a comprehensive new guide detailing Voice SOS accelerometer triggers, Indian speech optimizations, OBD-II GATT Bluetooth, Screen Wake Lock visible loops, and recovery vector projections |
+
+**Why:** Rigorous analysis showed that secondary driver cockpit engines were missing from the context folder, necessitating a dedicated architectural spec to ensure thorough feature coverage.
+
+**Files Changed:**
+- `context/advanced_cockpit_subsystems.md` — [NEW] Complete guide for Shock Voice SOS, OBD-II Bluetooth, Wake Locks, Retro-Gen, and Parked Mode.
+- `docs/APARA_FEATURE_ARCHITECTURE.md` — Added Section 7 detailing secondary low-level cockpit systems and auxiliary triggers.
+
+### 📝 Documented Driver Proximity Map & Active SOS Responders — 2026-05-22
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Proximity Mapping Docs | Map documentation did not cover driver-side active provider markers | Added complete documentation of Leaflet-based driver proximity map, covering color coding, proximity queries, Haversine filters, and direct-call anchors |
+
+**Why:** The user requested to document the driver-side Leaflet proximity map showing active shops and nearby emergency service providers in the context files.
+
+**Files Changed:**
+- `context/driver_telemetry_hud.md` — Added Section 7 detailing visual color coding, discovery queries, and invalidation guards for the driver's Leaflet HUD map.
+- `context/marketplace_and_shops.md` — Added Section 5 detailing integration, styling, and popup structures of active commercial shops and SOS responders.
+- `docs/APARA_FEATURE_ARCHITECTURE.md` — Added Section 5.5 specifying the architectural pipeline, geodesic filters, and UI safeguards for active driver SOS mapping.
+
+### 📝 Created Contextual Feature Architecture Guides — 2026-05-22
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Platform Feature Documentation | Missing detailed modular feature blueprints | Implemented comprehensive guides covering Driver HUD telemetry, Provider maps, Shop OTP flow, Admin console control, Landing Page presentation, and Offline Test Harness simulations |
+
+**Why:** The user requested separate, highly detailed feature guides in a dedicated `context/` folder. These files have been expanded to include precise triage mathematical formulas, transport recommendations, clinical risk predictors, landing page bento layouts, and background Firebase fallback polling sync models.
+
+**Files Changed:**
+- `context/driver_telemetry_hud.md` — [NEW] Detailed guide covering Driver mobile portal layouts, HUD telemetry indicators, HTML5 DeviceMotion shock thresholds, speech recognition triggers, and location watchdog integrations.
+- `context/provider_shop_dashboards.md` — [NEW] Detailed guide covering Provider Emergency Lookup, Leaflet dynamic maps, Shop catalog sync flow with FAB triggers, and security OTP verification.
+- `context/admin_control_center.md` — [NEW] Detailed guide covering Admin dashboard metrics, Chart.js templates, database backup JSON/CSV streams, and configuration version pushing.
+- `context/testing_and_diagnostics.md` — [NEW] Detailed guide covering the Offline Test Harness sandbox iframe structure, Geolocation and Permission mocking with Object.defineProperty, and auto-login velocity vectors.
+- `context/landing_page_portal.md` — [NEW] Detailed guide covering visual presentation layout, Tailwind configs, 12-column Bento Grid structure, counter setInterval animations, and scroll viewport triggers.
+- `context/road_sos_triage.md` — Extended to cover the exact severity score algebraic equation ($S$), priority transport recommendations matrix, and clinical risk hazard predictors.
+- `context/firebase_data_sync.md` — Extended to cover the technical push version sync via Realtime Database and the 30-minute Cloud Firestore fallback polling loop.
+
 ### 📝 Resolved Merge Conflicts in shared.css and driver.html — 2026-05-21
 
 **Contributor:** Pranjali Chauhan
@@ -40,11 +125,13 @@ All notable changes to this project will be documented in this file.
 | Provider on Lookup Map | Not shown | Blue dot shows provider's location alongside driver marker |
 | Map Bounds | Fixed zoom level | Auto-fits to show both driver and provider positions |
 | Debug Logging | No parsing debug output | Console logs raw input and parsed data for debugging |
+| Error Handling | No try-catch — `BlockCodeEncoder.decode()` and `Store.getSOSEvents()` crashed silently killing entire function | Full try-catch wrapping with visible error UI, safe `typeof` guards on all external deps |
 
-**Why:** When pasting an SOS code with coordinates and clicking "Decode Location", the map didn't render due to Leaflet initialization race conditions. The SMS parser also missed coordinates embedded with `Coords:` keyword. The dispatch map only showed the driver's location — providers had no visual reference of their own position relative to the emergency.
+**Why:** When pasting an SOS code with coordinates and clicking "Decode Location", the map didn't render because `BlockCodeEncoder` and `Store` calls crashed silently with no error handling, killing the entire `lookupSOSCode()` function before it could render the result card or map. Added comprehensive try-catch at 3 levels (global, BlockCodeEncoder, Store) plus `typeof` guards.
 
 **Files Changed:**
-- `pages/provider.html` — Added provider GPS tracking (`startProviderGPS()`), fixed `lookupSOSCode()` coordinate extraction (supports Loc/Coords/Location keywords, Code: prefix, multiple Maps URL formats), rewrote `showLookupMap()` with `requestAnimationFrame` and provider blue dot, enhanced `renderDispatch()` map with dual markers and live provider tracking
+- `pages/provider.html` — Added provider GPS tracking (`startProviderGPS()`), fixed `lookupSOSCode()` with 3-level try-catch error handling (global + BlockCodeEncoder + Store), safe `typeof` guards on external dependencies, coordinate extraction (Loc/Coords/Location keywords, Code: prefix, multiple Maps URL formats), rewrote `showLookupMap()` with `requestAnimationFrame` and provider blue dot, enhanced `renderDispatch()` map with dual markers and live provider tracking
+- `docs/APARA_FEATURE_ARCHITECTURE.md` — [NEW] Complete Feature Architecture & Workflow Blueprint detailing all 6 primary core system engines, grid partitioning math, warning modals, and cost-control synchronization strategies.
 
 ### 📝 Apex Tactical HUD — Full Driver App Visual Redesign — 2026-05-19
 
