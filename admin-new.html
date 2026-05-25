@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,11 +8,13 @@
     <meta name="description" content="DRISHYTOX Admin Dashboard — AI Road Safety Intelligence Platform">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
             --asphalt: #0E0E10;
@@ -53,7 +56,7 @@
             position: absolute;
             width: 100%;
             height: 100%;
-            background-image: 
+            background-image:
                 repeating-linear-gradient(90deg, transparent, transparent 100px, var(--lane-yellow) 100px, var(--lane-yellow) 102px),
                 repeating-linear-gradient(0deg, transparent, transparent 100px, var(--lane-yellow) 100px, var(--lane-yellow) 102px);
             opacity: 0.05;
@@ -61,8 +64,13 @@
         }
 
         @keyframes roadMove {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(102px, 102px); }
+            0% {
+                transform: translate(0, 0);
+            }
+
+            100% {
+                transform: translate(102px, 102px);
+            }
         }
 
         /* Dashboard Layout */
@@ -427,7 +435,7 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
             transition: left 0.5s;
         }
 
@@ -523,8 +531,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         /* Responsive Design */
@@ -532,7 +545,7 @@
             .sidebar-nav {
                 width: 280px;
             }
-            
+
             .stats-grid {
                 grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             }
@@ -542,24 +555,25 @@
             .dashboard-container {
                 flex-direction: column;
             }
-            
+
             .sidebar-nav {
                 width: 100%;
                 height: auto;
                 border-right: none;
                 border-bottom: 1px solid var(--border-gray);
             }
-            
+
             .page-title {
                 font-size: 2rem;
             }
-            
+
             .stats-grid {
                 grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="road-background">
         <div class="road-lines"></div>
@@ -701,20 +715,23 @@
                     <div class="risk-gauge">
                         <div class="gauge-container">
                             <svg class="gauge-svg" viewBox="0 0 200 100">
-                                <path d="M 10 90 A 80 80 0 0 1 190 90" stroke="#38383D" stroke-width="8" fill="none"/>
-                                <path d="M 10 90 A 80 80 0 0 1 190 90" stroke="url(#gaugeGradient)" stroke-width="8" fill="none" stroke-dasharray="251.2" stroke-dashoffset="62.8" stroke-linecap="round"/>
+                                <path d="M 10 90 A 80 80 0 0 1 190 90" stroke="#38383D" stroke-width="8" fill="none" />
+                                <path d="M 10 90 A 80 80 0 0 1 190 90" stroke="url(#gaugeGradient)" stroke-width="8"
+                                    fill="none" stroke-dasharray="251.2" stroke-dashoffset="62.8"
+                                    stroke-linecap="round" />
                                 <defs>
                                     <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" style="stop-color:#34C759"/>
-                                        <stop offset="50%" style="stop-color:#FFD60A"/>
-                                        <stop offset="100%" style="stop-color:#FF3B30"/>
+                                        <stop offset="0%" style="stop-color:#34C759" />
+                                        <stop offset="50%" style="stop-color:#FFD60A" />
+                                        <stop offset="100%" style="stop-color:#FF3B30" />
                                     </linearGradient>
                                 </defs>
                             </svg>
                             <div class="gauge-value">75%</div>
                         </div>
                         <div class="risk-level medium">Medium Risk</div>
-                        <div class="risk-description">Current road safety conditions require attention in several corridors</div>
+                        <div class="risk-description">Current road safety conditions require attention in several
+                            corridors</div>
                     </div>
 
                     <!-- Charts -->
@@ -753,7 +770,7 @@
             const pageDescription = document.getElementById('pageDescription');
 
             // Update based on section
-            switch(section) {
+            switch (section) {
                 case 'overview':
                     pageTitle.textContent = 'Platform Overview';
                     pageDescription.textContent = 'Real-time road safety intelligence and analytics';
@@ -1369,9 +1386,10 @@
         }
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             initializeCharts();
         });
     </script>
 </body>
+
 </html>
