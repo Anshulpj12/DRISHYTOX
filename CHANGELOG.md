@@ -9,6 +9,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📝 Fixed Provider/Shop Map Visibility, Unified SOS Button, Offline Provider Lists — 2026-05-28
+
+**Contributor:** Anshul Prajapati (@Anshulpj12)
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Provider Zone Cache | `Store.saveProvider()` never called `ConfigPush.bumpVersion()` — zone caches were stale, newly registered providers invisible on map | `saveProvider()`, `updateProvider()`, `deleteProvider()` all bump config version, triggering zone cache refresh |
+| GPS Parsing (SOS Search) | `Store.getProviders()` searched `p.lat && p.lng` but providers store GPS as string `p.gps = "lat, lng"` — always returned 0 results | Parses `p.gps` string into lat/lng coordinates (matching `ZoneManager.loadZone()` pattern) |
+| SOS Buttons | Two buttons: "🚨 SOS EMERGENCY" + "🆘 ROAD SOS — Find Nearby Help" — confusing | Single unified "🆘 SOS — FIND NEARBY HELP" button with type selector tabs |
+| SOS Type Selection | Type had to be selected in separate SOS screen, then navigate to provider list separately | Type selector tabs (Accident, Medical, Tyre, Fuel, Tow, ALL) built into the unified SOS screen; selecting a type re-sorts providers by category match |
+| First Aid Location | Hidden at bottom of Road SOS screen below providers | Prominent position above GPS chip and provider list with enhanced styling |
+| Offline Provider List | `state.lastKnownPos` not restored when opening SOS offline — provider search returned empty | SOS screen restores position from `apara_last_known_pos` localStorage; searches zone cache with restored coordinates |
+| Map Refresh | Marketplace map markers didn't update when providers were added/removed | `onConfigPushUpdate()` now calls `renderMktMapMarkers()` to refresh map immediately |
+| SOS SMS from Unified Screen | No way to send formal SOS code from Road SOS screen | "📱 Send SOS Alert via SMS" section with "GENERATE & SEND SOS CODE" button bridges to existing SOS flow |
+
+**Why:** When a provider or shop was registered via admin panel, it saved to localStorage but the zone cache (which feeds the marketplace map and SOS provider search) was never invalidated. Additionally, the SOS search code checked `p.lat && p.lng` which don't exist on Store providers (they use `p.gps` string). The dual SOS buttons confused users — consolidated into one unified flow with type selector + provider list + first aid + SMS SOS in a single screen.
+
+**Files Changed:**
+- `js/data.js` — Added `ConfigPush.bumpVersion()` to `Store.saveProvider()`, `Store.updateProvider()`, `Store.deleteProvider()`
+- `pages/driver.html` — Replaced dual SOS buttons with unified `openUnifiedSOS()`; added SOS type selector tabs (`renderSOSTypeTabs`, `selectRoadSOSType`); fixed GPS parsing in `searchRoadSOSProviders()`, `sendSOS()`, `expandSOSRadius()` (3 locations); added `triggerSOSFromRoadSOS()` bridge function; added offline position restore in SOS screen; moved First Aid link to prominent position; added `renderMktMapMarkers()` call in `onConfigPushUpdate()`
+
 ### 📝 Fixed Offline SOS Provider/Shop Visibility & Leaflet Crash Prevention — 2026-05-23
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)

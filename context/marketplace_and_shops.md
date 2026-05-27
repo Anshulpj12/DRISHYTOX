@@ -85,3 +85,34 @@ To maximize emergency resilience, active emergency providers cached via the driv
     *   **Tyre Punctures (`PUNC`)**: `#F59E0B` (Amber)
 *   **One-Tap Communication popups**: Tapping a provider marker displays their brand logo/icon, name, service category, exact Haversine distance, and an active direct-dial anchor link (`tel:phone_number`). This allows drivers to bypass the automated triage system and immediately contact local operators directly via voice call in time-sensitive crises.
 
+---
+
+## 6. Zone Cache Invalidation — Critical Provider/Shop Refresh Mechanism
+
+### 6.1 The Problem (Fixed 2026-05-28)
+When providers or shops are registered, they are saved to `localStorage` under `apara_providers` / `apara_shops`. However, the **marketplace map** and **SOS provider search** read from **zone caches** (`apara_zone_*`), not directly from the Store. If the zone cache is not invalidated when providers change, newly registered providers are invisible.
+
+### 6.2 The Solution: ConfigPush.bumpVersion()
+All three Store mutation methods now trigger zone cache refresh:
+- `Store.saveProvider()` → `ConfigPush.bumpVersion({ type: 'provider_added' })`
+- `Store.updateProvider()` → `ConfigPush.bumpVersion({ type: 'provider_updated' })`
+- `Store.deleteProvider()` → `ConfigPush.bumpVersion({ type: 'provider_deleted' })`
+
+This matches the pattern already used by `ShopRegistry.saveShop()` and `ShopRegistry.deleteShop()`.
+
+### 6.3 GPS String Parsing Requirement
+Providers from `Store.getProviders()` store GPS as a **string** field `p.gps = "lat, lng"`, NOT as separate `p.lat` / `p.lng` numeric fields. Any code that searches providers by proximity **must** parse the GPS string:
+```javascript
+let pLat, pLng;
+if (p.lat != null && p.lng != null) { pLat = p.lat; pLng = p.lng; }
+else if (p.gps) {
+  const pts = p.gps.split(',').map(x => parseFloat(x.trim()));
+  if (pts.length !== 2 || isNaN(pts[0]) || isNaN(pts[1])) return;
+  pLat = pts[0]; pLng = pts[1];
+} else return;
+```
+
+Zone-cached providers (`zone.providers`) already have parsed `p.lat` and `p.lng` fields set by `ZoneManager.loadZone()`.
+
+### 6.4 Map Refresh on Config Push
+The `onConfigPushUpdate()` handler in `driver.html` now calls `renderMktMapMarkers()` after receiving zone update notifications, ensuring the marketplace map immediately reflects provider changes without requiring a page reload.

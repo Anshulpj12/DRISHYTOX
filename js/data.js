@@ -91,6 +91,10 @@ const Store = {
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
       FirebaseSync.pushProvider(provider).catch(e => console.warn('[Store] Firebase pushProvider failed:', e));
     }
+    // Bump config version so zone caches refresh with new provider
+    if (typeof ConfigPush !== 'undefined') {
+      ConfigPush.bumpVersion({ type: 'provider_added', providerId: provider.id });
+    }
   },
   updateProvider(id, updates) {
     const list = this.getProviders();
@@ -102,6 +106,10 @@ const Store = {
       if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
         FirebaseSync.updateProvider(id, updates).catch(e => console.warn('[Store] Firebase updateProvider failed:', e));
       }
+      // Bump config version so zone caches refresh
+      if (typeof ConfigPush !== 'undefined') {
+        ConfigPush.bumpVersion({ type: 'provider_updated', providerId: id });
+      }
     }
   },
   deleteProvider(id) {
@@ -110,6 +118,10 @@ const Store = {
     // Firebase sync
     if (typeof FirebaseSync !== 'undefined' && FirebaseSync.isReady()) {
       FirebaseSync.deleteProvider(id).catch(e => console.warn('[Store] Firebase deleteProvider failed:', e));
+    }
+    // Bump config version so zone caches refresh
+    if (typeof ConfigPush !== 'undefined') {
+      ConfigPush.bumpVersion({ type: 'provider_deleted', providerId: id });
     }
   },
   findProvider(id, password) {
