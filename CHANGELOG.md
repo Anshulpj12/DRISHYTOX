@@ -116,6 +116,21 @@ All notable changes to this project will be documented in this file.
 - `context/road_sos_triage.md` — Extended to cover the exact severity score algebraic equation ($S$), priority transport recommendations matrix, and clinical risk hazard predictors.
 - `context/firebase_data_sync.md` — Extended to cover the technical push version sync via Realtime Database and the 30-minute Cloud Firestore fallback polling loop.
 
+### 📝 Resolved Merge Conflicts in shared.css and driver.html — 2026-05-21
+
+**Contributor:** Pranjali Chauhan
+**AI Assistant:** Gemini Antigravity
+
+| Category | Before | After |
+|---|---|---|
+| Merge Status | Pull blocked due to merge conflicts in `css/shared.css` and `pages/driver.html` | Cleanly merged `css/shared.css` and accepted remote (`theirs`) version of `pages/driver.html` containing official APEX Tactical HUD & Location Watchdog |
+
+**Why:** Main and local branch diverged. Remote main branch contained the official APEX Tactical HUD glassmorphic layout and safety system updates (Location Watchdog, Voice SOS, Shock Detector), which are required for project compliance.
+
+**Files Changed:**
+- `css/shared.css` — Resolved merge conflict.
+- `pages/driver.html` — Resolved merge conflict by accepting remote updates with Tactical HUD redesign and emergency subsystems.
+
 ### 📝 Fixed Dispatch Map & SOS Code Decoding in Provider Dashboard — 2026-05-21
 
 **Contributor:** Anshul Prajapati (@Anshulpj12)

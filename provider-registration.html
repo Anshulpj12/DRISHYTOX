@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRISHYTOX — Provider Registration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --asphalt: #0E0E10;
+            --road-surface: #1A1A1D;
+            --lane-yellow: #FFD60A;
+            --signal-red: #FF3B30;
+            --signal-green: #34C759;
+            --cool-gray: #8E8E93;
+            --border-gray: #38383D;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--asphalt);
+            color: #FFFFFF;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Road Background */
+        .road-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, var(--asphalt) 0%, var(--road-surface) 100%);
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .road-lines {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                repeating-linear-gradient(90deg, transparent, transparent 100px, var(--lane-yellow) 100px, var(--lane-yellow) 102px),
+                repeating-linear-gradient(0deg, transparent, transparent 100px, var(--lane-yellow) 100px, var(--lane-yellow) 102px);
+            opacity: 0.1;
+            animation: roadMove 20s linear infinite;
+        }
+
+        @keyframes roadMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(102px, 102px); }
+        }
+
+        /* Registration Container */
+        .registration-container {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Left Panel - Branding */
+        .brand-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+            background: linear-gradient(135deg, rgba(52, 199, 89, 0.1), rgba(255, 214, 10, 0.05));
+            border-right: 1px solid var(--border-gray);
+            position: relative;
+        }
+
+        .brand-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 80px,
+                    rgba(255, 214, 10, 0.02) 80px,
+                    rgba(255, 214, 10, 0.02) 82px
+                );
+            pointer-events: none;
+        }
+
+        .brand-content {
+            text-align: center;
+            max-width: 500px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .brand-logo {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--signal-green), var(--lane-yellow));
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            font-size: 3rem;
+            box-shadow: 0 20px 60px rgba(52, 199, 89, 0.3);
+        }
+
+        .brand-title {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--signal-green), var(--lane-yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+        }
+
+        .brand-subtitle {
+            font-size: 1.2rem;
+            color: var(--cool-gray);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .brand-features {
+            text-align: left;
+            margin-top: 2rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            border: 1px solid var(--border-gray);
+            transition: all 0.3s;
+        }
+
+        .feature-item:hover {
+            transform: translateX(8px);
+            border-color: var(--lane-yellow);
+            background: rgba(255, 214, 10, 0.05);
+        }
+
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--signal-green), #2ECC71);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .feature-text {
+            font-weight: 600;
+        }
+
+        /* Right Panel - Registration Form */
+        .form-panel {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            position: relative;
+        }
+
+        .form-container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--road-surface);
+            border: 1px solid var(--border-gray);
+            border-radius: 24px;
+            padding: 3rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            position: relative;
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .form-title {
+            font-size: 2rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--signal-green), var(--lane-yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .form-subtitle {
+            color: var(--cool-gray);
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--cool-gray);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid var(--border-gray);
+            border-radius: 12px;
+            color: #FFFFFF;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--lane-yellow);
+            box-shadow: 0 0 0 3px rgba(255, 214, 10, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--signal-green), #2ECC71);
+            color: #FFFFFF;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(52, 199, 89, 0.3);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid var(--border-gray);
+            color: var(--cool-gray);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 214, 10, 0.1);
+            border-color: var(--lane-yellow);
+            color: var(--lane-yellow);
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .back-link a {
+            color: var(--cool-gray);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .back-link a:hover {
+            color: var(--lane-yellow);
+        }
+
+        /* Loading States */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(14, 14, 16, 0.95);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-gray);
+            border-top: 4px solid var(--signal-green);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .brand-panel {
+                display: none;
+            }
+            
+            .form-panel {
+                padding: 2rem;
+            }
+            
+            .form-container {
+                padding: 2rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-panel {
+                padding: 1rem;
+            }
+            
+            .form-container {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="road-background">
+        <div class="road-lines"></div>
+    </div>
+
+    <div class="registration-container">
+        <!-- Left Panel - Branding -->
+        <div class="brand-panel">
+            <div class="brand-content">
+                <div class="brand-logo">🚑</div>
+                <h1 class="brand-title">DRISHYTOX</h1>
+                <p class="brand-subtitle">Emergency Response Provider Network</p>
+                
+                <div class="brand-features">
+                    <div class="feature-item">
+                        <div class="feature-icon">🚨</div>
+                        <div class="feature-text">Real-time emergency alerts and dispatch</div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📍</div>
+                        <div class="feature-text">Advanced GPS tracking and routing</div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">⚡</div>
+                        <div class="feature-text">Fast response time optimization</div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📊</div>
+                        <div class="feature-text">Performance analytics and reporting</div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🤝</div>
+                        <div class="feature-text">Seamless coordination with drivers</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel - Registration Form -->
+        <div class="form-panel">
+            <div class="form-container">
+                <div class="form-header">
+                    <h2 class="form-title">Provider Registration</h2>
+                    <p class="form-subtitle">Join our emergency response network</p>
+                </div>
+                
+                <form id="providerRegistrationForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Organization Name</label>
+                            <input type="text" class="form-input" placeholder="Enter organization name" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Service Type</label>
+                            <select class="form-input" required>
+                                <option value="">Select service type</option>
+                                <option value="ambulance">Ambulance Service</option>
+                                <option value="tow">Tow Truck Service</option>
+                                <option value="mechanic">Roadside Assistance</option>
+                                <option value="medical">Medical Emergency</option>
+                                <option value="fire">Fire Service</option>
+                                <option value="police">Police Support</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Contact Person</label>
+                        <input type="text" class="form-input" placeholder="Full name of contact person" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" class="form-input" placeholder="provider@example.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Phone Number</label>
+                        <input type="tel" class="form-input" placeholder="+91 98765 43210" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">License/Registration Number</label>
+                        <input type="text" class="form-input" placeholder="Official registration number" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Service Area</label>
+                        <input type="text" class="form-input" placeholder="e.g., Delhi-NCR, Mumbai Metropolitan" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Service Radius (km)</label>
+                        <input type="number" class="form-input" placeholder="25" min="5" max="200" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Available Vehicles/Units</label>
+                        <input type="number" class="form-input" placeholder="Number of available units" min="1" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-input" placeholder="Create password" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Confirm Password</label>
+                            <input type="password" class="form-input" placeholder="Confirm password" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Operating Hours</label>
+                        <select class="form-input" required>
+                            <option value="">Select operating hours</option>
+                            <option value="247">24/7</option>
+                            <option value="day">Day Time (6AM - 10PM)</option>
+                            <option value="night">Night Time (6PM - 6AM)</option>
+                            <option value="custom">Custom Hours</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" required>
+                            <span style="color: var(--cool-gray); font-size: 0.9rem;">
+                                I agree to the Terms of Service and Privacy Policy
+                            </span>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn">Register as Provider</button>
+                </form>
+                
+                <div class="back-link">
+                    <a href="index-new.html">← Back to Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        // Form Submission
+        document.getElementById('providerRegistrationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            showLoading();
+            
+            // Simulate registration process
+            setTimeout(() => {
+                hideLoading();
+                alert('Provider registration successful! You will be redirected to the login page.');
+                window.location.href = 'index-new.html';
+            }, 2000);
+        });
+
+        // Loading States
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
+
+        // Form Validation
+        function validateForm() {
+            const password = document.querySelector('input[type="password"]').value;
+            const confirmPassword = document.querySelectorAll('input[type="password"]')[1].value;
+            
+            if (password !== confirmPassword) {
+                alert('Passwords do not match!');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add any initialization code here
+        });
+    </script>
+</body>
+</html>

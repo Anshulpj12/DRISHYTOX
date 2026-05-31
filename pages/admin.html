@@ -169,23 +169,92 @@
       <h2>🛡️ APARA</h2>
       <span>ADMIN PANEL</span>
     </div>
-    <div class="nav-item active" onclick="showSection('secDashboard',this)">📊 Dashboard</div>
-    <div class="nav-item" onclick="showSection('secRegister',this)">➕ Register Provider</div>
-    <div class="nav-item" onclick="showSection('secRegisterShop',this)">🏪 Register Shop</div>
-    <div class="nav-item" onclick="showSection('secProviders',this)">👥 Provider Table</div>
-    <div class="nav-item" onclick="showSection('secShops',this)">🏪 Shop Table</div>
-    <div class="nav-item" onclick="showSection('secDrivers',this)">🚗 Drivers</div>
-    <div class="nav-item" onclick="showSection('secBlockRegistry',this)">📦 Block Registry</div>
-    <div class="nav-item" onclick="showSection('secTransitLog',this)">🕐 Transit Log</div>
-    <div class="nav-item" onclick="showSection('secBlockMap',this)">🗺️ Block Map</div>
-    <div class="nav-item" onclick="showSection('secAudit',this)">📋 SOS Audit Trail</div>
-    <div class="nav-item" onclick="showSection('secOrderAudit',this)">🍽️ Order Audit</div>
-    <div class="nav-item" onclick="showSection('secV2V',this)">📡 V2V Relay Log</div>
-    <div class="nav-item" onclick="showSection('secConfig',this)">🔄 Config Push</div>
-    <div style="border-top:1px solid rgba(255,255,255,0.06);margin:0.75rem 0;padding-top:0.75rem;">
-      <div class="text-xs text-muted" style="padding:0 0.75rem 0.5rem;letter-spacing:0.08em;text-transform:uppercase;">☁️ Cloud Sync</div>
-      <button class="btn btn-full btn-sm" style="background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;margin:0 0.5rem;width:calc(100% - 1rem);" onclick="fullFirebaseSync()">☁️ Sync All to Firebase</button>
-      <div id="firebaseStatusSidebar" class="text-xs text-muted" style="text-align:center;padding:0.4rem 0.5rem;"></div>
+    
+    <!-- Dashboard Section -->
+    <div class="nav-section">
+      <div class="nav-section-title">Dashboard</div>
+      <div class="nav-item active" onclick="showSection('secDashboard',this)">
+        <span class="nav-icon">📊</span>
+        <span>Platform Dashboard</span>
+      </div>
+    </div>
+    
+    <!-- Provider Management -->
+    <div class="nav-section">
+      <div class="nav-section-title">Provider Management</div>
+      <div class="nav-item" onclick="showSection('secRegister',this)">
+        <span class="nav-icon">➕</span>
+        <span>Register Provider</span>
+      </div>
+      <div class="nav-item" onclick="showSection('secRegisterShop',this)">
+        <span class="nav-icon">🏪</span>
+        <span>Register Shop</span>
+      </div>
+      <div class="nav-item" onclick="showSection('secProviders',this)">
+        <span class="nav-icon">👥</span>
+        <span>Provider Table</span>
+      </div>
+      <div class="nav-item" onclick="showSection('secShops',this)">
+        <span class="nav-icon">🏪</span>
+        <span>Shop Table</span>
+      </div>
+    </div>
+    
+    <!-- User Management -->
+    <div class="nav-section">
+      <div class="nav-section-title">User Management</div>
+      <div class="nav-item" onclick="showSection('secDrivers',this)">
+        <span class="nav-icon">🚗</span>
+        <span>Drivers</span>
+      </div>
+    </div>
+    
+    <!-- Data & Analytics -->
+    <div class="nav-section">
+      <div class="nav-section-title">Data & Analytics</div>
+      <div class="nav-item" onclick="showSection('secBlockRegistry',this)">
+        <span class="nav-icon">📦</span>
+        <span>Block Registry</span>
+      </div>
+      <div class="nav-item" onclick="showSection('secTransitLog',this)">
+        <span class="nav-icon">🕐</span>
+        <span>Transit Log</span>
+      </div>
+      <div class="nav-item" onclick="showSection('secBlockMap',this)">
+        <span class="nav-icon">🗺️</span>
+        <span>Block Map</span>
+      </div>
+    </div>
+    
+    <!-- Reports & Audit -->
+    <div class="nav-section">
+      <div class="nav-section-title">Reports & Audit</div>
+      <div class="nav-item" onclick="showSection('secAudit',this)">
+        <span class="nav-icon">📋</span>
+        <span>SOS Audit Trail</span>
+      </div>
+      <div class="nav-item" onclick="showSection('secOrderAudit',this)">
+        <span class="nav-icon">🍽️</span>
+        <span>Order Audit</span>
+      </div>
+      <div class="nav-item" onclick="showSection('secV2V',this)">
+        <span class="nav-icon">📡</span>
+        <span>V2V Relay Log</span>
+      </div>
+    </div>
+    
+    <!-- System Configuration -->
+    <div class="nav-section">
+      <div class="nav-section-title">System</div>
+      <div class="nav-item" onclick="showSection('secConfig',this)">
+        <span class="nav-icon">🔄</span>
+        <span>Config Push</span>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,0.06);margin:0.75rem 0;padding-top:0.75rem;">
+        <div class="text-xs text-muted" style="padding:0 0.75rem 0.5rem;letter-spacing:0.08em;text-transform:uppercase;">☁️ Cloud Sync</div>
+        <button class="btn btn-full btn-sm" style="background:linear-gradient(135deg,var(--accent-alert),#FF6B5B);color:#fff;margin:0 0.5rem;width:calc(100% - 1rem);" onclick="fullFirebaseSync()">☁️ Sync All to Firebase</button>
+        <div id="firebaseStatusSidebar" class="text-xs text-muted" style="text-align:center;padding:0.4rem 0.5rem;"></div>
+      </div>
     </div>
   </nav>
 
